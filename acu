@@ -1,0 +1,1539 @@
+#!/bin/bash
+
+################################################################
+#                                                              #
+#               Arch (ARM) Configuration Utility               #
+#                                                              #
+################################################################
+# arch(arm)-config-util (acu) is a configuration utility for Arch Linux ARM (Aarch64) 
+# currently with main focus on the Radxa Rock 5 and RK3588
+# acu provides some similar features with armbian-config or raspi-config or rsetup but for Arch Linux
+# acu provides a pacman (and other package manager) wrapper with additional features (such as installing packages from a github release based repo, from URL, compiling and installing packages from source (PKGBUILD), etc.)
+################################################################
+# Configuration variables for acu
+
+# utilname
+# name of this utility (used for title)
+utilname="Arch (ARM) Configuration Utility"
+
+# utilver
+# this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
+# format of Version Number is YYMMDDN which N is 1-9 count on updates commited on the same day
+utilver=2402201
+
+# branch
+# currently, there are two branch/channel which is main and dev
+branch=dev
+
+# update_available
+# acu uses this variable to determine whether to show the "update available" menu option
+# note: you should never set this to true
+update_available=false
+
+# device_config
+# load configuration for a target device (e.g. rock-5b)
+device_config="default"
+
+# URL of Arch Linux ARM Archive
+alaa_url="https://alaa.ad24.cz/"
+
+adrepo_url="https://api.github.com/repos/kwankiu/archlinux-installer-rock5/releases/tags/kernel"
+
+# Directory for storing source files
+source_repo_dir="source-repo-dir"
+
+################################################################
+# Tools for formatting / styling
+
+# Define terminal color codes
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[0;33m'
+BLUE='\033[0;36m'
+NC='\033[0m' # No Color
+
+# Option Picker
+function select_option {
+
+    # little helpers for terminal print control and key input
+    ESC=$( printf "\033")
+    cursor_blink_on()  { printf "$ESC[?25h"; }
+    cursor_blink_off() { printf "$ESC[?25l"; }
+    cursor_to()        { printf "$ESC[$1;${2:-1}H"; }
+    print_option()     { printf "   $1 "; }
+    print_selected()   { printf "  $ESC[7m $1 $ESC[27m"; }
+    get_cursor_row()   { IFS=';' read -sdR -p $'\E[6n' ROW COL; echo ${ROW#*[}; }
+    key_input()        { read -s -n3 key 2>/dev/null >&2
+                         if [[ $key = $ESC[A ]]; then echo up;    fi
+                         if [[ $key = $ESC[B ]]; then echo down;  fi
+                         if [[ $key = ""     ]]; then echo enter; fi; }
+
+    # initially print empty new lines (scroll down if at bottom of screen)
+    for opt; do printf "\n"; done
+
+    # determine current screen position for overwriting the options
+    local lastrow=`get_cursor_row`
+    local startrow=$(($lastrow - $#))
+
+    # ensure cursor and input echoing back on upon a ctrl+c during read -s
+    trap "cursor_blink_on; stty echo; printf '\n'; exit" 2
+    cursor_blink_off
+
+    local selected=0
+    while true; do
+        # print options by overwriting the last lines
+        local idx=0
+        for opt; do
+            cursor_to $(($startrow + $idx))
+            if [ $idx -eq $selected ]; then
+                print_selected "$opt"
+            else
+                print_option "$opt"
+            fi
+            ((idx++))
+        done
+
+        # user key control
+        case `key_input` in
+            enter) break;;
+            up)    ((selected--));
+                   if [ $selected -lt 0 ]; then selected=$(($# - 1)); fi;;
+            down)  ((selected++));
+                   if [ $selected -ge $# ]; then selected=0; fi;;
+        esac
+    done
+
+    # cursor position back to normal
+    cursor_to $lastrow
+    printf "\n"
+    cursor_blink_on
+
+    return $selected
+}
+
+# Echo with colors
+colorecho() {
+    color="$1"
+    text="$2"
+    echo -e "${color}${text}${NC}"
+}
+
+# Title / Heading
+title() {
+  clear
+  text="$1"
+  echo "---------------------------------------------------------------------"
+  colorecho "$BLUE" "${text}"
+  echo "---------------------------------------------------------------------"
+}
+
+################################################################
+# Version updates handling
+
+# Check updates
+check_util_updates() {
+    remote_utilver=$(curl -s "https://raw.githubusercontent.com/kwankiu/acu/$branch/acu" | grep -o 'utilver=[0-9]*' | cut -d= -f2)
+    if [ "$remote_utilver" -gt "$utilver" ]; then
+        update_available=true
+    fi
+}
+
+# Install / Update Utility to PATH
+update_util() {
+    if [ "$update_available" = true ] || [ "$1" = "--install" ]; then 
+        title "$utilname"
+        colorecho "$GREEN" "Installing / Updating $utilname ..."
+        if ! [ -x "$(command -v wget)" ]; then
+            sudo pacman -Sy wget --noconfirm
+        fi
+
+        sudo rm -rf /usr/bin/acu
+        sudo wget -N -P /usr/bin/ https://raw.githubusercontent.com/kwankiu/acu/$branch/acu
+        sudo chmod +x /usr/bin/acu
+        acu
+    fi
+}
+
+# Create an alias of acu or another command
+add_alias() {
+    # Path to the directory where the alias script will be created
+    ALIAS_SCRIPT_DIR="/usr/bin"
+
+    # Alias name
+    ALIAS_NAME=$1
+
+    # Command to run
+    if [ -z "$CUSTOM_CMD_TO_RUN" ]; then
+        COMMAND_TO_RUN="acu"
+    else
+        COMMAND_TO_RUN=$CUSTOM_CMD_TO_RUN
+    fi
+
+    # Create the alias script
+    sudo bash -c "echo '#!/bin/bash' > $ALIAS_SCRIPT_DIR/$ALIAS_NAME"
+    sudo bash -c "echo '$COMMAND_TO_RUN \"\$@\"' >> $ALIAS_SCRIPT_DIR/$ALIAS_NAME"
+    sudo chmod +x $ALIAS_SCRIPT_DIR/$ALIAS_NAME
+    colorecho "$GREEN" "Command '$ALIAS_NAME' has been created."
+}
+
+################################################################
+# Packages Install Tools
+
+install_from_source() {
+
+    cpwd=$(pwd)
+    
+    # Install required package
+    if ! [ -x "$(command -v git)" ]; then
+        sudo pacman -S git --noconfirm
+    fi
+    
+    sudo pacman -S --needed base-devel --noconfirm
+    
+    # Ensure folder doesn't exist
+    sudo rm -rf ~/"$source_repo_dir"
+    
+    # Get the repository URL from the argument
+    repo_url="$1"
+    
+    # If the URL starts with 'aur://', modify the URL to use AUR repository
+    if [[ "$repo_url" == aur://* ]]; then
+        package_name="${repo_url#aur://}"
+        repo_url="https://aur.archlinux.org/$package_name.git"
+    # If the URL starts with 'gh://', modify the URL to use GitHub repository
+    elif [[ "$repo_url" == gh://* ]]; then
+        ghrepo_name="${repo_url#gh://}"
+        repo_url="https://github.com/$ghrepo_name.git"
+    fi
+    
+    # Clone repo
+    colorecho "$GREEN" "Cloning Package from source ..."
+    cd ~/
+    git clone "$repo_url" "$source_repo_dir"
+    
+    # Compile & Install
+    cd "$source_repo_dir"
+    
+    if [ ! -z "$2" ] && [ "$2" != "--noinstall" ]; then
+        cd "$2"
+    fi
+    
+    colorecho "$GREEN" "Compiling & Installing Package from source ..."
+    makepkg -sA --noconfirm
+
+    if [ "$2" != "--noinstall" ] && [ "$3" != "--noinstall" ]; then
+        sudo pacman -U --overwrite \* *.pkg.tar.* --noconfirm
+    
+        # Clean Up
+        cd "$cpwd"
+        sudo rm -rf ~/"$source_repo_dir"
+    fi 
+
+}
+
+# Install Single Packages from any URL
+install_pkg_from_url() {
+    colorecho "$GREEN" "Downloading package from $1 ..."
+    curl -LJO $1
+    ipkgname=$(basename $1)
+    colorecho "$GREEN" "Installing package $ipkgname ..."
+    sudo pacman -U --overwrite \* $ipkgname --noconfirm
+    rm -rf $ipkgname
+}
+
+# Download Packages from a GitHub Release Repo
+install_ghrel_packages() {
+
+    if [ -z "$1" ]; then
+        colorecho "$RED" "Error: No package specified."
+        exit 1
+    else
+        dgpkg=$1
+    fi
+    
+    ghrel_url=("$adrepo_url")
+    dgpkg_list=()
+
+    for which_url in "${ghrel_url[@]}"; do
+      colorecho "$GREEN" "Fetching $which_url ..."
+      dgpkg_list+=($(curl -s "$which_url" | grep -v '.sig' | grep -B 1 ${dgpkg} | grep -oP '"browser_download_url": "\K[^"]+'))
+    done
+
+    echo ""
+    colorecho "$BLUE" "The following packages will be downloaded:"
+    echo ""
+    for url in "${dgpkg_list[@]}"; do
+        selection=$(basename "$url")
+        echo "$selection"
+    done
+    echo ""
+    echo -ne $"${BLUE}Are you sure to download the packages (y/n)?${NC}"
+    read answer
+
+    if [ "$answer" = "y" ]; then
+        for url in "${dgpkg_list[@]}"; do
+            selection=$(basename "$url")
+            echo "Downloading and Installing $selection ..."
+            install_pkg_from_url "$url"
+
+            if [ ! -z "$2" ]; then
+              sudo cp -r $selection $2/$selection
+              sudo rm -rf $selection
+            fi
+
+        done
+    fi
+
+}
+
+################################################################
+# Utility Main Menu
+
+config_options() {
+    title "$utilname"
+    options=("System Maintenance - Managing Updates, Bootloader, System, Linux Kernel, etc.")
+    options+=("Manage Packages - Install, Update or Downgrade Software Packages.")
+    options+=("Performance & Features - Tweak SoC Performance Settings, Enable PWM Fan, Overclocking, etc.")
+    options+=("User & Localization - Manage user accounts, Generating Locale, changing Timezone, etc.")
+
+    if [ "$update_available" = true ]; then 
+        options+=("Update Utility to latest version $GREEN(Updates available)$NC")
+    fi
+    
+    options+=("Exit Utility")
+    select_option "${options[@]}"
+    choice=$?
+
+    # Choice
+    case $choice in
+        0)
+            system_maintenance
+            ;;
+        1)
+            manage_packages
+            ;;
+        2)
+            performance_features
+            ;;
+        3)
+            user_localization
+            ;;
+        4)
+            update_util
+            ;;
+        *)
+            exit 1
+            ;;
+    esac
+
+}
+
+################################################################
+# System Maintenance
+
+# System Maintenance Main Menu
+system_maintenance() {
+    title "$utilname - System Maintenance"
+    options=("Package Updates - Check & Perform Selective / Full System Upgrade")
+    options+=("Update SPI Bootloader - Flash Latest Radxa U-Boot")
+    options+=("Build & Install Kernel - Install other Linux Kernel from source")
+    #options+=("Move Arch Linux - Copy Arch Linux to another disk.")
+    options+=("Return to Main Menu")
+    select_option "${options[@]}"
+    choice=$?
+
+    # Choice
+    case $choice in
+        0)
+            system_update
+            ;;
+        1)
+            flash_uboot
+            ;;
+        2)
+            install_kernel
+            ;;
+        #3)
+            #move_system
+            #;;
+        *)
+            config_options
+            ;;
+    esac
+
+}
+
+# System Update
+system_update() {
+
+    title "$utilname - Package Updates"
+
+    if [ "$1" = "--select" ]; then
+        local selected_option="${poptions[$2]}"
+
+        if [[ " ${selection[*]} " == *" $selected_option "* ]]; then
+            options[$2]="[ ] ${selected_option}"
+            selection=("${selection[@]/$selected_option}")
+        else
+            options[$2]="[x] ${selected_option}"
+            selection+=("$selected_option")
+        fi
+    else
+        selection=()
+        options=("Return to Main Menu" "Upgrade All Packages" "Upgrade Selected Packages")
+        options+=("$GREEN----------------------------------------------------" "$GREEN Upgradable Packages (Press enter to select/deselect): " "$GREEN----------------------------------------------------" "Refresh / Reset $NC")
+        poptions=("${options[@]}")
+
+        if [ -x "$(command -v yay)" ]; then
+            update_list=($(yay -Qu))
+            if [ -z "$update_list" ]; then
+                options[6]="Refresh / Reset $NC (All packages are up-to-date)"
+            else
+                for ((i=0; i<${#update_list[@]}; i+=4)); do
+                    options+=("[ ] ${update_list[i]}")
+                    poptions+=("${update_list[i]}")
+                done
+                options[6]="Refresh / Reset $NC (Using yay)"
+            fi
+        else
+            update_list=($(pacman -Qu | awk -F' ' '{ if (NF == 4) { $5 = "[]" } }1'))
+            if [ -z "$update_list" ]; then
+                options[6]="Refresh / Reset $NC (All packages are up-to-date)"
+            else
+                for ((i=0; i<${#update_list[@]}; i+=5)); do
+                    options+=("[ ] ${update_list[i]}")
+                    poptions+=("${update_list[i]}")
+                done
+                options[6]="Refresh / Reset $NC (Using pacman)"
+            fi
+        fi
+    fi
+
+    select_option "${options[@]}"
+    choice=$?
+
+    if [ "$choice" = "0" ]; then
+        config_options
+    elif [ "$choice" = "1" ]; then
+        if [ -x "$(command -v yay)" ]; then
+            yay -Syyu
+        else
+            sudo pacman -Syyu
+        fi
+    elif [ "$choice" = "2" ]; then
+        if [ -x "$(command -v yay)" ]; then
+            yay -S ${selection[*]}
+        else
+            sudo pacman -S ${selection[*]}
+        fi
+    elif [ "$choice" = "3" ] || [ "$choice" = "4" ] || [ "$choice" = "5" ] || [ "$choice" = "6" ]; then
+        system_update
+    else
+        system_update --select $choice
+    fi
+
+}
+
+# Update SPI Bootloader
+flash_uboot() {
+
+    if [ ! -e /dev/mtdblock0 ]; then
+        colorecho "$RED" "Error : SPI Flash not found"
+        sleep 1
+        exit 1
+    else
+        if [ -z "$1" ]; then
+            title "$utilname - Update SPI Bootloader"
+            colorecho "$GREEN" "Select an option to confirm"
+            colorecho "$RED" "Warning : The SPI NOR flash will be cleared."
+            echo ""
+            options=("Install Radxa U-Boot" "Install Radxa U-Boot (Debug Version)" "Install EDK2 Bootloader for Rock 5A (UEFI)" "Install EDK2 Bootloader for Rock 5B (UEFI)" "Install Armbian Bootloader" "Exit")
+            select_option "${options[@]}"
+            choice=$?
+        else
+            case $1 in
+                "radxa")
+                    choice=0
+                    ;;
+                "radxa-debug")
+                    choice=1
+                    ;;
+                "edk2-rock5a")
+                    choice=2
+                    ;;
+                "edk2-rock5b")
+                    choice=3
+                    ;;
+                "armbian")
+                    choice=4
+                    ;;
+                *)
+                    colorecho "$RED" "Invalid Option, Exiting ..."
+                    exit 1
+                    ;;
+            esac
+        fi
+
+        # Choice
+        case $choice in
+            0)
+                # Fetch the HTML content of the URL and extract the latest image filename
+                which_url=$uboot_url
+                colorecho "$GREEN" "Fetching latest Radxa U-Boot Image ..."
+                latest_image=$(curl -s "$which_url" | grep -o 'rock-5b-spi-image-[a-z0-9-]*\.img' | head -n 1)
+                ;;
+            1)
+                # Fetch the HTML content of the URL and extract the latest image filename
+                which_url=$uboot_debug_url
+                colorecho "$GREEN" "Fetching latest Radxa U-Boot (Debug Version) Image ..."
+                latest_image=$(curl -s "$which_url" | grep -o 'rock-5b-spi-image-[a-z0-9-]*\-debug.img' | head -n 1)
+                ;;
+            2)
+                # Fetch the HTML content of the URL and extract the latest image filename
+                which_url=$edk2_url
+                colorecho "$GREEN" "Fetching EDK2 Bootloader (UEFI) ..."
+                latest_image=$(curl -s "$which_url" | grep -wo "https.*rock-5a.*\.img" | head -n 1)
+                which_url="$(dirname "$latest_image")/"
+                latest_image=$(basename "$latest_image")
+                ;;
+            3)
+                # Fetch the HTML content of the URL and extract the latest image filename
+                which_url=$edk2_url
+                colorecho "$GREEN" "Fetching EDK2 Bootloader (UEFI) ..."
+                latest_image=$(curl -s "$which_url" | grep -wo "https.*rock-5b.*\.img" | head -n 1)
+                which_url="$(dirname "$latest_image")/"
+                latest_image=$(basename "$latest_image")
+                ;;
+            4)
+                # Fetch the HTML content of the URL and extract the latest image filename
+                which_url=$armbian_url
+                colorecho "$GREEN" "Fetching Armbian Bootloader ..."
+                latest_image=$(basename "$which_url")
+                which_url="$(dirname "$which_url")/"
+                ;;
+            *)
+                exit 1
+                ;;
+        esac
+    fi
+
+    ###
+    colorecho "$GREEN" "Install bootloader to the SPI NOR flash ..."
+
+
+    colorecho "$GREEN" "Downloading Zero Image ..."
+    curl -LJO ${zero_url}
+
+    if ! [ -x "$(command -v gzip)" ]; then
+        sudo pacman -Sy gzip --noconfirm
+    fi
+
+    colorecho "$GREEN" "Extracting Zero Image ..."
+    gzip -d zero.img.gz
+
+    colorecho "$GREEN" "Flashing Zero Image to SPI NOR flash ..."
+    sudo dd if=zero.img of=/dev/mtdblock0
+
+    # Remove zero.img
+    sudo rm -rf zero.img
+
+    if [ -n "$latest_image" ]; then
+        # Download the latest image using wget
+        colorecho "$GREEN" "Downloading SPI U-Boot Image from ${which_url}${latest_image} ..."
+        curl -LJO ${which_url}${latest_image}
+    else
+        colorecho "$RED" "Fetch Error : No image found."
+        sleep 1
+        exit 1
+    fi
+    
+    colorecho "$GREEN" "Flashing SPI U-Boot Image ${latest_image} to SPI NOR flash ..."
+    sudo dd if=${latest_image} of=/dev/mtdblock0
+    sync
+    colorecho "$GREEN" "Installed bootloader to SPI NOR flash"
+
+    # Remove u-boot image file
+    sudo rm -rf ${latest_image}
+
+}
+
+# Re-install Kernel
+install_kernel() {
+
+    title "$utilname - Build & Install Kernel"
+
+    if [ -z "$1" ]; then
+        colorecho "$GREEN" "Select a kernel package to install:"
+        echo ""
+        options=("linux-radxa-rkbsp5-bin (AUR) - Install Radxa BSP Kernel (Linux 5.10) from Binary Package")
+        options+=("linux-radxa-rkbsp5-git (AUR) - Install Radxa BSP Kernel (Linux 5.10) from Source Code")
+        options+=("linux-rk3588-midstream (GitHub) - Install Googulator's Experimental Midstream kernel (Linux 6.2) from Source Code")
+        #options+=("linux-rk3588-collabora (GitHub) - Install Collabora's Experimental Upstream kernel (Linux 6.5) from Source Code")
+        options+=("Return to Main Menu")
+        select_option "${options[@]}"
+        choice=$?
+    fi
+
+    # Choice
+    if [ "$choice" = 0 ] || [ "$1" = "rkbsp-bin" ]; then
+        install_rkbsp5_bin
+    elif [ "$choice" = 1 ] || [ "$1" = "rkbsp-git" ]; then
+        install_rkbsp5_git
+    elif [ "$choice" = 2 ] || [ "$1" = "midstream-git" ]; then
+        install_midstream_git
+    else
+        config_options
+    fi
+}
+
+# Move Arch Linux
+move_system() {
+    echo "Not implemented"
+}
+
+################################################################
+# Manage Packages
+
+# Manage Packages Main Menu
+manage_packages() {
+    title "$utilname - Manage Packages"
+    options=("Install / Update Software - Install Basic Software / RK3588 Specified / Customized Packages")
+    options+=("Downgrade Packages - Install / Downgrade any Arch Linux Packages from Archive")
+    options+=("Add Pacman Repo - Add a repository to archlinux system's package manager (pacman).")
+    options+=("Return to Main Menu")
+    select_option "${options[@]}"
+    choice=$?
+
+    # Choice
+    case $choice in
+        0)
+            install_packages
+            ;;
+        1)
+            downgrade_packages
+            ;;
+        2)
+            add_repo
+            ;;
+        *)
+            config_options
+            ;;
+    esac
+
+}
+
+# Install Packages
+install_packages() {
+
+    if [ "$launch_as_installer" = 1 ]; then
+        title "Install Additional Packages"
+    else
+        title "$utilname - Install / Update Software"
+    fi
+
+    category=("Web - Surf the Internet" "Communication - Connect with friends, family, teams" "Suites - Office & Productivity Software" "Multimedia - Audio, Video, Graphics Software" "Gaming / Emulation / Virtualization Software" "Development Tools - Editors, IDEs, Build Tools" "Misc - Firmware Driver, other Tools and Software")
+    
+    if [ "$launch_as_installer" = 1 ]; then
+        options=("Finish Installation")
+    else
+        options=("Return to Main Menu")
+    fi
+
+    options+=("$GREEN----------------------------------------------------" "$GREEN Install / Update Software (Press enter to select/deselect): " "$GREEN----------------------------------------------------$GREEN")
+    options+=("${category[@]}$NC")
+    
+    select_option "${options[@]}"
+    choice=$?
+
+    if [ "$choice" = "0" ]; then
+        if [ "$launch_as_installer" = 1 ]; then
+            colorecho "$GREEN" "Finishing installation ..."
+        else
+            config_options
+        fi
+    elif [ "$choice" = "1" ] || [ "$choice" = "2" ] || [ "$choice" = "3" ]; then
+        install_packages
+    else
+        install_pkg_category $choice
+    fi
+
+}
+
+install_pkg_category() {
+
+    if [ "$1" = "--select" ]; then
+        local selected_option="${poptions[$2]}"
+
+        if [[ " ${selection[*]} " == *" $selected_option "* ]]; then
+            options[$2]="[ ] ${selected_option}"
+            selection=("${selection[@]/$selected_option}")
+        else
+            options[$2]="[x] ${selected_option}"
+            selection+=("$selected_option")
+        fi
+    else
+        selection=()
+        options=("Return to Category" "Install Selected Packages")
+        options+=("$GREEN Deselect All $NC")
+        poptions=("${options[@]}")
+
+        case $1 in
+            4)
+                categorytitle="$utilname - Install Web"
+                update_list=("firefox" "chromium" "ungoogled-chromium" "openssh" "nodejs" "nvm" "wget")
+                ;;
+            5)
+                categorytitle="$utilname - Install Communication"
+                update_list=("telegram-desktop" "teams" "discord" "signal" "silos")
+                ;;
+            6)
+                categorytitle="$utilname - Install Suites"
+                update_list=("libreoffice" "wps-office-cn" "abiword" "gnumeric" "gnucash" "glabels" "glom" "dia")
+                ;;
+            7)
+                categorytitle="$utilname - Install Multimedia"
+                update_list=("kodi" "vlc" "lollypop" "rhythmbox" "gimp" "inkscape" "krita" "audacity" "ardour" "blender")
+                ;;
+            8)
+                categorytitle="$utilname - Install Gaming / Emulation / Virtualization"
+                if [ "$branch" = "dev" ]; then
+                    update_list=("box64" "box86" "steam" "malior-droid" "wine64" "qemu-full")
+                else
+                    update_list=("box64" "qemu-full")
+                fi
+                ;;
+            9)
+                categorytitle="$utilname - Install Development Tools"
+                update_list=("code" "sublime-text-4" "gedit" "vim" "gnome-terminal" "konsole" "xterm" "git" "python-pipx" "python2") 
+                ;;
+            10)
+                categorytitle="$utilname - Install Misc"
+                update_list=("intel-ax210-fw" "yay" "neofetch" "screenfetch" "s-tui" "stress")
+                ;;
+        esac
+ 
+        for ((i=0; i<${#update_list[@]}; i++)); do
+            options+=("[ ] ${update_list[i]}")
+            poptions+=("${update_list[i]}")
+        done
+    fi
+
+    title "$categorytitle"
+
+    select_option "${options[@]}"
+    choice=$?
+
+    if [ "$choice" = "0" ]; then
+        install_packages
+    elif [ "$choice" = "1" ]; then
+        install_selected_pkg
+        install_packages
+    elif [ "$choice" = "2" ]; then
+        install_pkg_category
+    else
+        install_pkg_category --select $choice
+    fi
+
+}
+
+install_selected_pkg() {
+
+    for ((i=0; i<${#selection[@]}; i++)); do
+        echo " Install ${selection[i]}"
+        case ${selection[i]} in
+            "chromium")
+                if sudo pacman -Ssy "^chromium-mpp$" &> /dev/null; then
+                    sudo pacman -S chromium-mpp --noconfirm
+                    #install_pkg_from_url "$alaa_url/packages/r/re2/re2-1%3A20230301-1-aarch64.pkg.tar.xz"
+                    sudo systemctl enable --now libv4l-rkmpp-setup.service
+                    # Check if the file /etc/chromium-browser exists
+                    if [ ! -e "/etc/chromium-browser" ]; then
+                        # Create the directory /etc/chromium-browser
+                        sudo mkdir -p "/etc/chromium-browser"
+                    fi
+                    echo -e "# Default settings for chromium-browser. This file is sourced by /bin/sh from\n# /usr/bin/chromium-browser\n\n# Options to pass to chromium-browser\nLD_LIBRARY_PATH=/usr/lib/mali-valhall-g610/x11-wayland-gbm\nCHROMIUM_FLAGS=\"--use-gl=egl\"" | sudo tee /etc/chromium-browser/default >/dev/null
+                else
+                    sudo pacman -S chromium --noconfirm
+                fi
+                ;;
+            "nvm")
+                curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
+                export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
+                [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
+                source ~/.bashrc
+                ;;
+            "teams")
+                install_from_source "aur://teams-for-linux"
+                ;;
+            "discord")
+                install_from_source "aur://armcord-bin"
+                ;;
+            "signal")
+                install_from_source "aur://fpm"
+                install_from_source "aur://signal-desktop-arm"
+                ;;
+            "wine64")
+                colorecho "$RED" "Warning: This is experimental."
+                installWine64
+                ;;
+            "box86")
+                colorecho "$YELLOW" "This is experimental."
+                echo "Package Not Available, try update to latest utility."
+                ;;
+            "steam")
+                arch-rock-config install box86
+                colorecho "$YELLOW" "Make sure you installed box86 before installing Steam. This is experimental."
+                installSteam
+                ;;
+            "malior-droid")
+                colorecho "$RED" "Warning: This is experimental."
+                installMaliorDroid
+                ;;
+            "code")
+                install_from_source "aur://visual-studio-code-bin"
+                ;;
+            "radxa-imager")
+                install_from_source "gh://rock5-images-repo/radxa-imager"
+                ;;
+            "kodi")
+                if sudo pacman -Ssy "^kodi-nexus-mpp-git$" &> /dev/null; then 
+                    sudo pacman -S kodi-nexus-mpp-git --noconfirm
+                    if ! sudo pacman -Qs kodi-nexus-mpp-git > /dev/null ; then
+                        sudo pacman -S kodi-nexus-mpp-git
+                    fi
+                fi
+                ;;
+            "intel-ax210-fw")
+                #wifi
+                sudo wget -P /lib/firmware https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/iwlwifi-ty-a0-gf-a0-59.ucode
+                sudo mv /lib/firmware/iwlwifi-ty-a0-gf-a0.pnvm /lib/firmware/iwlwifi-ty-a0-gf-a0.pnvm.bak
+                #bt
+                sudo wget -P /lib/firmware/intel https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/intel/ibt-0041-0041.sfi
+                sudo wget -P /lib/firmware/intel https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/intel/ibt-0041-0041.ddc
+                ;;
+            "yay")
+                install_from_source "aur://yay-git"
+                ;;
+            *)
+                if [[ "${selection[i]}" == *"://"* ]]; then
+                    colorecho "$GREEN" "Installing package from ${selection[i]} ..."
+                    install_from_source "${selection[i]}"
+                elif sudo pacman -Ssy "^${selection[i]}$" &> /dev/null; then
+                    colorecho "$GREEN" "Installing ${selection[i]} with pacman ..."
+                    sudo pacman -S ${selection[i]} --noconfirm
+                elif pkg_tar=($(echo -e "n" | install_ghrel_packages "${selection[i]}" | grep '.*pkg.*')); then
+                    colorecho "$GREEN" "Installing ${selection[i]} from adrepo ..."
+                    install_ghrel_packages "${selection[i]}"
+                else
+                    colorecho "$GREEN"  "Compling and Installing ${selection[i]} from AUR ..."
+                    install_from_source "aur://${selection[i]}"
+                fi
+                ;;
+        esac
+    done
+}
+
+# Install Packages from Archive
+downgrade_packages() {
+    title "$utilname - Downgrade Packages"
+
+    if [ -z "$1" ]; then
+        read -p "Enter package to downgrade: " dgpkg
+    else
+        dgpkg=$1
+    fi
+
+    if [ -z "$2" ]; then
+        nopkg=15
+    else
+        nopkg=$2
+    fi
+    
+
+    dgpkgfb=$(echo $dgpkg | cut -b 1)
+    which_url="${alaa_url}packages/${dgpkgfb}/${dgpkg}/"
+    colorecho "$GREEN" "Fetching $which_url ..."
+    #latest_image=$(curl -s "$which_url" | grep -o '*-aarch64.pkg.tar.xz' | head -n 1)
+    dgpkg_list=$(curl -s "$which_url" | grep -v '.sig' | grep -o 'href="[^"]*"' | sed 's/href="//;s/"$//' | grep -o ${dgpkg}.*-aarch64.pkg.tar.xz)
+    dgpkg_date=$(curl -s "$which_url" | grep -v '.sig' | grep -o "${dgpkg}.*-aarch64.pkg.tar.xz.*<td class=\"date\">.*</td>" | grep -o "<td class=\"date\">.*</td>" | awk -F'<td class="date">|</td>' '{print $2}')
+
+    #paste -d ' ' <(echo "$dgpkg_list") <(echo "$dgpkg_date") | sort -k 2,2 -r
+    dgpkg_list=($(paste -d ' ' <(echo "$dgpkg_list") <(echo "$dgpkg_date") | sort -k 2,2 -r | awk '{print $1}' | head -n $nopkg))
+    select_option "${dgpkg_list[@]}"
+    choice=$?
+
+    install_pkg_from_url ${which_url}${dgpkg_list[choice]}
+}
+
+add_repo() {
+    if [ -z "$1" ]; then
+        title "$utilname - Add Pacman Repo"
+        read -p "Enter repo name: " repo_name
+        read -p "Enter server URL for $repo_name repo: " server_url
+        read -p "Do you want to add a GPG key for $repo_name repo? [Y/n]: " add_gpg_key
+        if [[ $add_gpg_key == [Yy]* ]]; then
+            read -p "Enter GPG key for $repo_name repo: " gpg_key
+        fi
+    elif [ "$1" = "7Ji" ]; then
+        server_url="https://github.com/7Ji/archrepo/releases/download/\$arch"
+        gpg_key="BA27F219383BB875"
+    elif [ "$1" = "BredOS" ]; then
+        server_url="https://github.com/BredGang/bred-repo/raw/main/\$repo/\$arch"
+    else
+        colorecho "$RED" "Invalid repo name. Aborting."
+        return 1
+    fi
+
+    if [ -z "$repo_name" ]; then
+        repo_name="$1"
+    fi
+
+    colorecho "$GREEN" "Adding $repo_name to pacman.conf ..."
+
+    if [ -z "$gpg_key" ]; then
+        echo -e "[$repo_name]\nServer = $server_url" | sudo tee -a /etc/pacman.conf
+    else
+        echo -e "[$repo_name]\nSigLevel = Never\nServer = $server_url" | sudo tee -a /etc/pacman.conf
+        colorecho "$GREEN" "Adding GPG keys ..."
+        sudo pacman-key --recv-keys "$gpg_key"
+        sudo pacman-key --lsign "$gpg_key"
+    fi
+
+    colorecho "$GREEN" "Updating repo ..."
+    sudo pacman -Syy --noconfirm
+    colorecho "$GREEN" "Done"
+}
+
+################################################################
+# Performance & Features
+
+# Performance & Features Main Menu
+performance_features() {
+    title "$utilname - Performance & Features"
+    options=("SoC Performance Profile - Available options are performance, ondemand and powersave")
+    options+=("PWM Fan Control - Configure PWM Fan-control service")
+    #options+=("Overclocking - Configure rk3588-unlock-opps overlay which increases CPU supply & CPU VDD supply")
+    #options+=("Overlay - Configure Device Tree Overlay")
+    options+=("Return to Main Menu")
+    select_option "${options[@]}"
+    choice=$?
+
+    # Choice
+    case $choice in
+        0)
+            soc_profile
+            ;;
+        1)
+            fan_control
+            ;;
+        #2)
+            #overclocking
+            #;;
+        #3)
+            #overlays
+            #;;
+        *)
+            config_options
+            ;;
+    esac
+
+}
+
+# SoC Performance Profile
+soc_profile() {
+
+    if [ -z "$1" ] || [ "$1" = "status" ]; then
+        if [ -z "$1" ]; then
+            title "$utilname - SoC Performance Profile"
+        else
+            title "$utilname - SoC Monitor"
+        fi
+        colorecho "$BLUE" "CPU Profile: $(cat /sys/bus/cpu/devices/cpu[046]/cpufreq/scaling_governor)"
+        colorecho "$BLUE" "Memory Profile: $(cat /sys/class/devfreq/dmc/governor)"
+        colorecho "$BLUE" "GPU Profile: $(cat /sys/class/devfreq/fb000000.gpu/governor)"
+    fi
+
+    if [ -z "$1" ]; then
+        echo ""
+        options=("Performance - Run SoC at full performance" "On Demand - Run SoC on CPU usage demand" "Power Save - Run SoC on Power Saving Mode" "Return to Main Menu")
+        select_option "${options[@]}"
+        choice=$?
+    else
+        case $1 in
+                "performance")
+                    choice=0
+                    ;;
+                "ondemand")
+                    choice=1
+                    ;;
+                "powersave")
+                    choice=2
+                    ;;
+                "status")
+                    choice=99
+                    ;;
+                "force-performance")
+                    force_performance_at_boot
+                    choice=99
+                    ;;
+                *)
+                    colorecho "$RED" "Invalid Option, Exiting ..."
+                    exit 1
+                    ;;
+        esac
+    fi
+
+    if [ "$choice" = "0" ]; then
+        echo performance | sudo tee /sys/bus/cpu/devices/cpu[046]/cpufreq/scaling_governor /sys/class/devfreq/dmc/governor /sys/class/devfreq/fb000000.gpu/governor
+         colorecho "$GREEN" "Profile set to Performance"
+    elif [ "$choice" = "1" ]; then
+        echo ondemand | sudo tee /sys/bus/cpu/devices/cpu[046]/cpufreq/scaling_governor && echo dmc_ondemand | sudo tee /sys/class/devfreq/dmc/governor && echo simple_ondemand | sudo tee /sys/class/devfreq/fb000000.gpu/governor
+        colorecho "$GREEN" "Profile set to On Demand"
+    elif [ "$choice" = "2" ]; then
+        echo powersave | sudo tee /sys/bus/cpu/devices/cpu[046]/cpufreq/scaling_governor /sys/class/devfreq/dmc/governor /sys/class/devfreq/fb000000.gpu/governor
+        colorecho "$GREEN" "Profile set to Power Save"
+    elif [ "$choice" = "99" ]; then
+        fan_control status --soc-monitor
+    else
+        config_options
+    fi
+
+}
+
+force_performance_at_boot() {
+    echo -e "[Unit]\nDescription=Set Performance Mode on Boot\nAfter=multi-user.target\n\n[Service]\nType=oneshot\nExecStart=/bin/bash -c \"echo performance > /sys/bus/cpu/devices/cpu4/cpufreq/scaling_governor; echo performance > /sys/bus/cpu/devices/cpu0/cpufreq/scaling_governor; echo performance > /sys/bus/cpu/devices/cpu6/cpufreq/scaling_governor; echo performance > /sys/class/devfreq/dmc/governor; echo performance > /sys/class/devfreq/fb000000.gpu/governor\"\n\n[Install]\nWantedBy=multi-user.target" | sudo tee /etc/systemd/system/force-performance.service > /dev/null
+    sudo systemctl daemon-reload
+    sudo systemctl enable force-performance.service
+}
+
+################################################################
+# User & Localization
+
+# User & Localization Main Menu
+user_localization() {
+    title "$utilname - User & Localization"
+    options=("Manage User - Add, Remove and Change User Account Settings")
+    options+=("Locale - Generate Locale Settings")
+    options+=("Fonts - Install Fonts, TTF, Non-English Characters, Special Characters / Emoji")
+    options+=("Time - Change Time Zone, Current Date and Time")
+    options+=("Keyboard Layout - Change Keyboard Layout")
+    options+=("WiFi Country - Change WiFi Country Settings")
+    options+=("Return to Main Menu")
+    select_option "${options[@]}"
+    choice=$?
+
+    # Choice
+    case $choice in
+        0)
+            manage_user
+            ;;
+        1)
+            locale
+            ;;
+        2)
+            fonts
+            ;;
+        3)
+            timezone
+            ;;
+        4)
+            keyboard
+            ;;
+        5)
+            wifi_country
+            ;;
+        *)
+            config_options
+            ;;
+    esac
+
+}
+
+# Function to manage user accounts
+manage_user() {
+
+    if [ -z "$1" ]; then
+    title "$utilname - Manage User"
+    
+    # List all user accounts
+    real_users=($(getent passwd | awk -F: '$3 >= 1000 && $3 < 65534 {print $1}'))
+
+    # Prompt to add a new user
+    select_options=("Return to User & Localization Menu" "Add User")
+    select_options+=("${real_users[@]}")
+    
+    select_option "${select_options[@]}"
+    choice=$?
+
+    elif [ "$1" = "add" ]; then
+        choice=1
+        new_user=$2
+    elif [ "$1" = "remove" ]; then
+        choice=99
+        t_user=$2
+    elif [ "$1" = "manage" ]; then
+        selected_user=$2
+        manage_action=$3
+    fi
+
+    case $choice in
+        0)
+            user_localization
+            ;;
+        1)
+            if [ -z "$new_user" ]; then
+                title "$utilname - Add New User"
+                read -p "Enter username for the new user: " new_user
+            fi
+            sudo useradd -m "$new_user"
+            sudo passwd "$new_user"
+            sudo usermod -aG wheel "$new_user"
+            sudo usermod -aG video "$new_user"
+            sudo usermod -aG audio "$new_user"
+            sudo usermod -aG games "$new_user"
+            sudo usermod -aG log "$new_user"
+            sudo usermod -aG lp "$new_user"
+            sudo usermod -aG optical "$new_user"
+            sudo usermod -aG power "$new_user"
+            sudo usermod -aG scanner "$new_user"
+            sudo usermod -aG storage "$new_user"
+            ;;
+        99)
+            if [ -z "$t_user" ]; then
+                title "$utilname - Remove User"
+                read -p "Enter username to remove: " t_user
+            fi            
+             # Remove  account
+            sudo userdel -r $t_user
+            if [ $? -eq 0 ]; then
+                echo "account removed successfully"
+            else
+                echo "Error removing account"
+            fi
+            ;;
+        *)
+            if [ -z "$selected_user" ]; then
+                selected_user=${real_users[$((choice - 2))]}
+            fi
+
+            if [ -z "$manage_action" ]; then
+                title "$utilname - Manage $selected_user"
+                colorecho "$GREEN" "User: $selected_user"
+                echo ""
+
+                # Perform actions for the selected user (if needed)
+                options=("Return to Manage User Menu" "Change User Password")
+
+                if sudo -lU "$selected_user" | grep -q NOPASSWD; then
+                    options+=("Enable Sudo Password")
+                else
+                    options+=("Disable Sudo Password")
+                fi
+
+                select_option "${options[@]}"
+                choice=$?
+            elif [ "$manage_action" = "sudopw" ]; then
+                choice=2
+            fi
+
+            case $choice in
+                0)
+                    manage_user
+                    ;;
+                1)
+                    sudo passwd "$selected_user"
+                    ;;
+                2)  
+                    if sudo -lU "$selected_user" | grep -q NOPASSWD; then
+                        sudo sed -i "s/^\($selected_user.*\)NOPASSWD: ALL/\1ALL/" /etc/sudoers
+                        colorecho "$GREEN" "Enabled Sudo Password for $selected_user"
+                    else
+                        # NOPASSWD is not set, check if the user exists in sudoers file
+                        if sudo grep -q "^[^#]*$selected_user" /etc/sudoers; then
+                            # User exists, change (ALL) ALL to (ALL) NOPASSWD: ALL
+                            sudo sed -i "s/^\($selected_user.*\)(ALL) ALL/\1(ALL) NOPASSWD: ALL/" /etc/sudoers
+                            echo "Changed $selected_user permissions to NOPASSWD: ALL"
+                        else
+                            # User does not exist, add it to sudoers file
+                            echo "$selected_user ALL=(ALL) NOPASSWD: ALL" | sudo tee -a "/etc/sudoers" >/dev/null
+                            echo "Added $selected_user to sudoers file with NOPASSWD: ALL"
+                        fi
+                        colorecho "$GREEN" "Disabled Sudo Password for $selected_user"
+                    fi
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+# Function to select and generate locale
+locale() {
+
+    generated_locales=$(sudo locale -a)
+    
+    if [ -z "$1" ]; then
+    title "$utilname - Locale"
+    
+    # List available locales
+    colorecho "$GREEN" "Generated Locales:"
+
+    echo "$generated_locales"
+    echo ""
+
+    # Prompt to select and generate locale
+    select_options=("Generate New Locales" "Return to User & Localization Menu")
+    select_option "${select_options[@]}"
+    choice=$?
+    elif [ "$1" = "list-generated" ]; then
+        echo "$generated_locales"
+        exit 1
+    elif [ "$1" = "list-available" ] || [ "$1" = "generate" ]; then
+        choice=0
+    else
+        colorecho "$RED" "Invalid option"
+        exit 1
+    fi
+
+    case $choice in
+        0)
+            # Read available locales from file and add numbers
+            IFS=$'\n' read -d '' -ra locales <<< "$(grep -E '^#[^[:space:]]' /etc/locale.gen | sed 's/^#//')"
+            IFS=$'\n' read -d '' -ra langcode <<< "$(grep -E '^#[^[:space:]]' /etc/locale.gen | sed 's/^#//; s/[ @.].*//' | uniq)"
+
+            if [ ! "$1" = "list-available" ]; then
+
+                if [ "$1" = "generate" ] && [ -z "$2" ]; then
+                    colorecho "$GREEN" "Available Locales for generation:"
+
+                    for ((i = 0; i < ${#langcode[@]}; i++)); do
+                        echo "$((i + 1))) ${langcode[$i]}"
+                    done
+
+                    read -p "Enter the locale number: " chosen_number
+                    chosen_locale=${langcode[$((chosen_number - 1))]}
+                    colorecho "$GREEEN" "Picked $chosen_locale"
+                else
+                    chosen_locale=$2
+                fi
+
+                # Iterate through the array and find matches
+                matches=()
+                for ((i = 0; i < ${#locales[@]}; i++)); do
+                    element="${locales[i]}"
+                    if [[ "$element" =~ $chosen_locale ]]; then
+                        matches+=("$element")
+                    fi
+                done
+                
+                title "$utilname - Generate Locale"
+                colorecho "$GREEN" "The following locales will be added:"
+
+                for ((i = 0; i < ${#matches[@]}; i++)); do
+                    echo "${matches[i]}"
+                done
+
+                if [ -z "$3" ]; then
+                    select_options=("Generate Locales" "Cancel")
+                    select_option "${select_options[@]}"
+                    choice=$?
+                elif [ "$3" = "-y" ]; then
+                    choice=0
+                else
+                    colorecho "$RED" "Invalid option"
+                    exit 1
+                fi
+
+                if [ "$choice" = 0 ]; then
+                    for ((i = 0; i < ${#matches[@]}; i++)); do
+                        sudo sed -i "s|#${matches[i]}|${matches[i]}|" /etc/locale.gen
+                    done
+                    sudo locale-gen
+                fi
+        
+            else
+                for ((i = 0; i < ${#langcode[@]}; i++)); do
+                    echo "${langcode[$i]}"
+                done
+            fi
+            ;;
+        *)
+            user_localization
+            ;;
+    esac
+}
+
+# Function to manage fonts
+fonts() {
+    title "$utilname - Fonts"
+    
+    # Prompt to install fonts
+    select_options=("Install Noto Fonts (including CJK and Emoji) - Support Asian Characters" "Install TTF Fonts from File" "Return to User & Localization Menu")
+    select_option "${select_options[@]}"
+    choice=$?
+
+    case $choice in
+        0)
+            sudo pacman -S noto-fonts noto-fonts-cjk noto-fonts-emoji --noconfirm
+            ;;
+        1)
+            read -p "Enter the path to the TTF font file: " font_path
+            sudo cp "$font_path" /usr/share/fonts/TTF/
+            sudo fc-cache -f -v
+            ;;
+        *)
+            user_localization
+            ;;
+    esac
+}
+
+# Function to change time zone and date/time
+timezone() {
+    
+    # Get current time zone and network time zone
+    current_timezone=$(timedatectl show --property=Timezone --value)
+    network_timezone=$(curl -s https://ipapi.co/timezone)
+
+
+    if [ -z "$1" ]; then
+
+        title "$utilname - Time Zone"
+
+        colorecho "$GREEN" "Network Time Zone: $network_timezone"
+
+        if [ "$current_timezone" = "$network_timezone" ]; then
+            colorecho "$GREEN" "Current Time Zone: $current_timezone"
+        else
+            colorecho "$RED" "Current Time Zone: $current_timezone"
+        fi
+
+        echo ""
+        select_options=("Return to User & Localization Menu" "Set Time Zone Manually" "Set Date & Time Manually")
+
+        if [ "$current_timezone" != "$network_timezone" ]; then
+            select_options+=("Synchronize Time Zone with Network")
+        fi
+
+        select_option "${select_options[@]}"
+        choice=$?
+    
+    elif [ "$1" = "set-time-zone" ]; then
+        if [ -z "$2" ]; then
+            choice=1
+        elif [ "$2" = "sync" ]; then
+            choice=3
+        else
+            choice=1
+            new_timezone=$2
+        fi
+    elif [ "$1" = "set-time-date" ]; then
+        choice=2
+    elif [ "$1" = "network-time-zone" ]; then
+        echo $network_timezone
+    elif [ "$1" = "system-time-zone" ]; then
+        echo $current_timezone
+    fi
+
+    case $choice in
+        0)
+            user_localization
+            ;;
+        1)
+            if [ -z "$new_timezone" ]; then
+                read -p "Enter new time zone (e.g., Asia/Tokyo): " new_timezone
+            fi
+            sudo timedatectl set-timezone "$new_timezone"
+            echo "Time Zone updated to $new_timezone"
+            sudo timedatectl set-ntp true
+            ;;
+        2)
+            read -p "Enter the new date and time in format 'YYYY-MM-DD HH:MM:SS': " new_datetime
+            sudo timedatectl set-time "$new_datetime"
+            ;;
+        3)
+            sudo timedatectl set-timezone "$network_timezone"
+            sudo timedatectl set-ntp true
+            colorecho "$GREEN" "Time Zone synchronized with network."
+            ;;
+    esac
+}
+
+# Function to change keyboard layout
+keyboard() {
+    title "$utilname - Keyboard Layout"
+
+    # Get current keyboard layout
+    current_layout=$(localectl status | grep "X11 Layout" | awk '{print $3}')
+    
+    echo "Current Keyboard Layout: $current_layout"
+    
+    # Prompt to select new keyboard layout
+    select_options=("Change Keyboard Layout" "Return to User & Localization Menu")
+    select_option "${select_options[@]}"
+    choice=$?
+
+    case $choice in
+        0)
+            read -p "Enter new keyboard layout (e.g., us, de): " new_layout
+            sudo localectl set-x11-keymap "$new_layout"
+            echo "Keyboard Layout updated to $new_layout"
+            ;;
+        *)
+            user_localization
+            ;;
+    esac
+}
+
+# Function to change WiFi country
+wifi_country() {
+    title "$utilname - WiFi Country"
+
+    # Get available WiFi countries
+    wifi_countries=("Return to User & Localization Menu")
+    wifi_countries+=($(iw reg get | grep -o -E '^[A-Z]{2}'))
+    
+    # Display available WiFi countries and prompt to select
+    select_option "${wifi_countries[@]}"
+    choice=$?
+    
+    if [ "$choice" -ge 1 ] && [ "$choice" -le "${#wifi_countries[@]}" ]; then
+        selected_country=${wifi_countries[$((choice))]}
+        sudo iw reg set "$selected_country"
+        echo "WiFi Country updated to $selected_country"
+    else
+        user_localization
+    fi
+}
+
+################################################################
+# Main Program
+
+# Handle arguments
+for arg in "$@"; do
+    case "$arg" in
+        -h | --help)
+            colorecho "$BLUE" "$utilname (BUILD $utilver-$branch)"
+            echo "Usage: acu <optional_argument>"
+
+            colorecho "$GREEN" "Options"
+            echo "-h / --help : Usage and Infomation of this configuration utility."
+            echo "-u / --update=<channel> : Install latest configuration utility without checking updates. <channel> options: main, dev."
+
+            colorecho "$GREEN" "Features"
+            colorecho "$YELLOW" "System Maintenance"
+            echo "upgrade : Check & Perform Selective / Full System Upgrade."
+            echo "install-kernel <kernel> : Build & Install other Linux Kernel from source. <kernel> options: rkbsp-bin, rkbsp-git, midstream-git."
+            echo "flash-bootloader <bootloader> : Flash Latest SPI Bootloader. <bootloader> options: radxa, radxa-debug, edk2-rock5a, edk2-rock5b, armbian."
+            
+            colorecho "$YELLOW" "Manage Packages"
+            echo "install <package> : Install Software / RK3588 Specified / Customized Packages. <package>: package name."
+            echo "downgrade <package> <index> : Install / Downgrade any Arch Linux Packages from Archive. <package>: package name <index>: index to show, default=15."
+            echo "add-7ji : Add 7Ji Arch Linux repo to pacman"
+
+            colorecho "$YELLOW" "Performance & Features"
+            echo "soc <option> : Manage SoC Settings. options: performance, ondemand, powersave (and status for SoC Monitor) and force-performance which set performance at every bootup."
+            echo "fan <option> : Configure PWM Fan-control. options: install, enable, disable and status."
+
+            colorecho "$YELLOW" "User & Localization"
+            echo "user <option> : Add, Remove and Change User Account Settings. options: add, remove, manage"
+            echo "locale : Generate Locale Settings. options: list-generated, list-available, generate <country_code>"
+            echo "font : Install Fonts, TTF, Non-English Characters, Special Characters / Emoji."
+            echo "time <option> : Change Time Zone, Current Date and Time. options: set-time-zone, set-time-date, network-time-zone, system-time-zone"
+            echo "keyboard : Change Keyboard Layout."
+            echo "wifi : Change WiFi Country Settings."
+            exit 1
+            ;;
+        -u | --update)
+            update_util --install
+            exit 1
+        ;;
+        --update=*)
+            branch="${arg#*=}"
+            update_util --install
+            exit 1
+        ;;
+        -*)
+        colorecho "$RED" "Invalid command or argument."
+        exit 1
+        ;;
+    esac
+done
+
+# Handle options
+### Features - System Maintenance ###
+if [ "$1" = "upgrade" ]; then
+    system_update
+
+elif [ "$1" = "flash-bootloader" ]; then
+    flash_uboot "$2"
+
+elif [ "$1" = "install-kernel" ]; then
+    install_kernel "$2"
+
+### Features - Manage Packages ###
+elif [ "$1" = "install" ]; then
+    if [ -z "$2" ]; then
+        install_packages
+    elif [ "$2" = "--installer" ]; then
+        launch_as_installer=1
+        install_packages
+    else
+        for ((i = 2; i <= $#; i++)); do
+            selection+=("${!i}")
+        done
+        install_selected_pkg
+    fi
+
+elif [ "$1" = "build" ]; then
+    if [ -z "$3" ]; then
+        install_from_source "$2" "--noinstall"
+    else
+        install_from_source "$2" "$3" "--noinstall"
+    fi
+
+elif [ "$1" = "downgrade" ]; then
+    downgrade_packages "$2" "$3"
+
+### Features - Performance & Features ###
+elif [ "$1" = "soc" ]; then
+    soc_profile "$2"
+
+elif [ "$1" = "fan" ]; then
+    fan_control "$2"
+
+### Features - User & Localization ###
+
+elif [ "$1" = "user" ]; then
+    manage_user "$2" "$3" "$4"
+
+elif [ "$1" = "locale" ]; then
+    locale "$2" "$3" "$4"
+
+elif [ "$1" = "font" ]; then
+    fonts "$2"
+
+elif [ "$1" = "time" ]; then
+    timezone "$2" "$3"
+
+elif [ "$1" = "keyboard" ]; then
+    keyboard "$2"
+
+elif [ "$1" = "wifi" ]; then
+    wifi_country "$2"
+
+elif [ "$1" = "add-repo" ]; then
+    add_repo "$2"
+
+elif [ "$1" = "add-alias" ]; then
+    add_alias "$2"
+
+elif [ "$1" = "remove-alias" ]; then
+    sudo rm -rf /usr/bin/$2
+    colorecho "$GREEN" "Alias command $2 has been removed."
+
+### Main Menu ###
+else
+    check_util_updates
+    config_options
+fi
+
+################################################################
