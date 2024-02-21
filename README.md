@@ -17,7 +17,7 @@ The configuration utility is pre-installed with Arch Linux installed or provided
 To install `acu`, run the following command :
 
 ```
-bash <(curl -fsSL https://raw.githubusercontent.com/kwankiu/acu/dev/acu)
+bash <(curl -fsSL https://raw.githubusercontent.com/kwankiu/acu/dev/acu) -u
 ```
 
 ## Usage
