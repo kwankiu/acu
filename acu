@@ -19,7 +19,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDN which N is 1-9 count on updates commited on the same day
-utilver=2402201
+utilver=2402205
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -743,7 +743,7 @@ install_selected_pkg() {
         case ${selection[i]} in
             "chromium")
                 if sudo pacman -Ssy "^chromium-mpp$" &> /dev/null; then
-                    sudo pacman -S chromium-mpp --noconfirm
+                    sudo pacman -S chromium-mpp
                     #install_pkg_from_url "$alaa_url/packages/r/re2/re2-1%3A20230301-1-aarch64.pkg.tar.xz"
                     sudo systemctl enable --now libv4l-rkmpp-setup.service
                     # Check if the file /etc/chromium-browser exists
@@ -753,7 +753,7 @@ install_selected_pkg() {
                     fi
                     echo -e "# Default settings for chromium-browser. This file is sourced by /bin/sh from\n# /usr/bin/chromium-browser\n\n# Options to pass to chromium-browser\nLD_LIBRARY_PATH=/usr/lib/mali-valhall-g610/x11-wayland-gbm\nCHROMIUM_FLAGS=\"--use-gl=egl\"" | sudo tee /etc/chromium-browser/default >/dev/null
                 else
-                    sudo pacman -S chromium --noconfirm
+                    sudo pacman -S chromium
                 fi
                 ;;
             "nvm")
@@ -1149,7 +1149,7 @@ manage_user() {
                         colorecho "$GREEN" "Enabled Sudo Password for $selected_user"
                     else
                         # NOPASSWD is not set, check if the user exists in sudoers file
-                        if sudo grep -q "^[^#]*$selected_user" /etc/sudoers; then
+                        if sudo grep -q "^[^#]*$selected_user ALL" /etc/sudoers; then
                             # User exists, change (ALL) ALL to (ALL) NOPASSWD: ALL
                             sudo sed -i "s/^\($selected_user.*\)(ALL) ALL/\1(ALL) NOPASSWD: ALL/" /etc/sudoers
                             echo "Changed $selected_user permissions to NOPASSWD: ALL"
