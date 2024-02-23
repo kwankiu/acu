@@ -1459,6 +1459,7 @@ for arg in "$@"; do
 done
 
 # Handle options
+echo "warning: acu is experimental."
 ### Features - System Maintenance ###
 if [ "$1" = "upgrade" ]; then
     system_update
@@ -1470,7 +1471,7 @@ elif [ "$1" = "install-kernel" ]; then
     install_kernel "$2"
 
 ### Features - Manage Packages ###
-elif [ "$1" = "install" ]; then
+elif [ "$1" = "install" ] || [ "$1" = "-S" ] ; then
     if [ -z "$2" ]; then
         install_packages
     elif [ "$2" = "--installer" ]; then
@@ -1483,14 +1484,14 @@ elif [ "$1" = "install" ]; then
         install_selected_pkg
     fi
 
-elif [ "$1" = "build" ]; then
+elif [ "$1" = "build" ] || [ "$1" = "-B" ]; then
     if [ -z "$3" ]; then
         install_from_source "$2" "--noinstall"
     else
         install_from_source "$2" "$3" "--noinstall"
     fi
 
-elif [ "$1" = "downgrade" ]; then
+elif [ "$1" = "downgrade" ] || [ "$1" = "-D" ]; then
     downgrade_packages "$2" "$3"
 
 ### Features - Performance & Features ###
@@ -1520,8 +1521,8 @@ elif [ "$1" = "keyboard" ]; then
 elif [ "$1" = "wifi" ]; then
     wifi_country "$2"
 
-elif [ "$1" = "add-repo" ]; then
-    add_repo "$2"
+elif [ "$1" = "rem" ]; then
+    add_repo "$2" "$3" "$4"
 
 elif [ "$1" = "add-alias" ]; then
     add_alias "$2"
