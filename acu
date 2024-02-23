@@ -19,7 +19,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDN which N is 1-9 count on updates commited on the same day
-utilver=2402205
+utilver=24022303
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -30,9 +30,9 @@ branch=dev
 # note: you should never set this to true
 update_available=false
 
-# device_config
-# load configuration for a target device (e.g. rock-5b)
-device_config="default"
+# target device model
+# load configuration for a target device (e.g. rock5)
+# device_config=""
 
 # URL of Arch Linux ARM Archive
 alaa_url="https://alaa.ad24.cz/"
@@ -336,7 +336,6 @@ system_maintenance() {
     title "$utilname - System Maintenance"
     options=("Package Updates - Check & Perform Selective / Full System Upgrade")
     options+=("Update SPI Bootloader - Flash Latest Radxa U-Boot")
-    options+=("Build & Install Kernel - Install other Linux Kernel from source")
     #options+=("Move Arch Linux - Copy Arch Linux to another disk.")
     options+=("Return to Main Menu")
     select_option "${options[@]}"
@@ -350,12 +349,6 @@ system_maintenance() {
         1)
             flash_uboot
             ;;
-        2)
-            install_kernel
-            ;;
-        #3)
-            #move_system
-            #;;
         *)
             config_options
             ;;
@@ -558,31 +551,73 @@ flash_uboot() {
 }
 
 # Re-install Kernel
-install_kernel() {
+update_kernel_extlinux() {
 
-    title "$utilname - Build & Install Kernel"
+    # Update extlinux.conf
+    colorecho "$YELLOW" "Generating extlinux.conf ..."
 
-    if [ -z "$1" ]; then
-        colorecho "$GREEN" "Select a kernel package to install:"
-        echo ""
-        options=("linux-radxa-rkbsp5-bin (AUR) - Install Radxa BSP Kernel (Linux 5.10) from Binary Package")
-        options+=("linux-radxa-rkbsp5-git (AUR) - Install Radxa BSP Kernel (Linux 5.10) from Source Code")
-        options+=("linux-rk3588-midstream (GitHub) - Install Googulator's Experimental Midstream kernel (Linux 6.2) from Source Code")
-        #options+=("linux-rk3588-collabora (GitHub) - Install Collabora's Experimental Upstream kernel (Linux 6.5) from Source Code")
-        options+=("Return to Main Menu")
-        select_option "${options[@]}"
-        choice=$?
+    if ! sudo pacman -Qs $1 > /dev/null ; then
+        colorecho "$RED" "provided package may not be installed, aborting ..."
+        exit 1
     fi
 
-    # Choice
-    if [ "$choice" = 0 ] || [ "$1" = "rkbsp-bin" ]; then
-        install_rkbsp5_bin
-    elif [ "$choice" = 1 ] || [ "$1" = "rkbsp-git" ]; then
-        install_rkbsp5_git
-    elif [ "$choice" = 2 ] || [ "$1" = "midstream-git" ]; then
-        install_midstream_git
+    if sudo test -e  "/boot/extlinux/extlinux.arch.template"; then 
+        colorecho "$YELLOW" "Using extlinux.arch.template ..."
+        sudo mv /boot/extlinux/extlinux.arch.template /boot/extlinux/extlinux.conf
+    elif [ -n "$device_config" ]; then
+        # Kernel does not provide template, get sbc template
+        colorecho "$YELLOW" "Downloading extlinux template for ${device_config} ..."
+        curl -LRO https://github.com/kwankiu/archlinux-installer-rock5/releases/download/kernel/${device_config}.extlinux.template
+        sudo mv ${device_config}.extlinux.template /boot/extlinux/extlinux.conf
     else
-        config_options
+        colorecho "$RED" "You may to update extlinux.conf before booting into the new kernel."
+        exit 1
+    fi        
+        
+    colorecho "$YELLOW" "Generating extlinux.conf from template ..."
+    # Get rootfs partition from the current mount point "/"
+    rootfs_partition=$(mount | grep "on / " | awk '{print $1}')
+
+    # Find the UUIDs of the root partition
+    root_uuid=$(sudo blkid $rootfs_partition | awk '{print $2}' | tr -d '"')
+    echo "Root partition UUID: $root_uuid"
+
+    colorecho "$GREEN" "Updating extlinux.conf ..."
+
+    if [[ "$1" == *"linux-rkbsp"* ]]; then
+        if [ "$device_config" = "edge2" ]; then
+            sudo sed -i "s|/dtbs/%PKGBASE%|/dtbs/linux-rockchip-joshua-git|" /boot/extlinux/extlinux.conf
+        fi
+    fi
+
+    # Change pkgbase for extlinux.conf
+    if sudo test ! -e "/boot/dtbs/$1"; then 
+        sudo sed -i "s|/dtbs/%PKGBASE%|/dtbs|" /boot/extlinux/extlinux.conf
+    fi
+
+    # fix rockchip overlay directory name
+    if sudo test -e "/boot/dtbs/$1/rockchip/overlay"; then
+        sudo sed -i "s|/rockchip/overlays|/rockchip/overlay|" /boot/extlinux/extlinux.conf
+    fi
+
+    sudo sed -i "s|%PKGBASE%|$1|" /boot/extlinux/extlinux.conf
+
+    # Change UUID for extlinux.conf   
+    sudo sed -i "s|UUID=\\*\\*CHANGEME\\*\\*|$root_uuid|" /boot/extlinux/extlinux.conf
+    sudo sed -i "s|UUID=CHANGEME|$root_uuid|" /boot/extlinux/extlinux.conf
+
+    # Check if /boot is mounted as a partition or directory
+    if mountpoint -q /boot; then
+        colorecho "$GREEN" "/boot is mounted as a partition"
+        colorecho "$GREEN" "Done"
+    else
+        colorecho "$GREEN" "/boot is mounted as a directory"
+        colorecho "$GREEN" "Updating paths for extlinux.conf ..."
+        sudo sed -i "s| /vmlinuz| /boot/vmlinuz|" /boot/extlinux/extlinux.conf
+        sudo sed -i "s| /initramfs| /boot/initramfs|" /boot/extlinux/extlinux.conf
+        sudo sed -i "s| /initrd| /boot/initrd|" /boot/extlinux/extlinux.conf
+        sudo sed -i "s| /dtbs| /boot/dtbs|" /boot/extlinux/extlinux.conf
+        sudo sed -i "s| /dtbo| /boot/dtbo|" /boot/extlinux/extlinux.conf
     fi
 }
 
@@ -827,6 +862,17 @@ install_selected_pkg() {
                 else
                     colorecho "$GREEN"  "Compling and Installing ${selection[i]} from AUR ..."
                     install_from_source "aur://${selection[i]}"
+                fi
+
+                if [[ "${selection[i]}" == "linux-"* ]]; then
+                    # Case 1: If it starts with "linux-", use it as is
+                    update_kernel_extlinux "${selection[i]}"
+                elif [[ "${selection[i]}" == *"://linux-"* ]]; then
+                    # Case 2: If it contains "://linux-", remove everything before "://"
+                    update_kernel_extlinux "${selection[i]##*://}"
+                elif [[ "${selection[i]}" == *"://"*"/linux-"* ]]; then
+                    # Case 3: If it contains "://" and "/linux-", take the part after "/linux-" and prepend "linux-"
+                    update_kernel_extlinux "linux-${selection[i]#*"/linux-"}"
                 fi
                 ;;
         esac
@@ -1451,6 +1497,10 @@ for arg in "$@"; do
             update_util --install
             exit 1
         ;;
+        --device=*)
+            device_config="${arg#*=}"
+            echo "use target device : $device_config"
+        ;;
         -*)
         colorecho "$RED" "Invalid command or argument."
         exit 1
@@ -1467,9 +1517,6 @@ if [ "$1" = "upgrade" ]; then
 elif [ "$1" = "flash-bootloader" ]; then
     flash_uboot "$2"
 
-elif [ "$1" = "install-kernel" ]; then
-    install_kernel "$2"
-
 ### Features - Manage Packages ###
 elif [ "$1" = "install" ] || [ "$1" = "-S" ] ; then
     if [ -z "$2" ]; then
@@ -1479,7 +1526,9 @@ elif [ "$1" = "install" ] || [ "$1" = "-S" ] ; then
         install_packages
     else
         for ((i = 2; i <= $#; i++)); do
-            selection+=("${!i}")
+            if [[ "${!i}" != -* ]]; then
+                selection+=("${!i}")
+            fi
         done
         install_selected_pkg
     fi
