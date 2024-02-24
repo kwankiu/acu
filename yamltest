@@ -13,21 +13,22 @@ add_repository() {
     # Read repository name
     read -p "Enter repository name: " repo_name
 
-    # Read repository type
-    read -p "Enter repository type (agr, ghapi-orgs, ghapi-releases, git): " repo_type
-
-    # Validate repository type
-    case $repo_type in
-        agr|ghapi-orgs|ghapi-releases|git)
-            ;;
-        *)
-            echo "Invalid repository type. Valid types are: agr, ghapi-orgs, ghapi-releases, git."
-            return
-            ;;
-    esac
-
     # Read repository URL
     read -p "Enter repository URL: " repo_url
+
+    # Validate and auto-detect repository type based on URL format
+    if [[ "$repo_url" == "https://api.github.com/orgs"* ]]; then
+        repo_type="ghapi-orgs"
+    elif [[ "$repo_url" == "https://api.github.com/repos"* ]]; then
+        repo_type="ghapi-releases"
+    elif [[ "$repo_url" == "http://"*"/"*"/"* || "$repo_url" == "https://"*"/"*"/"* ]]; then
+        repo_type="agr"
+    elif [[ "$repo_url" == "http://"* || "$repo_url" == "https://"* ]]; then
+        repo_type="git"
+    else
+        echo "Invalid repository URL format."
+        return
+    fi
 
     # Append new repository item to YAML file
     echo "- repo_name: $repo_name" >> "$repositories_file"
