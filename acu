@@ -19,7 +19,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24022308
+utilver=24022309
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -1547,9 +1547,16 @@ for arg in "$@"; do
             echo "use target device : $device_config"
         ;;
         -*)
-        colorecho "$RED" "Invalid command or argument."
-        exit 1
-        ;;
+            case "$arg" in
+                -S | -R | -D | -B ) 
+                    # Add more excluded arguments as needed
+                    ;;
+                *)
+                    colorecho "$RED" "Invalid command or argument."
+                    exit 1
+                    ;;
+            esac
+            ;;
     esac
 done
 
@@ -1563,14 +1570,27 @@ if [ "$(id -u)" -eq 0 ]; then
     colorecho "$YELLOW" "acu is running in root, some package management commands are not supported, build command is disabled."
     sleep 1
 fi
-### Features - System Maintenance ###
+
+### Features - Manage Packages ###
 if [ "$1" = "upgrade" ]; then
     system_update
 
-elif [ "$1" = "flash-bootloader" ]; then
-    flash_uboot "$2"
+elif [ "$1" = "update" ]; then
+    sudo pacman -Syy --noconfirm
+    # fetch rem repos for available updates
 
-### Features - Manage Packages ###
+elif [ "$1" = "remove" ] || [ "$1" = "-R" ]; then
+    for ((i = 2; i <= $#; i++)); do
+        if [[ "${!i}" != -* ]]; then
+            pkgtoremove+=("${!i}")
+        fi
+    done
+    if [ -z "$no_confirm" ]; then
+        sudo pacman -R ${pkgtoremove[@]}
+    else
+        sudo pacman -R ${pkgtoremove[@]} --noconfirm
+    fi
+
 elif [ "$1" = "install" ] || [ "$1" = "-S" ] ; then
     if [ -z "$2" ]; then
         install_packages
@@ -1595,6 +1615,13 @@ elif [ "$1" = "build" ] || [ "$1" = "-B" ]; then
 
 elif [ "$1" = "downgrade" ] || [ "$1" = "-D" ]; then
     downgrade_packages "$2" "$3"
+
+elif [ "$1" = "rem" ]; then
+    add_repo "$2" "$3" "$4"
+
+### Features - System Maintenance ###
+elif [ "$1" = "flash-bootloader" ]; then
+    flash_uboot "$2"
 
 ### Features - Performance & Features ###
 elif [ "$1" = "soc" ]; then
@@ -1622,9 +1649,6 @@ elif [ "$1" = "keyboard" ]; then
 
 elif [ "$1" = "wifi" ]; then
     wifi_country "$2"
-
-elif [ "$1" = "rem" ]; then
-    add_repo "$2" "$3" "$4"
 
 elif [ "$1" = "add-alias" ]; then
     add_alias "$2"
