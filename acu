@@ -18,8 +18,8 @@ utilname="Arch (ARM) Configuration Utility"
 
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
-# format of Version Number is YYMMDDN which N is 1-9 count on updates commited on the same day
-utilver=24022303
+# format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
+utilver=24022304
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -179,12 +179,8 @@ install_from_source() {
 
     cpwd=$(pwd)
     
-    # Install required package
-    if ! [ -x "$(command -v git)" ]; then
-        sudo pacman -S git --noconfirm
-    fi
-    
-    sudo pacman -S --needed base-devel --noconfirm
+    # Install required package    
+    sudo pacman -S --needed git base-devel --noconfirm
     
     # Ensure folder doesn't exist
     sudo rm -rf ~/"$source_repo_dir"
@@ -215,10 +211,18 @@ install_from_source() {
     fi
     
     colorecho "$GREEN" "Compiling & Installing Package from source ..."
-    makepkg -sA --noconfirm
+    if [ -z "$no_confirm" ]; then
+        makepkg -sA
+    else
+        makepkg -sA --noconfirm
+    fi
 
     if [ "$2" != "--noinstall" ] && [ "$3" != "--noinstall" ]; then
-        sudo pacman -U --overwrite \* *.pkg.tar.* --noconfirm
+        if [ -z "$no_confirm" ]; then
+            sudo pacman -U --overwrite \* *.pkg.tar.*
+        else
+            sudo pacman -U --overwrite \* *.pkg.tar.* --noconfirm
+        fi
     
         # Clean Up
         cd "$cpwd"
@@ -233,7 +237,11 @@ install_pkg_from_url() {
     curl -LJO $1
     ipkgname=$(basename $1)
     colorecho "$GREEN" "Installing package $ipkgname ..."
-    sudo pacman -U --overwrite \* $ipkgname --noconfirm
+    if [ -z "$no_confirm" ]; then
+        sudo pacman -U --overwrite \* $ipkgname
+    else
+        sudo pacman -U --overwrite \* $ipkgname --noconfirm
+    fi
     rm -rf $ipkgname
 }
 
@@ -407,13 +415,21 @@ system_update() {
         if [ -x "$(command -v yay)" ]; then
             yay -Syyu
         else
-            sudo pacman -Syyu
+            if [ -z "$no_confirm" ]; then
+                sudo pacman -Syyu
+            else
+                sudo pacman -Syyu --noconfirm
+            fi
         fi
     elif [ "$choice" = "2" ]; then
         if [ -x "$(command -v yay)" ]; then
             yay -S ${selection[*]}
         else
-            sudo pacman -S ${selection[*]}
+            if [ -z "$no_confirm" ]; then
+                sudo pacman -S ${selection[*]}
+            else
+                sudo pacman -S ${selection[*]} --noconfirm
+            fi
         fi
     elif [ "$choice" = "3" ] || [ "$choice" = "4" ] || [ "$choice" = "5" ] || [ "$choice" = "6" ]; then
         system_update
@@ -774,7 +790,11 @@ install_selected_pkg() {
         case ${selection[i]} in
             "chromium")
                 if sudo pacman -Ssy "^chromium-mpp$" &> /dev/null; then
-                    sudo pacman -S chromium-mpp
+                    if [ -z "$no_confirm" ]; then
+                        sudo pacman -S chromium-mpp
+                    else
+                        sudo pacman -S chromium-mpp --noconfirm
+                    fi
                     #install_pkg_from_url "$alaa_url/packages/r/re2/re2-1%3A20230301-1-aarch64.pkg.tar.xz"
                     sudo systemctl enable --now libv4l-rkmpp-setup.service
                     # Check if the file /etc/chromium-browser exists
@@ -784,7 +804,11 @@ install_selected_pkg() {
                     fi
                     echo -e "# Default settings for chromium-browser. This file is sourced by /bin/sh from\n# /usr/bin/chromium-browser\n\n# Options to pass to chromium-browser\nLD_LIBRARY_PATH=/usr/lib/mali-valhall-g610/x11-wayland-gbm\nCHROMIUM_FLAGS=\"--use-gl=egl\"" | sudo tee /etc/chromium-browser/default >/dev/null
                 else
-                    sudo pacman -S chromium
+                    if [ -z "$no_confirm" ]; then
+                        sudo pacman -S chromium
+                    else
+                        sudo pacman -S chromium --noconfirm
+                    fi
                 fi
                 ;;
             "nvm")
@@ -812,7 +836,7 @@ install_selected_pkg() {
                 echo "Package Not Available, try update to latest utility."
                 ;;
             "steam")
-                arch-rock-config install box86
+                acu install box86
                 colorecho "$YELLOW" "Make sure you installed box86 before installing Steam. This is experimental."
                 installSteam
                 ;;
@@ -828,9 +852,10 @@ install_selected_pkg() {
                 ;;
             "kodi")
                 if sudo pacman -Ssy "^kodi-nexus-mpp-git$" &> /dev/null; then 
-                    sudo pacman -S kodi-nexus-mpp-git --noconfirm
-                    if ! sudo pacman -Qs kodi-nexus-mpp-git > /dev/null ; then
+                    if [ -z "$no_confirm" ]; then
                         sudo pacman -S kodi-nexus-mpp-git
+                    else
+                        sudo pacman -S kodi-nexus-mpp-git --noconfirm
                     fi
                 fi
                 ;;
@@ -852,7 +877,11 @@ install_selected_pkg() {
                     install_from_source "${selection[i]}"
                 elif sudo pacman -Ssy "^${selection[i]}$" &> /dev/null; then
                     colorecho "$GREEN" "Installing ${selection[i]} with pacman ..."
-                    sudo pacman -S ${selection[i]} --noconfirm
+                    if [ -z "$no_confirm" ]; then
+                        sudo pacman -S ${selection[i]} 
+                    else
+                        sudo pacman -S ${selection[i]} --noconfirm
+                    fi
                 elif pkg_tar=($(echo -e "n" | install_ghrel_packages "${selection[i]}" | grep '.*pkg.*')); then
                     colorecho "$GREEN" "Installing ${selection[i]} from adrepo ..."
                     install_ghrel_packages "${selection[i]}"
@@ -1488,6 +1517,9 @@ for arg in "$@"; do
         -u | --update)
             update_util --install
             exit 1
+        ;;
+        --noconfirm)
+            no_confirm=1
         ;;
         --update=*)
             branch="${arg#*=}"
