@@ -143,12 +143,8 @@ update_util() {
     if [ "$update_available" = true ] || [ "$1" = "--install" ]; then 
         title "$utilname"
         colorecho "$GREEN" "Installing / Updating $utilname ..."
-        if ! [ -x "$(command -v wget)" ]; then
-            sudo pacman -Sy wget --noconfirm
-        fi
-
         sudo rm -rf /usr/bin/acu
-        sudo wget -N -P /usr/bin/ https://raw.githubusercontent.com/kwankiu/acu/$branch/acu
+        sudo curl -o /usr/bin/acu -L "https://raw.githubusercontent.com/kwankiu/acu/$branch/acu"
         sudo chmod +x /usr/bin/acu
         acu
     fi
@@ -531,7 +527,7 @@ flash_uboot() {
     sudo rm -rf zero.img
 
     if [ -n "$latest_image" ]; then
-        # Download the latest image using wget
+        # Download the latest image
         colorecho "$GREEN" "Downloading SPI U-Boot Image from ${which_url}${latest_image} ..."
         curl -LJO ${which_url}${latest_image}
     else
@@ -839,12 +835,13 @@ install_selected_pkg() {
                 fi
                 ;;
             "intel-ax210-fw")
-                #wifi
-                sudo wget -P /lib/firmware https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/iwlwifi-ty-a0-gf-a0-59.ucode
+                # wifi
+                sudo curl -o /lib/firmware/iwlwifi-ty-a0-gf-a0-59.ucode https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/iwlwifi-ty-a0-gf-a0-59.ucode
                 sudo mv /lib/firmware/iwlwifi-ty-a0-gf-a0.pnvm /lib/firmware/iwlwifi-ty-a0-gf-a0.pnvm.bak
-                #bt
-                sudo wget -P /lib/firmware/intel https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/intel/ibt-0041-0041.sfi
-                sudo wget -P /lib/firmware/intel https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/intel/ibt-0041-0041.ddc
+
+                # bt
+                sudo curl -o /lib/firmware/intel/ibt-0041-0041.sfi https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/intel/ibt-0041-0041.sfi
+                sudo curl -o /lib/firmware/intel/ibt-0041-0041.ddc https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/intel/ibt-0041-0041.ddc
                 ;;
             "yay")
                 install_from_source "aur://yay-git"
