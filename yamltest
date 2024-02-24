@@ -95,11 +95,12 @@ fetch_repositories() {
             ghapi-orgs)
                 echo "fetching ${repo_names[i]} ..."
                 echo "api rem set ${repo_names[i]} ${repo_urls[i]}"
+                echo -e "n" | get_ghapi_orgs ${repo_urls[i]}
                 ;;
             ghapi-releases)
                 echo "fetching ${repo_names[i]} ..."
                 adrepo_url=${repo_urls[i]}
-                echo "ghrel_packages .pkg.tar."
+                echo -e "n" | install_ghrel_packages .pkg.tar. | grep .pkg.tar.*
                 ;;
             git)
                 echo "fetching ${repo_names[i]} ..."
