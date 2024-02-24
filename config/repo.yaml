@@ -11,3 +11,6 @@ repositories:
 - repo_name: aur
   repo_type: git
   repo_url: https://aur.archlinux.org
+- repo_name: test
+  repo_type: git
+  repo_url: https://hello.com
