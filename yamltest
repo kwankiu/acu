@@ -1,0 +1,97 @@
+#!/bin/bash
+
+# Define file path/name variable
+repositories_file="config/repo.yaml"
+
+# Function to add a repository item to the YAML file
+add_repository() {
+    # Check if YAML file exists
+    if [ ! -f "$repositories_file" ]; then
+        echo "repositories:" > "$repositories_file"
+    fi
+
+    # Read repository name
+    read -p "Enter repository name: " repo_name
+
+    # Read repository type
+    read -p "Enter repository type (agr, ghapi-orgs, ghapi-releases, git): " repo_type
+
+    # Validate repository type
+    case $repo_type in
+        agr|ghapi-orgs|ghapi-releases|git)
+            ;;
+        *)
+            echo "Invalid repository type. Valid types are: agr, ghapi-orgs, ghapi-releases, git."
+            return
+            ;;
+    esac
+
+    # Read repository URL
+    read -p "Enter repository URL: " repo_url
+
+    # Append new repository item to YAML file
+    echo "- repo_name: $repo_name" >> "$repositories_file"
+    echo "  repo_type: $repo_type" >> "$repositories_file"
+    echo "  repo_url: $repo_url" >> "$repositories_file"
+
+    echo "Repository added successfully."
+}
+
+# Function to load repositories into arrays
+load_repositories() {
+    # Initialize arrays for storing repository information
+    repo_names=()
+    repo_types=()
+    repo_urls=()
+
+    # Read repositories from YAML file
+    while IFS= read -r line; do
+        if [[ $line == *"repo_name"* ]]; then
+            repo_name=$(echo "$line" | awk '{print $3}')
+            repo_names+=("$repo_name")
+        elif [[ $line == *"repo_type"* ]]; then
+            repo_type=$(echo "$line" | awk '{print $2}')
+            repo_types+=("$repo_type")
+        elif [[ $line == *"repo_url"* ]]; then
+            repo_url=$(echo "$line" | awk '{print $2}')
+            repo_urls+=("$repo_url")
+        fi
+    done < "$repositories_file"
+}
+
+# Function to list repositories sorted by type
+list_repositories() {
+    load_repositories
+
+    # Print repositories
+    echo "List of Repositories:"
+    for ((i = 0; i < ${#repo_names[@]}; i++)); do
+        echo "  Name: ${repo_names[i]}"
+        echo "  Type: ${repo_types[i]}"
+        echo "  URL: ${repo_urls[i]}"
+    done
+}
+
+# Main script
+while true; do
+    echo "1. Add Repository"
+    echo "2. List Repositories"
+    echo "3. Exit"
+    read -p "Enter your choice: " choice
+
+    case $choice in
+        1)
+            add_repository
+            ;;
+        2)
+            list_repositories
+            ;;
+        3)
+            echo "Exiting..."
+            exit 0
+            ;;
+        *)
+            echo "Invalid choice. Please try again."
+            ;;
+    esac
+done

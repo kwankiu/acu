@@ -1,0 +1,13 @@
+repositories:
+- repo_name: boogie
+  repo_type: agr
+  repo_url: https://github.com/hbiyik/agrrepo
+- repo_name: 7Ji
+  repo_type: ghapi-orgs
+  repo_url: https://api.github.com/orgs/7Ji-PKGBUILDs/repos
+- repo_name: adrepo
+  repo_type: ghapi-releases
+  repo_url: https://api.github.com/repos/kwankiu/archlinux-installer-rock5/releases/tags/kernel
+- repo_name: aur
+  repo_type: git
+  repo_url: https://aur.archlinux.org
