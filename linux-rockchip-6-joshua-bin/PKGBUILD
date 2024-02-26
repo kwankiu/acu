@@ -4,7 +4,7 @@
 _target=rockchip
 _kernelname="rockchip"
 _pkgbase="linux-$_target"
-pkgbase="$_pkgbase-joshua-bin"
+pkgbase="$_pkgbase-6-joshua-bin"
 pkgname=("$pkgbase" "$pkgbase-headers")
 _pkgver=6.1.43
 _buildver=1
