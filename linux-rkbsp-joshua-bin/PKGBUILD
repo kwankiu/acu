@@ -19,8 +19,8 @@ options=('!strip')
 provides=("$_pkgbase")
 
 source=(
-  "${url}/linux-image-${_pkgver}-${_kernelname}_${_pkgver}-${_buildver}_arm64.deb"
-  "${url}/linux-headers-${_pkgver}-${_kernelname}_${_pkgver}-${_buildver}_arm64.deb"
+  "packages/linux-image-${_pkgver}-${_kernelname}_${_pkgver}-${_buildver}_arm64.deb"
+  "packages/linux-headers-${_pkgver}-${_kernelname}_${_pkgver}-${_buildver}_arm64.deb"
   "linux.preset"
 )
 sha512sums=(
