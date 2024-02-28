@@ -1,10 +1,10 @@
-pkgbase = linux-rkbsp-joshua-bin
+pkgbase = linux-rockchip-6-joshua-bin
 	pkgver = 6.1.43-1
 	pkgrel = 1
 	url = https://launchpad.net/~jjriek/+archive/ubuntu/kernel/+files
 	arch = aarch64
 	license = GPL2
-	provides = linux-rkbsp
+	provides = linux-rockchip
 	noextract = linux-image-5.10.160-rockchip_5.10.160-31_arm64.deb
 	noextract = linux-headers-5.10.160-rockchip_5.10.160-31_arm64.deb
 	noextract = linux.preset
