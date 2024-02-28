@@ -3,9 +3,8 @@
 
 _target=rockchip
 _kernelname="rockchip"
-_pkgbase="linux-$_target"
-pkgbase="$_pkgbase-6-joshua-bin"
-pkgname=("$pkgbase" "$pkgbase-headers")
+_pkgbase="linux-$_target-6-joshua-bin"
+pkgname=("$_pkgbase" "$_pkgbase-headers")
 _pkgver=6.1.43
 _buildver=1
 pkgver="${_pkgver}.${_buildver}"
@@ -102,7 +101,7 @@ _package-headers() {
 
 for _p in "${pkgname[@]}"; do
   eval "package_$_p() {
-    $(declare -f "_package${_p#$pkgbase}")
-    _package${_p#$pkgbase}
+    $(declare -f "_package${_p#$_pkgbase}")
+    _package${_p#$_pkgbase}
   }"
 done
