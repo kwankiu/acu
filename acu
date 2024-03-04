@@ -19,7 +19,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24022809
+utilver=24030401
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -285,6 +285,9 @@ add_repository() {
     # Read repository URL
     if [ -z "$2" ] || [[ "$2" == "--"* ]]; then
         if [ "$1" = "acu" ]; then
+            if [ -z "$git_branch" ]; then
+                git_branch="pkgbuilds"
+            fi
             repo_url="https://github.com/kwankiu/acu"
         else
             read -p "Enter repository URL: " repo_url
@@ -303,6 +306,7 @@ add_repository() {
         if [ -z "$git_branch" ]; then
             agr rem set $repo_name $repo_url
         else
+            echo "set branch to $git_branch"
             agr rem set $repo_name $repo_url --branch $git_branch
         fi
     elif [[ "$repo_url" == "http://"* || "$repo_url" == "https://"* ]]; then
