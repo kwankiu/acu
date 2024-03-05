@@ -210,10 +210,10 @@ add_alias() {
     ALIAS_NAME=$1
 
     # Command to run
-    if [ -z "$CUSTOM_CMD_TO_RUN" ]; then
+    if [ -z "$2" ]; then
         COMMAND_TO_RUN="acu"
     else
-        COMMAND_TO_RUN=$CUSTOM_CMD_TO_RUN
+        COMMAND_TO_RUN=$2
     fi
 
     # Create the alias script
@@ -2014,7 +2014,7 @@ elif [ "$1" = "wifi" ]; then
     wifi_country "$2"
 
 elif [ "$1" = "add-alias" ]; then
-    add_alias "$2"
+    add_alias "$2" "$3"
 
 elif [ "$1" = "remove-alias" ]; then
     sudo rm -rf /usr/bin/$2
