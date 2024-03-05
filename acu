@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030518
+utilver=24030519
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -869,7 +869,7 @@ manage_packages() {
     options=("1 \t Update Packages \t Check & Perform Selective / Full System Upgrade")
     options+=("2 \t Downgrade Packages \t Install / Downgrade any Arch Linux Packages from Archive")
     options+=("3 \t Add Pacman Repo \t Add a package repository to archlinux's package manager (pacman).")
-    options+=("4 \t Add ACU Repo \t Add a package repository to be managed by acu.")
+    options+=("4 \t Add ACU Repo \t\t Add a package repository to be managed by acu.")
     options+=("Return to Main Menu")
     select_option "${options[@]}"
     choice=$?
@@ -1419,11 +1419,11 @@ force_performance_at_boot() {
 # Localization Main Menu
 localization() {
     titlelogo "Localization"
-    options=("1 \t Locale \t Generate Locale Settings")
-    options+=("2 \t Fonts \t Install Fonts, TTF, Non-English Characters, Special Characters / Emoji")
-    options+=("3 \t Time \t Change Time Zone, Current Date and Time")
+    options=("1 \t Locale \t\t Generate Locale Settings")
+    options+=("2 \t Fonts \t\t\t Install Fonts, TTF, Non-English Characters, Special Characters / Emoji")
+    options+=("3 \t Time \t\t\t Change Time Zone, Current Date and Time")
     options+=("4 \t Keyboard Layout \t Change Keyboard Layout")
-    options+=("5 \t WiFi Country \t Change WiFi Country Settings")
+    options+=("5 \t WiFi Country \t\t Change WiFi Country Settings")
     options+=("Return to Main Menu")
     select_option "${options[@]}"
     choice=$?
