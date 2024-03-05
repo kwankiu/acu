@@ -193,8 +193,6 @@ add_alias() {
 # Packages Install Tools
 
 install_from_source() {
-
-    cpwd=$(pwd)
     
     # Install required package    
     sudo pacman -Sy --needed git base-devel --noconfirm
@@ -247,7 +245,7 @@ install_from_source() {
         fi
     
         # Clean Up
-        cd "$cpwd"
+        cd ~
         sudo rm -rf "$source_repo_dir"
     fi 
 
@@ -597,12 +595,12 @@ system_update() {
         fi
     elif [ "$choice" = "2" ]; then
         if [ -x "$(command -v yay)" ]; then
-            yay -S ${selection[*]}
+            yay -S "${selection[*]}"
         else
             if [ -z "$no_confirm" ]; then
-                sudo pacman -Sy ${selection[*]}
+                sudo pacman -Sy "${selection[*]}"
             else
-                sudo pacman -Sy ${selection[*]} --noconfirm
+                sudo pacman -Sy "${selection[*]}" --noconfirm
             fi
         fi
     elif [ "$choice" = "3" ] || [ "$choice" = "4" ] || [ "$choice" = "5" ] || [ "$choice" = "6" ]; then
@@ -1804,9 +1802,9 @@ elif [ "$1" = "remove" ] || [ "$1" = "-R" ]; then
         echo "removed agr"
     fi
     if [ -z "$no_confirm" ]; then
-        sudo pacman -R ${pkgtoremove[@]}
+        sudo pacman -R "${pkgtoremove[@]}"
     else
-        sudo pacman -R ${pkgtoremove[@]} --noconfirm
+        sudo pacman -R "${pkgtoremove[@]}" --noconfirm
     fi
 
 elif [ "$1" = "install" ] || [ "$1" = "-S" ] ; then
