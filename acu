@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030508
+utilver=24030509
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -1286,6 +1286,8 @@ system_info() {
     sys_cpu_thread=$(nproc)
     if [ -e "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq" ]; then
         sys_cpu_clock=($(sudo cat /sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_cur_freq))
+    else
+        sys_cpu_clock="0.00"
     fi
     if [ -e "/sys/bus/cpu/devices/cpu0/cpufreq/scaling_governor" ]; then
         sys_cpu_governor=($(cat /sys/bus/cpu/devices/cpu*/cpufreq/scaling_governor))
