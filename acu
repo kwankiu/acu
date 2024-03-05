@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030502
+utilver=24030503
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -1111,7 +1111,7 @@ install_selected_pkg() {
                     else
                         sudo pacman -Sy ${selection[i]} --noconfirm
                     fi
-                elif agr 2>&1 | grep -q "${selection[i]}"; then
+                elif agr 2>&1 | grep -v -E '://' | grep -v 'INFO' | grep -q "${selection[i]}"; then
                     colorecho "$GREEN" "Installing ${selection[i]} from agr ..."
                     if [ -z "$no_confirm" ]; then
                         agr install ${selection[i]} 
