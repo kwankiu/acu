@@ -409,6 +409,7 @@ fetch_repositories() {
                 for pkg in "${ghapi_pkg_results[@]}"; do
                     colorecho "$BLUE" "      PKG$NC |     $pkg"
                 done
+                colorecho "$BLUE" "      INFO$NC |     found ${#ghapi_pkg_results[@]} packages"
                 ;;
             ghapi-releases)
                 adrepo_url=${repo_urls[i]}
