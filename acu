@@ -922,10 +922,11 @@ install_pkg_category() {
 
         if [[ " ${selection[*]} " == *" $selected_option "* ]]; then
             options[$2]="[ ] ${selected_option}"
-            selection=("${selection[@]/$selected_option}")
+            echo "current list: ${selection[@]}"
+            echo "try to remove ${selected_option%% *}"
         else
             options[$2]="[x] ${selected_option}"
-            selection+=("$selected_option")
+            selection+=("${selected_option%% *}")
         fi
     else
         selection=()
@@ -982,6 +983,7 @@ install_pkg_category() {
     if [ "$choice" = "0" ]; then
         install_packages
     elif [ "$choice" = "1" ]; then
+        #print_selected_pkg && exit 1
         install_selected_pkg
         install_packages
     elif [ "$choice" = "2" ]; then
@@ -990,6 +992,13 @@ install_pkg_category() {
         install_pkg_category --select $choice
     fi
 
+}
+
+print_selected_pkg() {
+    colorecho "$GREEN" "Selected Packages :"
+    for ((i=0; i<${#selection[@]}; i++)); do
+        echo "${selection[i]}"
+    done
 }
 
 install_selected_pkg() {
