@@ -513,7 +513,7 @@ config_options() {
     options+=("6 \t User Accounts \t\t Add, Remove or Change user account settings")
 
     if [ "$update_available" = true ]; then 
-        options+=("Update Now $GREEN(Updates available)$NC \t Update Utility to latest version $GREEN($utilver -> $remote_utilver)$NC ")
+        options+=("Update Now $GREEN(Updates available)$NC Update Utility to latest version $GREEN($utilver -> $remote_utilver)$NC ")
     fi
     
     options+=("Exit Utility")
