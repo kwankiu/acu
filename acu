@@ -19,7 +19,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030405
+utilver=24030406
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -197,7 +197,7 @@ install_from_source() {
     cpwd=$(pwd)
     
     # Install required package    
-    sudo pacman -S --needed git base-devel --noconfirm
+    sudo pacman -Sy --needed git base-devel --noconfirm
     
     # Ensure folder doesn't exist
     sudo rm -rf "$source_repo_dir"
@@ -600,9 +600,9 @@ system_update() {
             yay -S ${selection[*]}
         else
             if [ -z "$no_confirm" ]; then
-                sudo pacman -S ${selection[*]}
+                sudo pacman -Sy ${selection[*]}
             else
-                sudo pacman -S ${selection[*]} --noconfirm
+                sudo pacman -Sy ${selection[*]} --noconfirm
             fi
         fi
     elif [ "$choice" = "3" ] || [ "$choice" = "4" ] || [ "$choice" = "5" ] || [ "$choice" = "6" ]; then
@@ -964,9 +964,9 @@ install_selected_pkg() {
             "chromium")
                 if sudo pacman -Ssy "^chromium-mpp$" &> /dev/null; then
                     if [ -z "$no_confirm" ]; then
-                        sudo pacman -S chromium-mpp
+                        sudo pacman -Sy chromium-mpp
                     else
-                        sudo pacman -S chromium-mpp --noconfirm
+                        sudo pacman -Sy chromium-mpp --noconfirm
                     fi
                     #install_pkg_from_url "$alaa_url/packages/r/re2/re2-1%3A20230301-1-aarch64.pkg.tar.xz"
                     sudo systemctl enable --now libv4l-rkmpp-setup.service
@@ -978,9 +978,9 @@ install_selected_pkg() {
                     echo -e "# Default settings for chromium-browser. This file is sourced by /bin/sh from\n# /usr/bin/chromium-browser\n\n# Options to pass to chromium-browser\nLD_LIBRARY_PATH=/usr/lib/mali-valhall-g610/x11-wayland-gbm\nCHROMIUM_FLAGS=\"--use-gl=egl\"" | sudo tee /etc/chromium-browser/default >/dev/null
                 else
                     if [ -z "$no_confirm" ]; then
-                        sudo pacman -S chromium
+                        sudo pacman -Sy chromium
                     else
-                        sudo pacman -S chromium --noconfirm
+                        sudo pacman -Sy chromium --noconfirm
                     fi
                 fi
                 ;;
@@ -1017,9 +1017,9 @@ install_selected_pkg() {
             "kodi")
                 if sudo pacman -Ssy "^kodi-nexus-mpp-git$" &> /dev/null; then 
                     if [ -z "$no_confirm" ]; then
-                        sudo pacman -S kodi-nexus-mpp-git
+                        sudo pacman -Sy kodi-nexus-mpp-git
                     else
-                        sudo pacman -S kodi-nexus-mpp-git --noconfirm
+                        sudo pacman -Sy kodi-nexus-mpp-git --noconfirm
                     fi
                 fi
                 ;;
@@ -1071,9 +1071,9 @@ install_selected_pkg() {
                 elif sudo pacman -Ssy "^${selection[i]}$" &> /dev/null; then
                     colorecho "$GREEN" "Installing ${selection[i]} with pacman ..."
                     if [ -z "$no_confirm" ]; then
-                        sudo pacman -S ${selection[i]} 
+                        sudo pacman -Sy ${selection[i]} 
                     else
-                        sudo pacman -S ${selection[i]} --noconfirm
+                        sudo pacman -Sy ${selection[i]} --noconfirm
                     fi
                 elif agr 2>&1 | grep -q "${selection[i]}"; then
                     colorecho "$GREEN" "Installing ${selection[i]} from agr ..."
@@ -1546,7 +1546,7 @@ fonts() {
 
     case $choice in
         0)
-            sudo pacman -S noto-fonts noto-fonts-cjk noto-fonts-emoji --noconfirm
+            sudo pacman -Sy noto-fonts noto-fonts-cjk noto-fonts-emoji --noconfirm
             ;;
         1)
             read -p "Enter the path to the TTF font file: " font_path
