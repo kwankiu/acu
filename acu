@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030504
+utilver=24030505
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -404,10 +404,10 @@ fetch_repositories() {
                 agr
                 ;;
             ghapi-orgs)
-                colorecho "$BLUE" "\t\t INFO $NC | Looking up remote: ${repo_urls[i]}"
+                colorecho "$BLUE" "INFO $NC | Looking up remote: ${repo_urls[i]}"
                 get_ghapi_orgs ${repo_urls[i]}
                 for pkg in "${ghapi_pkg_results[@]}"; do
-                    colorecho "$BLUE" "\t\t PKG $NC | \t\t $pkg"
+                    colorecho "$BLUE" "\t PKG $NC | \t $pkg"
                 done
                 ;;
             ghapi-releases)
@@ -505,12 +505,12 @@ install_ghrel_packages() {
 
 config_options() {
     titlelogo
-    options=("1 \t System Maintenance \t\t Managing Updates, Bootloader, System, Linux Kernel")
-    options+=("2 \t Manage Packages \t\t Upgrade or downgrade packages, Manage packages repositories")
-    options+=("3 \t Install Apps \t\t\t Install New Software or Application packages")
-    options+=("4 \t Performance \t\t\t Tweak SoC Performance Settings, Enable PWM Fan, Overclocking")
-    options+=("5 \t Localization \t\t\t Generate locale, Install fonts, Set date, time & timezone")
-    options+=("6 \t User Accounts \t\t\t Add, Remove or Change user account settings")
+    options=("1 \t System Maintenance \t Managing Updates, Bootloader, System, Linux Kernel")
+    options+=("2 \t Manage Packages \t Upgrade or downgrade packages, Manage packages repositories")
+    options+=("3 \t Install Apps \t\t Install New Software or Application packages")
+    options+=("4 \t Performance \t\t Tweak SoC Performance Settings, Enable PWM Fan, Overclocking")
+    options+=("5 \t Localization \t\t Generate locale, Install fonts, Set date, time & timezone")
+    options+=("6 \t User Accounts \t\t Add, Remove or Change user account settings")
 
     if [ "$update_available" = true ]; then 
         options+=("Update Now $GREEN(Updates available)$NC \t Update Utility to latest version $GREEN($utilver -> $remote_utilver)$NC ")
