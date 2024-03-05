@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030501
+utilver=24030502
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -1248,6 +1248,75 @@ performance_features() {
 
 }
 
+system_info() {
+    titlelogo "System Information"
+
+    # Get OS
+    sys_os=$(cat /etc/*-release | grep PRETTY_NAME | cut -d'"' -f2)
+
+    # Get host / device model
+    sys_host=$(cat /proc/device-tree/model | tr -d '\0')
+
+    # Get kernel
+    sys_krl=$(uname -sr)
+
+    # Get uptime
+    sys_uptime=$(uptime -p | sed 's/^up //')
+    
+    # Get cpu info
+    sys_cpu=$(cat /proc/cpuinfo | grep -m1 "model name" | cut -d':' -f2 | sed 's/^ *//' | tr -d '\0')
+    if [ -z "$sys_cpu" ]; then
+        sys_cpu_vendor=$(awk -F ',' '{print $1}' /proc/device-tree/cpuinfo/compatible | tr -d '\0' | sed 's/^\(.\)/\U\1/')
+        sys_cpu_model=$(awk -F ',' '{print $NF}' /proc/device-tree/compatible | tr -d '\0' | tr '[:lower:]' '[:upper:]')
+        sys_cpu=$(echo "$sys_cpu_vendor $sys_cpu_model")
+    fi
+    sys_cpu_thread=$(nproc)
+    sys_cpu_clock=($(sudo cat /sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_cur_freq))
+    sys_cpu_governor=$(cat /sys/bus/cpu/devices/cpu[4]/cpufreq/scaling_governor)
+    sys_arch=$(uname -m)
+
+    # Get mem usage
+    sys_mem_free=$(free -h | grep "Mem:" | awk '{print $4}' | sed 's\Gi\\g' | sed 's\Mi\\g')
+    sys_mem_total=$(free -h | grep "Mem:" | awk '{print $2}' | sed 's\Gi\\g' | sed 's\Mi\\g')
+
+    # Get disk usage
+    sys_disk=$(df -h / | awk 'NR==2 {print $3" / "$2" ("$5")"}' | sed 's/G/ GiB/g; s/M/ MiB/g')
+
+    # Get number of packages installed
+    sys_packages=$(pacman -Q | wc -l)
+
+    # Get shell
+    sys_shell=$(basename "$SHELL")
+
+    # Get screen resolution (WIP)
+    if [ -n "$WAYLAND_DISPLAY" ]; then
+        sys_session="Wayland"
+    elif [ -n "$DISPLAY" ]; then
+        # Get screen resolution under Xorg
+        sys_resolution=$(xdpyinfo | awk '/dimensions:/ {print $2}')
+        sys_session="Xorg"
+    fi
+
+    # Get desktop environment
+    sys_de=$(echo "$XDG_CURRENT_DESKTOP" | sed 's/.\+://')
+
+    # Get terminal
+    sys_terminal=$(basename "$TERM")
+
+    colorecho "$BLUE" "OS: $NC $sys_os ($sys_arch)"
+    colorecho "$BLUE" "Host: $NC $sys_host"
+    colorecho "$BLUE" "Kernel: $NC $sys_krl"
+    colorecho "$BLUE" "Uptime: $NC $sys_uptime"
+    colorecho "$BLUE" "Packages: $NC $sys_packages"
+    colorecho "$BLUE" "Shell: $NC $sys_shell"
+    colorecho "$BLUE" "DE: $NC $sys_de ($sys_session)"
+    colorecho "$BLUE" "Terminal: $NC $sys_terminal"
+    colorecho "$BLUE" "CPU: $NC ($sys_cpu_thread) $sys_cpu @ $(awk "BEGIN{printf \"%.2f\\n\", ((${sys_cpu_clock[4]}/1000000))}") Ghz ($sys_cpu_governor)"
+    colorecho "$BLUE" "Memory: $NC $sys_mem_free GiB / $sys_mem_total GiB ($(awk "BEGIN{printf \"%.2f%%\\n\", (1-(${sys_mem_free}/${sys_mem_total}))*100}"))"
+    colorecho "$BLUE" "Disk: $NC $sys_disk"
+
+}
+
 # SoC Performance Profile
 soc_profile() {
 
@@ -1892,6 +1961,9 @@ elif [ "$1" = "soc" ]; then
 
 elif [ "$1" = "fan" ]; then
     fan_control "$2"
+
+elif [ "$1" = "sysinfo" ]; then
+    system_info
 
 ### Features - User & Localization ###
 
