@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030505
+utilver=24030506
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -407,7 +407,7 @@ fetch_repositories() {
                 colorecho "$BLUE" "INFO $NC | Looking up remote: ${repo_urls[i]}"
                 get_ghapi_orgs ${repo_urls[i]}
                 for pkg in "${ghapi_pkg_results[@]}"; do
-                    colorecho "$BLUE" "\t PKG $NC | \t $pkg"
+                    colorecho "$BLUE" "      PKG$NC |     $pkg"
                 done
                 ;;
             ghapi-releases)
