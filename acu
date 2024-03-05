@@ -19,7 +19,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030404
+utilver=24030405
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -369,7 +369,6 @@ fetch_repositories() {
         printf "\t\t [ ########################## ] \t"
         case ${repo_types[i]} in
             agr)
-                agr rem set ${repo_names[i]} ${repo_urls[i]}.git
                 agr
                 ;;
             ghapi-orgs)
