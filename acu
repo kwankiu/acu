@@ -1,9 +1,19 @@
 #!/bin/bash
 
 ################################################################
-#                                                              #
-#               Arch (ARM) Configuration Utility               #
-#                                                              #
+                  ##                     __   ____  _  _    
+                 ####                   / _\ (  _ \( \/ )    
+                ######                 /    \ )   // \/ \ 
+               ########                \_/\_/(__\_)\_)(_/   
+              ##########          ___  __   __ _  ____  __  ___ 
+             ############        / __)/  \ (  ( \(  __)(  )/ __)
+            ##############      ( (__(  O )/    / ) _)  )(( (_ \
+           ################      \___)\__/ \_)__)(__)  (__)\___/
+          ######      ######           _  _  ____  __  __   
+         #######      #######         / )( \(_  _)(  )(  )  
+       #######         #######        ) \/ (  )(   )( / (_/\ 
+      ######             ######       \____/ (__) (__)\____/ 
+     ###                     ###    
 ################################################################
 # arch(arm)-config-util (acu) is a configuration utility for Arch Linux ARM (Aarch64) 
 # currently with main focus on the Radxa Rock 5 and RK3588
@@ -19,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030406
+utilver=24030501
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -142,6 +152,30 @@ title() {
   echo "---------------------------------------------------------------------"
   colorecho "$BLUE" "${text}"
   echo "---------------------------------------------------------------------"
+}
+
+titlelogo() {
+  clear
+  echo "---------------------------------------------------------------------"
+  colorecho "$BLUE" "                  ##                     __   ____  _  _    "
+  colorecho "$BLUE" "                 ####                   / _\ (  _ \( \/ )   "
+  colorecho "$BLUE" "                ######                 /    \ )   // \/ \ "
+  colorecho "$BLUE" "               ########                \_/\_/(__\_)\_)(_/ "
+  colorecho "$BLUE" "              ##########          ___  __   __ _  ____  __  ___ "
+  colorecho "$BLUE" "             ############        / __)/  \ (  ( \(  __)(  )/ __)"
+  colorecho "$BLUE" "            ##############      ( (__(  O )/    / ) _)  )(( (_ \ "
+  colorecho "$BLUE" "           ################      \___)\__/ \_)__)(__)  (__)\___/"
+  colorecho "$BLUE" "          ######      ######           _  _  ____  __  __   "
+  colorecho "$BLUE" "         #######      #######         / )( \(_  _)(  )(  )  "
+  colorecho "$BLUE" "       #######         #######        ) \/ (  )(   )( / (_/\ "
+  colorecho "$BLUE" "      ######             ######       \____/ (__) (__)\____/ "
+  colorecho "$BLUE" "     ###                     ###    "
+  echo "---------------------------------------------------------------------"
+  if [ -n "$1" ]; then
+    text="$1"
+    colorecho "$BLUE" "${text}"
+    echo "---------------------------------------------------------------------"
+  fi
 }
 
 ################################################################
@@ -466,14 +500,16 @@ install_ghrel_packages() {
 # Utility Main Menu
 
 config_options() {
-    title "$utilname"
-    options=("System Maintenance - Managing Updates, Bootloader, System, Linux Kernel, etc.")
-    options+=("Manage Packages - Install, Update or Downgrade Software Packages.")
-    options+=("Performance & Features - Tweak SoC Performance Settings, Enable PWM Fan, Overclocking, etc.")
-    options+=("User & Localization - Manage user accounts, Generating Locale, changing Timezone, etc.")
+    titlelogo
+    options=("1 \t System Maintenance \t\t Managing Updates, Bootloader, System, Linux Kernel")
+    options+=("2 \t Manage Packages \t\t Upgrade or downgrade packages, Manage packages repositories")
+    options+=("3 \t Install Apps \t\t\t Install New Software or Application packages")
+    options+=("4 \t Performance \t\t\t Tweak SoC Performance Settings, Enable PWM Fan, Overclocking")
+    options+=("5 \t Localization \t\t\t Generate locale, Install fonts, Set date, time & timezone")
+    options+=("6 \t User Accounts \t\t\t Add, Remove or Change user account settings")
 
     if [ "$update_available" = true ]; then 
-        options+=("Update Utility to latest version $GREEN(Updates available)$NC")
+        options+=("Update Now $GREEN(Updates available)$NC \t Update Utility to latest version $GREEN($utilver -> $remote_utilver)$NC ")
     fi
     
     options+=("Exit Utility")
@@ -489,12 +525,18 @@ config_options() {
             manage_packages
             ;;
         2)
-            performance_features
+            install_packages
             ;;
         3)
-            user_localization
+            performance_features
             ;;
         4)
+            localization
+            ;;
+        5)
+            manage_user
+            ;;
+        6)
             update_util
             ;;
         *)
@@ -509,9 +551,8 @@ config_options() {
 
 # System Maintenance Main Menu
 system_maintenance() {
-    title "$utilname - System Maintenance"
-    options=("Package Updates - Check & Perform Selective / Full System Upgrade")
-    options+=("WIP DO NOT USE - Flash Latest Radxa U-Boot")
+    titlelogo "System Maintenance"
+    options=("WIP DO NOT USE - Flash Latest Radxa U-Boot")
     #options+=("Move Arch Linux - Copy Arch Linux to another disk.")
     options+=("Return to Main Menu")
     select_option "${options[@]}"
@@ -520,9 +561,6 @@ system_maintenance() {
     # Choice
     case $choice in
         0)
-            system_update
-            ;;
-        1)
             flash_uboot
             ;;
         *)
@@ -533,9 +571,9 @@ system_maintenance() {
 }
 
 # System Update
-system_update() {
+package_update() {
 
-    title "$utilname - Package Updates"
+    titlelogo "Package Updates"
 
     if [ "$1" = "--select" ]; then
         local selected_option="${poptions[$2]}"
@@ -604,9 +642,9 @@ system_update() {
             fi
         fi
     elif [ "$choice" = "3" ] || [ "$choice" = "4" ] || [ "$choice" = "5" ] || [ "$choice" = "6" ]; then
-        system_update
+        package_update
     else
-        system_update --select $choice
+        package_update --select $choice
     fi
 
 }
@@ -620,7 +658,7 @@ flash_uboot() {
         exit 1
     else
         if [ -z "$1" ]; then
-            title "$utilname - Update SPI Bootloader"
+            titlelogo "Update SPI Bootloader"
             colorecho "$GREEN" "Select an option to confirm"
             colorecho "$RED" "Warning : The SPI NOR flash will be cleared."
             echo ""
@@ -814,8 +852,8 @@ move_system() {
 
 # Manage Packages Main Menu
 manage_packages() {
-    title "$utilname - Manage Packages"
-    options=("Install / Update Software - Install Basic Software / RK3588 Specified / Customized Packages")
+    titlelogo "Manage Packages"
+    options=("Update Packages - Check & Perform Selective / Full System Upgrade")
     options+=("Downgrade Packages - Install / Downgrade any Arch Linux Packages from Archive")
     options+=("Add Pacman Repo - Add a repository to archlinux system's package manager (pacman).")
     options+=("Return to Main Menu")
@@ -825,7 +863,7 @@ manage_packages() {
     # Choice
     case $choice in
         0)
-            install_packages
+            package_update
             ;;
         1)
             downgrade_packages
@@ -846,7 +884,7 @@ install_packages() {
     if [ "$launch_as_installer" = 1 ]; then
         title "Install Additional Packages"
     else
-        title "$utilname - Install / Update Software"
+        titlelogo "Install / Update Software"
     fi
 
     category=("Web - Surf the Internet" "Communication - Connect with friends, family, teams" "Suites - Office & Productivity Software" "Multimedia - Audio, Video, Graphics Software" "Gaming / Emulation / Virtualization Software" "Development Tools - Editors, IDEs, Build Tools" "Misc - Firmware Driver, other Tools and Software")
@@ -1106,7 +1144,7 @@ install_selected_pkg() {
 
 # Install Packages from Archive
 downgrade_packages() {
-    title "$utilname - Downgrade Packages"
+    titlelogo "Downgrade Packages"
 
     if [ -z "$1" ]; then
         read -p "Enter package to downgrade: " dgpkg
@@ -1138,7 +1176,7 @@ downgrade_packages() {
 
 add_repo() {
     if [ -z "$1" ]; then
-        title "$utilname - Add Pacman Repo"
+        titlelogo "Add Pacman Repo"
         read -p "Enter repo name: " repo_name
         read -p "Enter server URL for $repo_name repo: " server_url
         read -p "Do you want to add a GPG key for $repo_name repo? [Y/n]: " add_gpg_key
@@ -1180,7 +1218,7 @@ add_repo() {
 
 # Performance & Features Main Menu
 performance_features() {
-    title "$utilname - Performance & Features"
+    titlelogo "Performance & Features"
     options=("SoC Performance Profile - Available options are performance, ondemand and powersave")
     options+=("PWM Fan Control - (ROCK 5 ONLY) Configure PWM Fan-control service")
     #options+=("Overclocking - Configure rk3588-unlock-opps overlay which increases CPU supply & CPU VDD supply")
@@ -1215,9 +1253,9 @@ soc_profile() {
 
     if [ -z "$1" ] || [ "$1" = "status" ]; then
         if [ -z "$1" ]; then
-            title "$utilname - SoC Performance Profile"
+            titlelogo "SoC Performance Profile"
         else
-            title "$utilname - SoC Monitor"
+            titlelogo "SoC Monitor"
         fi
         colorecho "$BLUE" "CPU Profile: $(cat /sys/bus/cpu/devices/cpu[046]/cpufreq/scaling_governor)"
         colorecho "$BLUE" "Memory Profile: $(cat /sys/class/devfreq/dmc/governor)"
@@ -1278,13 +1316,12 @@ force_performance_at_boot() {
 }
 
 ################################################################
-# User & Localization
+# Localization
 
-# User & Localization Main Menu
-user_localization() {
-    title "$utilname - User & Localization"
-    options=("Manage User - Add, Remove and Change User Account Settings")
-    options+=("Locale - Generate Locale Settings")
+# Localization Main Menu
+localization() {
+    titlelogo "Localization"
+    options=("Locale - Generate Locale Settings")
     options+=("Fonts - Install Fonts, TTF, Non-English Characters, Special Characters / Emoji")
     options+=("Time - Change Time Zone, Current Date and Time")
     options+=("Keyboard Layout - Change Keyboard Layout")
@@ -1296,21 +1333,18 @@ user_localization() {
     # Choice
     case $choice in
         0)
-            manage_user
-            ;;
-        1)
             locale
             ;;
-        2)
+        1)
             fonts
             ;;
-        3)
+        2)
             timezone
             ;;
-        4)
+        3)
             keyboard
             ;;
-        5)
+        4)
             wifi_country
             ;;
         *)
@@ -1324,13 +1358,13 @@ user_localization() {
 manage_user() {
 
     if [ -z "$1" ]; then
-    title "$utilname - Manage User"
+    titlelogo "Manage User"
     
     # List all user accounts
     real_users=($(getent passwd | awk -F: '$3 >= 1000 && $3 < 65534 {print $1}'))
 
     # Prompt to add a new user
-    select_options=("Return to User & Localization Menu" "Add User")
+    select_options=("Return to Main Menu" "Add User")
     select_options+=("${real_users[@]}")
     
     select_option "${select_options[@]}"
@@ -1349,11 +1383,11 @@ manage_user() {
 
     case $choice in
         0)
-            user_localization
+            config_options
             ;;
         1)
             if [ -z "$new_user" ]; then
-                title "$utilname - Add New User"
+                titlelogo "Add New User"
                 read -p "Enter username for the new user: " new_user
             fi
             sudo useradd -m "$new_user"
@@ -1371,7 +1405,7 @@ manage_user() {
             ;;
         99)
             if [ -z "$t_user" ]; then
-                title "$utilname - Remove User"
+                titlelogo "Remove User"
                 read -p "Enter username to remove: " t_user
             fi            
              # Remove  account
@@ -1388,7 +1422,7 @@ manage_user() {
             fi
 
             if [ -z "$manage_action" ]; then
-                title "$utilname - Manage $selected_user"
+                titlelogo "Manage $selected_user"
                 colorecho "$GREEN" "User: $selected_user"
                 echo ""
 
@@ -1443,7 +1477,7 @@ locale() {
     generated_locales=$(sudo locale -a)
     
     if [ -z "$1" ]; then
-    title "$utilname - Locale"
+    titlelogo "Locale"
     
     # List available locales
     colorecho "$GREEN" "Generated Locales:"
@@ -1452,7 +1486,7 @@ locale() {
     echo ""
 
     # Prompt to select and generate locale
-    select_options=("Generate New Locales" "Return to User & Localization Menu")
+    select_options=("Generate New Locales" "Return to Localization Menu")
     select_option "${select_options[@]}"
     choice=$?
     elif [ "$1" = "list-generated" ]; then
@@ -1496,7 +1530,7 @@ locale() {
                     fi
                 done
                 
-                title "$utilname - Generate Locale"
+                titlelogo "Generate Locale"
                 colorecho "$GREEN" "The following locales will be added:"
 
                 for ((i = 0; i < ${#matches[@]}; i++)); do
@@ -1528,17 +1562,17 @@ locale() {
             fi
             ;;
         *)
-            user_localization
+            localization
             ;;
     esac
 }
 
 # Function to manage fonts
 fonts() {
-    title "$utilname - Fonts"
+    titlelogo "Fonts"
     
     # Prompt to install fonts
-    select_options=("Install Noto Fonts (including CJK and Emoji) - Support Asian Characters" "Install TTF Fonts from File" "Return to User & Localization Menu")
+    select_options=("Install Noto Fonts (including CJK and Emoji) - Support Asian Characters" "Install TTF Fonts from File" "Return to Localization Menu")
     select_option "${select_options[@]}"
     choice=$?
 
@@ -1552,7 +1586,7 @@ fonts() {
             sudo fc-cache -f -v
             ;;
         *)
-            user_localization
+            localization
             ;;
     esac
 }
@@ -1567,7 +1601,7 @@ timezone() {
 
     if [ -z "$1" ]; then
 
-        title "$utilname - Time Zone"
+        titlelogo "Time Zone"
 
         colorecho "$GREEN" "Network Time Zone: $network_timezone"
 
@@ -1578,7 +1612,7 @@ timezone() {
         fi
 
         echo ""
-        select_options=("Return to User & Localization Menu" "Set Time Zone Manually" "Set Date & Time Manually")
+        select_options=("Return to Localization Menu" "Set Time Zone Manually" "Set Date & Time Manually")
 
         if [ "$current_timezone" != "$network_timezone" ]; then
             select_options+=("Synchronize Time Zone with Network")
@@ -1606,7 +1640,7 @@ timezone() {
 
     case $choice in
         0)
-            user_localization
+            localization
             ;;
         1)
             if [ -z "$new_timezone" ]; then
@@ -1630,7 +1664,7 @@ timezone() {
 
 # Function to change keyboard layout
 keyboard() {
-    title "$utilname - Keyboard Layout"
+    titlelogo "Keyboard Layout"
 
     # Get current keyboard layout
     current_layout=$(localectl status | grep "X11 Layout" | awk '{print $3}')
@@ -1638,7 +1672,7 @@ keyboard() {
     echo "Current Keyboard Layout: $current_layout"
     
     # Prompt to select new keyboard layout
-    select_options=("Change Keyboard Layout" "Return to User & Localization Menu")
+    select_options=("Change Keyboard Layout" "Return to Localization Menu")
     select_option "${select_options[@]}"
     choice=$?
 
@@ -1649,17 +1683,17 @@ keyboard() {
             echo "Keyboard Layout updated to $new_layout"
             ;;
         *)
-            user_localization
+            localization
             ;;
     esac
 }
 
 # Function to change WiFi country
 wifi_country() {
-    title "$utilname - WiFi Country"
+    titlelogo "WiFi Country"
 
     # Get available WiFi countries
-    wifi_countries=("Return to User & Localization Menu")
+    wifi_countries=("Return to Localization Menu")
     wifi_countries+=($(iw reg get | grep -o -E '^[A-Z]{2}'))
     
     # Display available WiFi countries and prompt to select
@@ -1671,7 +1705,7 @@ wifi_country() {
         sudo iw reg set "$selected_country"
         echo "WiFi Country updated to $selected_country"
     else
-        user_localization
+        localization
     fi
 }
 
@@ -1707,7 +1741,7 @@ for arg in "$@"; do
             echo "soc <option> : Manage SoC Settings. options: performance, ondemand, powersave (and status for SoC Monitor) and force-performance which set performance at every bootup."
             echo "fan <option> : Configure PWM Fan-control. options: install, enable, disable and status."
 
-            colorecho "$YELLOW" "User & Localization"
+            colorecho "$YELLOW" "Localization"
             echo "user <option> : Add, Remove and Change User Account Settings. options: add, remove, manage"
             echo "locale : Generate Locale Settings. options: list-generated, list-available, generate <country_code>"
             echo "font : Install Fonts, TTF, Non-English Characters, Special Characters / Emoji."
@@ -1769,7 +1803,7 @@ cd ~/
 
 ### Features - Manage Packages ###
 if [ "$1" = "upgrade" ]; then
-    system_update
+    package_update
 
 elif [ "$1" = "update" ]; then
     sudo pacman -Syy --noconfirm
