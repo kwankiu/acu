@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030601
+utilver=24030602
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -517,12 +517,12 @@ install_ghrel_packages() {
 
 config_options() {
     titlelogo
-    options=("1 \t System Maintenance \t Managing Updates, Bootloader, System, Linux Kernel")
-    options+=("2 \t Manage Packages \t Upgrade or downgrade packages, Manage packages repositories")
-    options+=("3 \t Install Apps \t\t Install New Software or Application packages")
-    options+=("4 \t Performance \t\t Tweak SoC Performance Settings, Enable PWM Fan, Overclocking")
-    options+=("5 \t Localization \t\t Generate locale, Install fonts, Set date, time & timezone")
-    options+=("6 \t User Accounts \t\t Add, Remove or Change user account settings")
+    options=("System Maintenance \t Managing Updates, Bootloader, System, Linux Kernel")
+    options+=("Manage Packages \t Upgrade or downgrade packages, Manage packages repositories")
+    options+=("Install Apps \t\t Install New Software or Application packages")
+    options+=("Performance \t\t Tweak SoC Performance Settings, Enable PWM Fan, Overclocking")
+    options+=("Localization \t\t Generate locale, Install fonts, Set date, time & timezone")
+    options+=("User Accounts \t\t Add, Remove or Change user account settings")
 
     if [ "$update_available" = true ]; then 
         options+=("Update Now $GREEN(Updates available)$NC Update Utility to latest version $GREEN($utilver -> $remote_utilver)$NC ")
@@ -568,8 +568,8 @@ config_options() {
 # System Maintenance Main Menu
 system_maintenance() {
     titlelogo "System Maintenance"
-    options=("1 \t WIP DO NOT USE \t\t Flash Latest Radxa U-Boot")
-    #options+=("2 \t Move Arch Linux \t\t Copy Arch Linux to another disk.")
+    options=("WIP DO NOT USE \t\t Flash Latest Radxa U-Boot")
+    #options+=("Move Arch Linux \t\t Copy Arch Linux to another disk.")
     options+=("Return to Main Menu")
     select_option "${options[@]}"
     choice=$?
@@ -869,10 +869,10 @@ move_system() {
 # Manage Packages Main Menu
 manage_packages() {
     titlelogo "Manage Packages"
-    options=("1 \t Update Packages \t Check & Perform Selective / Full System Upgrade")
-    options+=("2 \t Downgrade Packages \t Install / Downgrade any Arch Linux Packages from Archive")
-    options+=("3 \t Add Pacman Repo \t Add a package repository to archlinux's package manager (pacman).")
-    options+=("4 \t Add ACU Repo \t\t Add a package repository to be managed by acu.")
+    options=("Update Packages \t Check & Perform Selective / Full System Upgrade")
+    options+=("Downgrade Packages \t Install / Downgrade any Arch Linux Packages from Archive")
+    options+=("Add Pacman Repo \t Add a package repository to archlinux's package manager (pacman).")
+    options+=("Add ACU Repo \t\t Add a package repository to be managed by acu.")
     options+=("Return to Main Menu")
     select_option "${options[@]}"
     choice=$?
@@ -1245,8 +1245,8 @@ add_repo() {
 # Performance & Features Main Menu
 performance_features() {
     titlelogo "Performance & Features"
-    options=("1 \t SoC Performance Profile \t Available options are performance, ondemand and powersave")
-    options+=("2 \t PWM Fan Control \t\t (ROCK 5 ONLY) Configure PWM Fan-control service")
+    options=("SoC Performance Profile \t Available options are performance, ondemand and powersave")
+    options+=("PWM Fan Control \t\t (ROCK 5 ONLY) Configure PWM Fan-control service")
     #options+=("Overclocking - Configure rk3588-unlock-opps overlay which increases CPU supply & CPU VDD supply")
     #options+=("Overlay - Configure Device Tree Overlay")
     options+=("Return to Main Menu")
@@ -1422,11 +1422,11 @@ force_performance_at_boot() {
 # Localization Main Menu
 localization() {
     titlelogo "Localization"
-    options=("1 \t Locale \t\t Generate Locale Settings")
-    options+=("2 \t Fonts \t\t\t Install Fonts, TTF, Non-English Characters, Special Characters / Emoji")
-    options+=("3 \t Time \t\t\t Change Time Zone, Current Date and Time")
-    options+=("4 \t Keyboard Layout \t Change Keyboard Layout")
-    options+=("5 \t WiFi Country \t\t Change WiFi Country Settings")
+    options=("Locale \t\t Generate Locale Settings")
+    options+=("Fonts \t\t\t Install Fonts, TTF, Non-English Characters, Special Characters / Emoji")
+    options+=("Time \t\t\t Change Time Zone, Current Date and Time")
+    options+=("Keyboard Layout \t Change Keyboard Layout")
+    options+=("WiFi Country \t\t Change WiFi Country Settings")
     options+=("Return to Main Menu")
     select_option "${options[@]}"
     choice=$?
