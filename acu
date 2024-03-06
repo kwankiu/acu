@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030520
+utilver=24030601
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -82,7 +82,7 @@ NC='\033[0m' # No Color
 # Option Picker
 function select_option {
 
-    # little helpers for terminal print control and key input
+    # Little helpers for terminal print control and key input
     ESC=$( printf "\033")
     cursor_blink_on()  { printf "$ESC[?25h"; }
     cursor_blink_off() { printf "$ESC[?25l"; }
@@ -95,32 +95,35 @@ function select_option {
                          if [[ $key = $ESC[B ]]; then echo down;  fi
                          if [[ $key = ""     ]]; then echo enter; fi; }
 
-    # initially print empty new lines (scroll down if at bottom of screen)
+    # Initially print empty new lines (scroll down if at bottom of screen)
     for opt; do printf "\n"; done
 
-    # determine current screen position for overwriting the options
+    # Determine current screen position for overwriting the options
     local lastrow=`get_cursor_row`
     local startrow=$(($lastrow - $#))
 
-    # ensure cursor and input echoing back on upon a ctrl+c during read -s
+    # Ensure cursor and input echoing back on upon a ctrl+c during read -s
     trap "cursor_blink_on; stty echo; printf '\n'; exit" 2
     cursor_blink_off
 
     local selected=0
     while true; do
-        # print options by overwriting the last lines
+        # Print options by overwriting the last lines
         local idx=0
+        local max_width=$(tput cols)
         for opt; do
             cursor_to $(($startrow + $idx))
+            local formatted_opt="$((idx + 1)) \t $opt"
+            local formatted_opt=$(echo "$formatted_opt" | cut -c1-$((max_width - 3)))
             if [ $idx -eq $selected ]; then
-                print_selected "$opt"
+                print_selected "$formatted_opt"
             else
-                print_option "$opt"
+                print_option "$formatted_opt"
             fi
             ((idx++))
         done
 
-        # user key control
+        # User key control
         case `key_input` in
             enter) break;;
             up)    ((selected--));
@@ -130,7 +133,7 @@ function select_option {
         esac
     done
 
-    # cursor position back to normal
+    # Cursor position back to normal
     cursor_to $lastrow
     printf "\n"
     cursor_blink_on
