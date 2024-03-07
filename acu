@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030607
+utilver=24030608
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -1442,7 +1442,9 @@ system_info() {
     sys_de=$(echo "$XDG_CURRENT_DESKTOP" | sed 's/.\+://')
 
     # Get terminal
-    sys_terminal=$(basename $(cat "/proc/$PPID/comm"))
+    ppid=$(grep PPid: /proc/$$/status | awk '{print $2'})
+    pppid=$(grep PPid: /proc/${ppid}/status | awk '{print $2'})
+    sys_terminal=$(basename $(cat "/proc/$pppid/comm"))
     sys_terminal_font=$(basename "$TERM")
 
     colorecho "$BLUE" "OS: $NC $sys_os ($sys_arch)"
