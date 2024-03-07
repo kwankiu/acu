@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030703
+utilver=24030704
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -638,9 +638,7 @@ config_options() {
 system_maintenance() {
     titlelogo "System Maintenance"
     options=("Flash Bootloader \t Flash Bootloader to eMMC/TF Card/SPI Flash")
-    options+=("Backup System \t\t Backup a flashable image of this system")
-    options+=("Restore System \t Restore this system from a flashable image")
-    options+=("Clone System \t\t Clone this system to another disk")
+    options+=("Copy System \t\t Backup, Restore, or Clone this system with partimage")
     options+=("System Infomation \t Print infomation of this system / device")
     options+=("Return to Main Menu")
     select_option "${options[@]}"
@@ -652,15 +650,14 @@ system_maintenance() {
             flash_uboot
             ;;
         1)
-            backup_system
+            if ! pacman -Q partimage; then
+                echo "partimage is not installed"
+                echo "Installing required package ..."
+                acu install partimage
+            fi
+            sudo partimage
             ;;
         2)
-            restore_system
-            ;;
-        3)
-            clone_system
-            ;;
-        4)
             system_info
             ;;
         *)
@@ -1975,9 +1972,9 @@ for arg in "$@"; do
             colorecho "$BLUE" "System Maintenance"
             echo
             echo "  bootloader <bootloader> : Flash Bootloader to eMMC/TF Card/SPI Flash. <bootloader> options: radxa, radxa-debug, edk2-rock5a, edk2-rock5b, armbian."
-            echo "  backup <save_path> : Backup a flashable image of this system."
-            echo "  restore <img_path> : Restore this system from a flashable image. <img_path> : path to the image to restore."
-            echo "  clone <disk> : Clone this system to another disk. <disk> : disk location, example /dev/nvme0n1."
+            #echo "  backup <save_path> : Backup a flashable image of this system."
+            #echo "  restore <img_path> : Restore this system from a flashable image. <img_path> : path to the image to restore."
+            #echo "  clone <disk> : Clone this system to another disk. <disk> : disk location, example /dev/nvme0n1."
             echo "  sysinfo : Print infomation of this system / device."
             echo "  alias add / create : add an alias / shortcut of a command."
             echo "  alias remove / del : remove an alias created by acu."
