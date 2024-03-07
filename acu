@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030613
+utilver=24030614
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -1985,7 +1985,7 @@ for arg in "$@"; do
             echo "  rem list / rem show : list acu managed repositories."
             echo "  rem add / rem set <name> <url> : add a repository to acu (pacman and default are reserved name, do not use)."
             echo "  rem add / rem set pacman <name> <url> <gpg_key> : add a repository to acu."
-            echo "  rem add / rem set default : load (latest) acu default repositories."
+            echo "  rem add / rem set default : load acu default repositories."
             echo "  rem remove / rem del <name> : remove a repository from acu."
             echo "  rem remove / rem del pacman <name>: remove a repository from pacman."
             echo
@@ -2147,13 +2147,13 @@ elif [ "$1" = "rem" ] || [ "$1" = "remote" ]; then
             if [ -f "$repositories_file" ]; then
                 colorecho "$RED" "Load default repositories file? (This will replace your existing repositories configuration) [y/N]:" 
                 read -r rmrepoconfirm
-                if [ "$rmrepoconfirm" != "y" ] || [ "$rmrepoconfirm" != "Y" ]; then exit 1 fi
+                if [ "$rmrepoconfirm" != "y" ] || [ "$rmrepoconfirm" != "Y" ]; then
+                    sudo rm -rf $HOME/.acu/config/repo.yaml
+                fi
             fi
-            # Create folder if it doesn't exist already
-            mkdir -p "$(dirname "$repositories_file")"
-            curl -L https://raw.githubusercontent.com/kwankiu/acu/$branch/config/repo.yaml -o tmpdownload_repo.yaml
-            cp -r tmpdownload_repo.yaml $HOME/.acu/config/repo.yaml
-            sudo rm -rf tmpdownload_repo.yaml
+            acu rem set acu
+            acu rem set adrepo https://api.github.com/repos/kwankiu/archlinux-installer-rock5/releases/tags/kernel
+            acu rem set aur https://aur.archlinux.org
         else
             add_repository "$3" "$4"
         fi
