@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030610
+utilver=24030611
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -43,31 +43,8 @@ update_available=false
 # for detecting system architecture
 system_arch=$(uname -m)
 
-################################################################
-# acu user configurations (FOR USERS, YOU MAY CONFIGURE THESE VARIABLES)
-
-# load configuration for a target device (e.g. rock5)
-# device_config=""
-
-# do not confirm when installing a package using pacman -S / -U or makepkg -si
-# no_confirm=1
-
-# do not print warning ($YELLOW) messages
-# no_warning=1
-
-# archive repo url for downgrading packages
-# Arch Linux ARM Archive repo
-alaa_url="https://alaa.ad24.cz/"
-
-# default remote repo urls
-# arch-linux-installer-rock5 github release kernel repo
-adrepo_url="https://api.github.com/repos/kwankiu/archlinux-installer-rock5/releases/tags/kernel"
-
-# directory for storing source files (this path assumes in ~/)
-source_repo_dir=".acu/sources"
-
-# repo list
-repositories_file="$HOME/.acu/config/repo.yaml"
+# Note: for acu user configurations, please edit ~/.acu/config/config.yaml
+config_file="$HOME/.acu/config/config.yaml"
 
 ################################################################
 # Tools for formatting / styling
@@ -328,6 +305,7 @@ create_repo_yaml() {
     echo "#  repo_url: https://example.com" | tee -a "$repositories_file" >/dev/null
     echo " " | tee -a "$repositories_file" >/dev/null
 }
+
 add_repository() {
     # Check if YAML file exists
     if [ ! -f "$repositories_file" ]; then
@@ -1910,6 +1888,48 @@ wifi_country() {
 
 ################################################################
 # Main Program
+
+# Load user configurations from YAML file
+    if [ -f "$config_file" ]; then
+        while IFS= read -r line; do
+            # Ignore lines starting with '#'
+            if [[ $line != *"#"* ]]; then
+                case $line in
+                    *device_config*)
+                        device_config=$(echo "$line" | awk '{print $2}')
+                        ;;
+                    *no_confirm*)
+                        no_confirm=$(echo "$line" | awk '{print $2}')
+                        ;;
+                    *no_warning*)
+                        no_warning=$(echo "$line" | awk '{print $2}')
+                        ;;
+                    *alaa_url*)
+                        alaa_url=$(echo "$line" | awk '{print $2}')
+                        alaa_url="$alaa_url/"
+                        ;;
+                    *adrepo_url*)
+                        adrepo_url=$(echo "$line" | awk '{print $2}')
+                        ;;
+                    *source_repo_dir*)
+                        source_repo_dir=$(echo "$line" | awk '{print $2}')
+                        ;;
+                    *repositories_file*)
+                        repositories_file=$(echo "$line" | awk '{print $2}')
+                        repositories_file="$HOME/$repositories_file"
+                        ;;
+                esac
+            fi
+        done < "$config_file"
+    else
+        # Create a default configurations file if not exists
+        echo "No configuration file found, downloading default configuration file ..."
+        curl -L https://raw.githubusercontent.com/kwankiu/acu/$branch/config/config.yaml -o tmpdownload_config.yaml
+        cp -r tmpdownload_config.yaml $HOME/.acu/config/config.yaml
+        sudo rm -rf tmpdownload_config.yaml
+        acu $@
+        exit 1
+    fi
 
 # Handle arguments
 for arg in "$@"; do

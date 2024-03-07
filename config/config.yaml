@@ -1,18 +1,26 @@
-#List of package repositories managed by acu
-repositories:
+#acu user configurations
+configurations:
  
-#- repo_name: example
-#  repo_type: git #available types are agr, ghapi-orgs, ghapi-releases, and git.
-#  repo_url: https://example.com
- 
-- repo_name: acu
-  repo_type: agr
-  repo_url: https://github.com/kwankiu/acu
+  # load configuration for a target device (e.g. rock-5b)
+  #device_config: generic-aarch64
 
-- repo_name: adrepo
-  repo_type: ghapi-releases
-  repo_url: https://api.github.com/repos/kwankiu/archlinux-installer-rock5/releases/tags/kernel
-  
-- repo_name: aur
-  repo_type: git
-  repo_url: https://aur.archlinux.org
+  # do not confirm when installing a package using pacman -S / -U or makepkg -si
+  #no_confirm: 1
+
+  # do not print warning ($YELLOW) messages
+  #no_warning: 1
+
+  # archive repo url for downgrading packages
+  # Arch Linux ARM Archive repo
+  alaa_url: https://alaa.ad24.cz
+
+  # default remote repo urls
+  # arch-linux-installer-rock5 github release kernel repo
+  adrepo_url: https://api.github.com/repos/kwankiu/archlinux-installer-rock5/releases/tags/kernel
+
+  # directory for storing source files
+  source_repo_dir: .acu/sources
+
+  # repo list
+  repositories_file: .acu/config/repo.yaml
+
