@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030602
+utilver=24030603
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -78,6 +78,17 @@ GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;36m'
 NC='\033[0m' # No Color
+
+sudo () {
+    local command=$@
+    if [ "$(id -u)" -eq 0 ]; then
+        #echo "Running in root."
+        command "$@"
+    else
+        #echo "Running with sudo."
+        command sudo "$@"
+    fi
+}
 
 # Option Picker
 function select_option {
@@ -231,6 +242,10 @@ add_alias() {
 
 install_from_source() {
     
+    if [ "$(id -u)" -eq 0 ]; then
+        colorecho "$RED" "Error: acu is running in root or sudo, the following command can not be executed."
+        exit 1
+    fi
     # Install required package    
     sudo pacman -Sy --needed git base-devel --noconfirm
     
@@ -568,8 +583,11 @@ config_options() {
 # System Maintenance Main Menu
 system_maintenance() {
     titlelogo "System Maintenance"
-    options=("WIP DO NOT USE \t\t Flash Latest Radxa U-Boot")
-    #options+=("Move Arch Linux \t\t Copy Arch Linux to another disk.")
+    options=("Flash Bootloader \t Flash Bootloader to eMMC/TF Card/SPI Flash")
+    options+=("Backup System \t\t Backup a flashable image of this system")
+    options+=("Restore System \t Restore this system from a flashable image")
+    options+=("Clone System \t\t Clone this system to another disk")
+    options+=("System Infomation \t Print infomation of this system / device")
     options+=("Return to Main Menu")
     select_option "${options[@]}"
     choice=$?
@@ -578,6 +596,18 @@ system_maintenance() {
     case $choice in
         0)
             flash_uboot
+            ;;
+        1)
+            backup_system
+            ;;
+        2)
+            restore_system
+            ;;
+        3)
+            clone_system
+            ;;
+        4)
+            system_info
             ;;
         *)
             config_options
@@ -1092,10 +1122,12 @@ install_selected_pkg() {
             "malior-droid")
                 colorecho "$YELLOW" "Requires kernel with binderfs support"
                 acu install wget docker android-tools scrcpy --noconfirm
+                systemctl start docker --now
+                echo "starting docker ..."
+                sleep 3
                 if ! command -v malior &> /dev/null; then
                     acu install malior
                 fi
-                sudo systemctl start docker
                 sudo mkdir /dev/binderfs
 	            sudo mount -t binder binder /dev/binderfs
 	            malior install malior-droid
@@ -1126,29 +1158,38 @@ install_selected_pkg() {
                     sudo rm -rf /etc/mkinitcpio.d/*
                 fi
 
-                # Find and Install packages
+                # Handle URLs
                 if [[ "${selection[i]}" == *"://"* ]]; then
-                    colorecho "$GREEN" "Installing package from ${selection[i]} ..."
+                    use_pm="git"
+                fi
+
+                # Find and Install packages                    
+                if [ "$use_pm" = "git" ]; then
+                    colorecho "$GREEN" "Compling & Installing ${selection[i]} ..."   
                     install_from_source "${selection[i]}"
-                elif sudo pacman -Ssy "^${selection[i]}$" &> /dev/null; then
+                elif [ "$use_pm" = "pacman" ] || ([ -z "$use_pm" ] && sudo pacman -Ssy "${selection[i]}" &> /dev/null); then
                     colorecho "$GREEN" "Installing ${selection[i]} with pacman ..."
                     if [ -z "$no_confirm" ]; then
-                        sudo pacman -Sy ${selection[i]} 
+                        sudo pacman -S ${selection[i]} 
                     else
-                        sudo pacman -Sy ${selection[i]} --noconfirm
+                        sudo pacman -S ${selection[i]} --noconfirm
                     fi
-                elif agr 2>&1 | grep -v -E '://' | grep -v 'INFO' | grep -q "${selection[i]}"; then
-                    colorecho "$GREEN" "Installing ${selection[i]} from agr ..."
+                elif [ "$use_pm" = "agr" ] || ([ -z "$use_pm" ] && agr 2>&1 | grep -v -E '://' | grep -v 'INFO' | grep -q "${selection[i]}"); then
+                    if [ "$(id -u)" -eq 0 ]; then
+                        colorecho "$RED" "Error: acu is running in root or sudo, the following command can not be executed."
+                        exit 1
+                    fi
+                    colorecho "$GREEN" "Compiling & Installing ${selection[i]} with agr ..."
                     if [ -z "$no_confirm" ]; then
                         agr install ${selection[i]} 
                     else
                         agr install ${selection[i]} --noconfirm
                     fi
-                elif pkg_tar=($(echo -e "n" | install_ghrel_packages "${selection[i]}" | grep '.*pkg.*')); then
+                elif [ "$use_pm" = "adrepo" ] || ([ -z "$use_pm" ] && pkg_tar=($(echo -e "n" | install_ghrel_packages "${selection[i]}" | grep '.*pkg.*'))); then
                     colorecho "$GREEN" "Installing ${selection[i]} from adrepo ..."
                     install_ghrel_packages "${selection[i]}"
                 else
-                    colorecho "$GREEN"  "Compling and Installing ${selection[i]} from AUR ..."
+                    colorecho "$GREEN"  "Compling & Installing ${selection[i]} from AUR ..."
                     install_from_source "aur://${selection[i]}"
                 fi
 
@@ -1874,6 +1915,9 @@ for arg in "$@"; do
             git_branch="${arg#*=}"
             echo "clone from branch : $git_branch"
         ;;
+        --usepm=*)
+            use_pm="${arg#*=}"
+        ;;
         -*)
             case "$arg" in
                 -S | -R | -D | -B ) 
@@ -1891,11 +1935,7 @@ done
 # Handle options
 colorecho "$YELLOW" "warning: acu is experimental."
 if [ "$system_arch" != "aarch64" ] && [ "$system_arch" != "arm64" ] && [ "$system_arch" != "armv8" ]; then
-    colorecho "$YELLOW" "System is $system_arch, some package management commands are not supported, build command will automatically enable cross-compile (target to aarch64)."
-    sleep 1
-fi
-if [ "$(id -u)" -eq 0 ]; then
-    colorecho "$YELLOW" "acu is running in root, some package management commands are not supported, build command is disabled."
+    colorecho "$YELLOW" "System is $system_arch, Some features are not supported, build command will automatically enable cross-compile (target to aarch64)."
     sleep 1
 fi
 
