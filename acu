@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030603
+utilver=24030604
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -227,7 +227,7 @@ add_alias() {
     if [ -z "$2" ]; then
         COMMAND_TO_RUN="acu"
     else
-        COMMAND_TO_RUN=$2
+        COMMAND_TO_RUN="${@:2}"
     fi
 
     # Create the alias script
@@ -318,12 +318,22 @@ install_pkg_from_url() {
 }
 
 # Function to add a repository item to the YAML file
+create_repo_yaml() {
+    echo "#List of package repositories managed by acu" | tee "$repositories_file" >/dev/null
+    echo "repositories:" | tee -a "$repositories_file" >/dev/null
+    echo " " | tee -a "$repositories_file" >/dev/null
+
+    echo "#- repo_name: example" | tee -a "$repositories_file" >/dev/null
+    echo "#  repo_type: git #available types are agr, ghapi-orgs, ghapi-releases, and git." | tee -a "$repositories_file" >/dev/null
+    echo "#  repo_url: https://example.com" | tee -a "$repositories_file" >/dev/null
+    echo " " | tee -a "$repositories_file" >/dev/null
+}
 add_repository() {
     # Check if YAML file exists
     if [ ! -f "$repositories_file" ]; then
         # Create folder if it doesn't exist already
         mkdir -p "$(dirname "$repositories_file")"
-        echo "repositories:" | tee "$repositories_file" >/dev/null
+        create_repo_yaml
     fi
     # Read repository name
     if [ -z "$1" ]; then
@@ -353,12 +363,27 @@ add_repository() {
         repo_type="ghapi-releases"
     elif [[ "$repo_url" == "http://"*"/"*"/"* || "$repo_url" == "https://"*"/"*"/"* ]]; then
         repo_type="agr"
-        if [ -z "$git_branch" ]; then
-            agr rem set $repo_name $repo_url
-        else
-            echo "set branch to $git_branch"
-            agr rem set $repo_name $repo_url --branch $git_branch
+        if ! command -v agr &> /dev/null; then
+            # Install AGR if not installed
+            colorecho "$RED" "This repository requires agr to be installed, do you want to install it? [y/N]:" 
+            read -r agrconfirm
+            case "$agrconfirm" in
+                [yY])
+                    acu install agr --noconfirm
+                    if [ -z "$git_branch" ]; then
+                        echo "Adding $repo_name to agr ..."
+                        agr rem set $repo_name $repo_url
+                    else
+                        echo "Adding $repo_name to agr using branch $git_branch ..."
+                        agr rem set $repo_name $repo_url --branch $git_branch
+                    fi
+                    ;;
+                *)
+                    colorecho "$RED" "Error: This repository will not be added."
+                    ;;
+            esac
         fi
+
     elif [[ "$repo_url" == "http://"* || "$repo_url" == "https://"* ]]; then
         repo_type="git"
     else
@@ -370,6 +395,7 @@ add_repository() {
     echo "- repo_name: $repo_name" | tee -a "$repositories_file" >/dev/null
     echo "  repo_type: $repo_type" | tee -a "$repositories_file" >/dev/null
     echo "  repo_url: $repo_url" | tee -a "$repositories_file" >/dev/null
+    echo " " | tee -a "$repositories_file" >/dev/null
 
     echo "Repository added successfully."
 }
@@ -382,18 +408,23 @@ load_repositories() {
     repo_urls=()
 
     # Read repositories from YAML file
-    while IFS= read -r line; do
-        if [[ $line == *"repo_name"* ]]; then
-            repo_name=$(echo "$line" | awk '{print $3}')
-            repo_names+=("$repo_name")
-        elif [[ $line == *"repo_type"* ]]; then
-            repo_type=$(echo "$line" | awk '{print $2}')
-            repo_types+=("$repo_type")
-        elif [[ $line == *"repo_url"* ]]; then
-            repo_url=$(echo "$line" | awk '{print $2}')
-            repo_urls+=("$repo_url")
-        fi
-    done < "$repositories_file"
+    if [ -f "$repositories_file" ]; then
+        while IFS= read -r line; do
+            # Ignore lines starting with '#'
+            if [[ $line != "#"* ]]; then
+                if [[ $line == *"repo_name"* ]]; then
+                    repo_name=$(echo "$line" | awk '{print $3}')
+                    repo_names+=("$repo_name")
+                elif [[ $line == *"repo_type"* ]]; then
+                    repo_type=$(echo "$line" | awk '{print $2}')
+                    repo_types+=("$repo_type")
+                elif [[ $line == *"repo_url"* ]]; then
+                    repo_url=$(echo "$line" | awk '{print $2}')
+                    repo_urls+=("$repo_url")
+                fi
+            fi
+        done < "$repositories_file"
+    fi
 }
 
 # Function to list repositories sorted by type
@@ -406,6 +437,43 @@ list_repositories() {
         echo "  Name: ${repo_names[i]}"
         echo "  Type: ${repo_types[i]}"
         echo "  URL: ${repo_urls[i]}"
+    done
+}
+
+# Function to list repositories sorted by type
+remove_repository() {
+    load_repositories
+
+    colorecho "$RED" "Are you sure to remove repository $1 ? [y/N]:" 
+    read -r delrepoconfirm
+    case "$delrepoconfirm" in
+        [yY])
+            echo "Removing repository $1 ..."
+            sudo rm -rf $repositories_file
+            ;;
+        *)
+            echo "Repository will not be removed."
+            exit 1
+            ;;
+    esac
+
+    # Print repositories
+    echo "Generating new repository configuration ..."
+    create_repo_yaml
+    for ((i = 0; i < ${#repo_names[@]}; i++)); do
+        # Append new repository item to YAML file
+        if [ "$1" != "$repo_name" ]; then
+            echo "- repo_name: $repo_name" | tee -a "$repositories_file" >/dev/null
+            echo "  repo_type: $repo_type" | tee -a "$repositories_file" >/dev/null
+            echo "  repo_url: $repo_url" | tee -a "$repositories_file" >/dev/null
+            echo " " | tee -a "$repositories_file" >/dev/null
+        else
+            if [ "$repo_type" == "agr" ]; then
+                echo "Removing $repo_name from agr ..."
+                agr rem del $repo_name
+            fi
+            echo "removed $repo_name successfully."
+        fi
     done
 }
 
@@ -1146,7 +1214,7 @@ install_selected_pkg() {
                 install_from_source "aur://yay-bin"
                 ;;
             "agr")
-                acu install python-pip
+                acu install python-pip --noconfirm
                 python -m pip install https://github.com/hbiyik/agr/archive/master.zip --break-system-packages --force-reinstall
                 sudo ln -s ~/.local/bin/agr /usr/local/bin/agr
                 ;;
@@ -1863,37 +1931,82 @@ for arg in "$@"; do
             ;;
         -h | --help)
             colorecho "$BLUE" "$utilname (BUILD $utilver-$branch)"
-            echo "Usage: acu <optional_argument>"
-
+            echo
+            colorecho "$GREEN" "Usage"
+            echo
+            echo "  acu : show interactive menu"
+            echo "  acu <options> --flags : run commands"
+            echo
             colorecho "$GREEN" "Options"
-            echo "-h / --help : Usage and Infomation of this configuration utility."
-            echo "-u / --update=<channel> : Install latest configuration utility without checking updates. <channel> options: main, dev."
-
-            colorecho "$YELLOW" "Packages Management"
-            echo "upgrade : Check & Perform Selective / Full System Upgrade."
-            echo "install <package> : Install Software / RK3588 Specified / Customized Packages. <package>: package name."
-            echo "downgrade <package> <index> : Install / Downgrade any Arch Linux Packages from Archive. <package>: package name <index>: index to show, default=15."
-            echo "add-7ji : Add 7Ji Arch Linux repo to pacman"
-
-            colorecho "$GREEN" "Features (Work-In-Progress)"
-            colorecho "$YELLOW" "System Maintenance"
-            echo "flash-bootloader <bootloader> : Flash Latest SPI Bootloader. <bootloader> options: radxa, radxa-debug, edk2-rock5a, edk2-rock5b, armbian."
-
-            colorecho "$YELLOW" "Performance & Features"
-            echo "soc <option> : Manage SoC Settings. options: performance, ondemand, powersave (and status for SoC Monitor) and force-performance which set performance at every bootup."
-            echo "fan <option> : Configure PWM Fan-control. options: install, enable, disable and status."
-
-            colorecho "$YELLOW" "Localization"
-            echo "user <option> : Add, Remove and Change User Account Settings. options: add, remove, manage"
-            echo "locale : Generate Locale Settings. options: list-generated, list-available, generate <country_code>"
-            echo "font : Install Fonts, TTF, Non-English Characters, Special Characters / Emoji."
-            echo "time <option> : Change Time Zone, Current Date and Time. options: set-time-zone, set-time-date, network-time-zone, system-time-zone"
-            echo "keyboard : Change Keyboard Layout."
-            echo "wifi : Change WiFi Country Settings."
+            echo
+            echo "  -h / --help : Usage and Infomation of this configuration utility."
+            echo "  -v / --version : Version of this configuration utility."
+            echo "  -u / --update : Install / Update to latest configuration utility."
+            echo "  -y / --yes : Automatically confirm y / yes for everything, not recommended for install command."
+            echo "  --update=<branch> : Install / Update to latest configuration utility from a different branch. <branch> options: main, dev."
+            echo "  --usepm=<pm> : Specify a package manager to use when installing packages. <pm> options: pacman, agr, git."
+            echo "  --device=<device> : Specify target device. <device> options: rock5, edge2, orangepi5, zero3."
+            echo "  --branch=<branch> : Specify a git branch for setting or cloning from remote repository."
+            echo "  --noconfirm : Do not ask for confirmation when resolving dependencies and installing packages managed by pacman / makepkg."
+            echo "  --nowarning : Do not show warning messages."
+            echo
+            colorecho "$GREEN" "Features"
+            echo
+            colorecho "$BLUE" "System Maintenance"
+            echo
+            echo "  bootloader <bootloader> : Flash Bootloader to eMMC/TF Card/SPI Flash. <bootloader> options: radxa, radxa-debug, edk2-rock5a, edk2-rock5b, armbian."
+            echo "  backup <save_path> : Backup a flashable image of this system."
+            echo "  restore <img_path> : Restore this system from a flashable image. <img_path> : path to the image to restore."
+            echo "  clone <disk> : Clone this system to another disk. <disk> : disk location, example /dev/nvme0n1."
+            echo "  sysinfo : Print infomation of this system / device."
+            echo "  alias add / create : add an alias / shortcut of a command."
+            echo "  alias remove / del : remove an alias created by acu."
+            echo
+            colorecho "$BLUE" "Manage Packages"
+            echo
+            echo "  -S / install : show interactive menu to install a collection of apps / packages."
+            echo "  -S / install <package> : install a package using acu, you can install multiple packages with one command, example: acu install package1 package4 package3"
+            echo "  upgrade : Check & Perform Selective / Full System Upgrade."
+            echo "  -D / downgrade <package> <index> : Install / Downgrade any Arch Linux Packages from Archive. <package>: package name <index>: index to show, default=15."
+            echo "  -R / remove : remove / uninstall a package from this system."
+            echo "  -B / build <URL> : build / compile a package without installing. <URL> supported protocols: gh://username/repo (GitHub) OR aur://package (AUR) OR https://git_url_to_clone (or http:// or ssh://)"
+            echo "  rem / rem fetch : fetch acu managed repositories."
+            echo "  rem list / rem show : list acu managed repositories."
+            echo "  rem add / rem set <name> <url> : add a repository to acu (pacman is a reserved name, do not use)."
+            echo "  rem add / rem set pacman <name> <url> <gpg_key> : add a repository to acu."
+            echo "  rem remove / rem del <name> : remove a repository from acu."
+            echo "  rem remove / rem del pacman <name>: remove a repository from pacman."
+            echo
+            colorecho "$BLUE" "Performance"
+            echo
+            echo "  soc <option> : Manage SoC Settings. options: performance, ondemand, powersave (and status for SoC Monitor) and force-performance which set performance at every bootup."
+            echo "  fan <option> : Configure PWM Fan-control. options: install, enable, disable and status."
+            echo
+            colorecho "$BLUE" "Localization"
+            echo
+            echo "  locale : Generate Locale Settings. options: list-generated, list-available, generate <country_code>"
+            echo "  font : Install Fonts, TTF, Non-English Characters, Special Characters / Emoji."
+            echo "  time <option> : Change Time Zone, Current Date and Time. options: set-time-zone, set-time-date, network-time-zone, system-time-zone"
+            echo "  keyboard : Change Keyboard Layout."
+            echo "  wifi : Change WiFi Country Settings."
+            echo
+            colorecho "$BLUE" "User Accounts"
+            echo
+            echo "  user <option> : Add, Remove and Change User Account Settings. options: add, remove, manage"
             exit 1
             ;;
         -u | --update)
             update_util --install
+            exit 1
+        ;;
+        -y | --yes)
+            args=("$@")
+            for ((i = 0; i < ${#args[@]}; i++)); do
+                if [[ "${args[i]}" == "-y" || "${args[i]}" == "--yes" ]]; then
+                    unset 'args[i]'  # Remove -y or --yes from the arguments
+                fi
+            done
+            yes y | acu "${args[@]}"
             exit 1
         ;;
         --noconfirm)
@@ -1921,7 +2034,7 @@ for arg in "$@"; do
         -*)
             case "$arg" in
                 -S | -R | -D | -B ) 
-                    # Add more excluded arguments as needed
+                    # Add more excluded arguments as needed (these args are handled as features below)
                     ;;
                 *)
                     colorecho "$RED" "Invalid command or argument."
@@ -2010,20 +2123,30 @@ elif [ "$1" = "build" ] || [ "$1" = "-B" ]; then
 elif [ "$1" = "downgrade" ] || [ "$1" = "-D" ]; then
     downgrade_packages "$2" "$3"
 
-elif [ "$1" = "rem" ]; then
-    if [ -z "$2" ]; then
+elif [ "$1" = "rem" ] || [ "$1" = "remote" ]; then
+    if [ -z "$2" ] || [ "$2" = "fetch" ]; then
         fetch_repositories
-    elif [ "$2" = "list" ]; then
+    elif [ "$2" = "list" ] || [ "$2" = "show" ]; then
         list_repositories
-    elif [ "$2" = "set" ]; then
-        add_repository "$3" "$4"
+    elif [ "$2" = "set" ] || [ "$2" = "add" ]; then
+        if [ "$3" = "pacman" ]; then
+            add_repo "$3" "$4" "$5"
+        else
+            add_repository "$3" "$4"
+        fi
+    elif [ "$2" = "del" ] || [ "$2" = "remove" ]; then
+        if [ "$3" = "pacman" ]; then
+            colorecho "$GREEN" "Auto removing a pacman repo is not yet supported. But you can edit pacman.conf manually, hold on, I will bring you there."
+            colorecho "$GREEN" "When you finish, press Ctrl+O to save then press Ctrl+X to exit the editor."
+            sleep 2
+            sudo nano /etc/pacman.conf
+        else
+            remove_repository "$3" "$4"
+        fi
     fi
 
-elif [ "$1" = "add-repo" ]; then
-    add_repo "$2" "$3" "$4"
-
 ### Features - System Maintenance ###
-elif [ "$1" = "flash-bootloader" ]; then
+elif [ "$1" = "bootloader" ]; then
     flash_uboot "$2"
 
 ### Features - Performance & Features ###
@@ -2056,13 +2179,13 @@ elif [ "$1" = "keyboard" ]; then
 elif [ "$1" = "wifi" ]; then
     wifi_country "$2"
 
-elif [ "$1" = "add-alias" ]; then
-    add_alias "$2" "$3"
-
-elif [ "$1" = "remove-alias" ]; then
-    sudo rm -rf /usr/bin/$2
-    colorecho "$GREEN" "Alias command $2 has been removed."
-
+elif [ "$1" = "alias" ]; then
+    if [ "$2" = "add" ] || [ "$2" = "create" ]; then
+        add_alias "${@:3}"
+    elif [ "$2" = "remove" ] || [ "$2" = "del" ]; then
+        sudo rm -rf /usr/bin/$3
+        colorecho "$GREEN" "Alias command $3 has been removed."
+    fi
 ### Main Menu ###
 else
     check_util_updates
