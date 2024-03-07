@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030611
+utilver=24030612
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -1889,6 +1889,7 @@ wifi_country() {
 ################################################################
 # Main Program
 
+# NOTE that if new configurations (that arent optional / have a default value) are added, need to patch the existing user configurations file
 # Load user configurations from YAML file
     if [ -f "$config_file" ]; then
         while IFS= read -r line; do
@@ -1924,6 +1925,7 @@ wifi_country() {
     else
         # Create a default configurations file if not exists
         echo "No configuration file found, downloading default configuration file ..."
+        mkdir -p "$(dirname "$config_file")"
         curl -L https://raw.githubusercontent.com/kwankiu/acu/$branch/config/config.yaml -o tmpdownload_config.yaml
         cp -r tmpdownload_config.yaml $HOME/.acu/config/config.yaml
         sudo rm -rf tmpdownload_config.yaml
