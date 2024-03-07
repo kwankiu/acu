@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030614
+utilver=24030616
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -182,13 +182,20 @@ check_util_updates() {
 
 # Install / Update Utility to PATH
 update_util() {
-    if [ "$update_available" = true ] || [ "$1" = "--install" ]; then 
+    if [ "$update_available" = true ] || [ "$arginstall" = "install" ]; then 
         title "$utilname"
         colorecho "$GREEN" "Installing / Updating $utilname ..."
         sudo rm -rf /usr/bin/acu
         sudo curl -o /usr/bin/acu -L "https://raw.githubusercontent.com/kwankiu/acu/$branch/acu"
         sudo chmod +x /usr/bin/acu
-        acu
+        args=("$@")
+        for ((i = 0; i < ${#args[@]}; i++)); do
+            if [[ "${args[i]}" == "-u" || "${args[i]}" == "--update" ]]; then
+                unset 'args[i]'  # Remove -y or --yes from the arguments
+            fi
+        done
+        acu "${args[@]}"
+        exit 1
     fi
 }
 
@@ -2008,7 +2015,8 @@ for arg in "$@"; do
             exit 1
             ;;
         -u | --update)
-            update_util --install
+            arginstall="install"
+            update_util "$@"
             exit 1
         ;;
         -y | --yes)
@@ -2029,7 +2037,8 @@ for arg in "$@"; do
         ;;
         --update=*)
             branch="${arg#*=}"
-            update_util --install
+            arginstall="install"
+            update_util "$@"
             exit 1
         ;;
         --device=*)
