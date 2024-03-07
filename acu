@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030606
+utilver=24030607
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -1442,7 +1442,8 @@ system_info() {
     sys_de=$(echo "$XDG_CURRENT_DESKTOP" | sed 's/.\+://')
 
     # Get terminal
-    sys_terminal=$(basename "$TERM")
+    sys_terminal=$(basename $(cat "/proc/$PPID/comm"))
+    sys_terminal_font=$(basename "$TERM")
 
     colorecho "$BLUE" "OS: $NC $sys_os ($sys_arch)"
     colorecho "$BLUE" "Host: $NC $sys_host"
@@ -1451,7 +1452,7 @@ system_info() {
     colorecho "$BLUE" "Packages: $NC $sys_packages"
     colorecho "$BLUE" "Shell: $NC $sys_shell"
     colorecho "$BLUE" "DE: $NC $sys_de ($sys_session)"
-    colorecho "$BLUE" "Terminal: $NC $sys_terminal"
+    colorecho "$BLUE" "Terminal: $NC $sys_terminal ($sys_terminal_font)"
     colorecho "$BLUE" "CPU: $NC ($sys_cpu_thread) $sys_cpu @ $(awk "BEGIN{printf \"%.2f\\n\", ((${sys_cpu_clock[4]:-${sys_cpu_clock[0]}}/1000000))}") Ghz (${sys_cpu_governor[4]:-${sys_cpu_governor[0]}})"
     colorecho "$BLUE" "Memory: $NC $sys_mem_free GiB / $sys_mem_total GiB ($(awk "BEGIN{printf \"%.2f%%\\n\", (1-(${sys_mem_free}/${sys_mem_total}))*100}"))"
     colorecho "$BLUE" "Disk: $NC $sys_disk"
