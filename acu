@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030609
+utilver=24030610
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -443,12 +443,13 @@ list_repositories() {
 # Function to list repositories sorted by type
 remove_repository() {
     load_repositories
+    local toremove=$1
 
-    colorecho "$RED" "Are you sure to remove repository $1 ? [y/N]:" 
+    colorecho "$RED" "Are you sure to remove repository $toremove ? [y/N]:" 
     read -r delrepoconfirm
     case "$delrepoconfirm" in
         [yY])
-            echo "Removing repository $1 ..."
+            echo "Removing repository $toremove ..."
             sudo rm -rf $repositories_file
             ;;
         *)
@@ -462,10 +463,10 @@ remove_repository() {
     create_repo_yaml
     for ((i = 0; i < ${#repo_names[@]}; i++)); do
         # Append new repository item to YAML file
-        if [ "$1" != "$repo_name" ]; then
-            echo "- repo_name: $repo_name" | tee -a "$repositories_file" >/dev/null
-            echo "  repo_type: $repo_type" | tee -a "$repositories_file" >/dev/null
-            echo "  repo_url: $repo_url" | tee -a "$repositories_file" >/dev/null
+        if [ "$toremove" != "$repo_name" ]; then
+            echo "- repo_name: ${repo_names[i]}" | tee -a "$repositories_file" >/dev/null
+            echo "  repo_type: ${repo_types[i]}" | tee -a "$repositories_file" >/dev/null
+            echo "  repo_url: ${repo_urls[i]}" | tee -a "$repositories_file" >/dev/null
             echo " " | tee -a "$repositories_file" >/dev/null
         else
             if [ "$repo_type" == "agr" ]; then
