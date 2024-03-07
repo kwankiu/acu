@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030618
+utilver=24030701
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -1936,7 +1936,9 @@ wifi_country() {
         curl -L https://raw.githubusercontent.com/kwankiu/acu/$branch/config/config.yaml -o tmpdownload_config.yaml
         cp -r tmpdownload_config.yaml $HOME/.acu/config/config.yaml
         sudo rm -rf tmpdownload_config.yaml
-        acu $@
+        if [ "$1" != "-u" ] && [ "$1" != "--update" ]; then
+            acu $@
+        fi
         exit 1
     fi
 
