@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030605
+utilver=24030606
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -1421,7 +1421,7 @@ system_info() {
     sys_mem_total=$(free -h | grep "Mem:" | awk '{print $2}' | sed 's\Gi\\g' | sed 's\Mi\\g')
 
     # Get disk usage
-    sys_disk=$(df -h / | awk 'NR==2 {print $3" / "$2" ("$5")"}' | sed 's/G/ GiB/g; s/M/ MiB/g')
+    sys_disk=$(df -h / | awk 'NR==2 {print $4" / "$2" ("$5")"}' | sed 's/G/ GiB/g; s/M/ MiB/g')
 
     # Get number of packages installed
     sys_packages=$(pacman -Q | wc -l)
