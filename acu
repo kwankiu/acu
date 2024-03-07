@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030604
+utilver=24030605
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -1639,7 +1639,7 @@ manage_user() {
                 # Perform actions for the selected user (if needed)
                 options=("Return to Manage User Menu" "Change User Password")
 
-                if sudo -lU "$selected_user" | grep -q NOPASSWD; then
+                if sudo -lU "$selected_user" | grep NOPASSWD | grep -v -q "(root)"; then
                     options+=("Enable Sudo Password")
                 else
                     options+=("Disable Sudo Password")
@@ -1659,7 +1659,7 @@ manage_user() {
                     sudo passwd "$selected_user"
                     ;;
                 2)  
-                    if sudo -lU "$selected_user" | grep -q NOPASSWD; then
+                    if sudo -lU "$selected_user" | grep NOPASSWD | grep -v -q "(root)"; then
                         sudo sed -i "s/^\($selected_user.*\)NOPASSWD: ALL/\1ALL/" /etc/sudoers
                         colorecho "$GREEN" "Enabled Sudo Password for $selected_user"
                     else
