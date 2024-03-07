@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030608
+utilver=24030609
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -763,42 +763,27 @@ package_update() {
 
 }
 
-# Update SPI Bootloader
+# Update Bootloader
 flash_uboot() {
 
-    if [ ! -e /dev/mtdblock0 ]; then
-        colorecho "$RED" "Error : SPI Flash not found"
-        sleep 1
-        exit 1
-    else
         if [ -z "$1" ]; then
-            titlelogo "Update SPI Bootloader"
+            titlelogo "Flash Bootloader"
             colorecho "$GREEN" "Select an option to confirm"
             colorecho "$RED" "Warning : The SPI NOR flash will be cleared."
             echo ""
-            options=("Install Radxa U-Boot" "Install Radxa U-Boot (Debug Version)" "Install EDK2 Bootloader for Rock 5A (UEFI)" "Install EDK2 Bootloader for Rock 5B (UEFI)" "Install Armbian Bootloader" "Exit")
+            if [ -e /dev/mtdblock0 ]; then
+                colorecho "$RED" "Show U-Boot"
+            elif [ -e /dev/nvme* ]; then
+                colorecho "$RED" "Show NVMe"
+            fi
+            echo "Coming Soon"
+            options=("Return to System Maintence Menu")
             select_option "${options[@]}"
             choice=$?
         else
             case $1 in
-                "radxa")
-                    choice=0
-                    ;;
-                "radxa-debug")
-                    choice=1
-                    ;;
-                "edk2-rock5a")
-                    choice=2
-                    ;;
-                "edk2-rock5b")
-                    choice=3
-                    ;;
-                "armbian")
-                    choice=4
-                    ;;
                 *)
-                    colorecho "$RED" "Invalid Option, Exiting ..."
-                    exit 1
+                    system_maintenance
                     ;;
             esac
         fi
@@ -844,10 +829,10 @@ flash_uboot() {
                 exit 1
                 ;;
         esac
-    fi
 
     ###
     colorecho "$GREEN" "Install bootloader to the SPI NOR flash ..."
+    exit 1
 
 
     colorecho "$GREEN" "Downloading Zero Image ..."
