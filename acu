@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24030617
+utilver=24030618
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -2106,7 +2106,7 @@ elif [ "$1" = "remove" ] || [ "$1" = "-R" ]; then
             if acu rem list | grep -q "Type: agr"; then
                 colorecho "$RED" "Are you sure to remove agr? (you wont be able to use acu again if you confirm to remove) [y/N]:" 
                 read -r rmagrconfirm
-                if [ "$rmagrconfirm" != "y" ] || [ "$rmagrconfirm" != "Y" ]; then
+                if [ "$rmagrconfirm" != "y" ] && [ "$rmagrconfirm" != "Y" ]; then
                     exit 1
                 fi
                 sudo rm -rf ~/.local/bin/agr
@@ -2163,7 +2163,7 @@ elif [ "$1" = "rem" ] || [ "$1" = "remote" ]; then
             if [ -f "$repositories_file" ]; then
                 colorecho "$RED" "Load default repositories file? (This will replace your existing repositories configuration) [y/N]:" 
                 read -r rmrepoconfirm
-                if [ "$rmrepoconfirm" != "y" ] || [ "$rmrepoconfirm" != "Y" ]; then
+                if [ "$rmrepoconfirm" != "y" ] && [ "$rmrepoconfirm" != "Y" ]; then
                     sudo rm -rf $HOME/.acu/config/repo.yaml
                 fi
             fi
