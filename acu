@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24031106
+utilver=24031107
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -1626,10 +1626,18 @@ manage_user() {
                     options+=("Disable Sudo Password")
                 fi
 
+                if grep -qFx "$selected_user $hostname =NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot" /etc/sudoers; then
+                    options+=("Enable Reboot Password")
+                else
+                    options+=("Disable Reboot Password")
+                fi
+
                 select_option "${options[@]}"
                 choice=$?
             elif [ "$manage_action" = "sudopw" ]; then
                 choice=2
+            elif [ "$manage_action" = "rebootpw" ]; then
+                choice=3
             fi
 
             case $choice in
@@ -1655,6 +1663,16 @@ manage_user() {
                             echo "Added $selected_user to sudoers file with NOPASSWD: ALL"
                         fi
                         colorecho "$GREEN" "Disabled Sudo Password for $selected_user"
+                    fi
+                    ;;
+                3)
+                    local hostname=$(hostnamectl --static)
+                    if grep -qFx "$selected_user $hostname =NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot" /etc/sudoers; then
+                        sudo sed -i "/^$selected_user $hostname =NOPASSWD: \/usr\/bin\/systemctl poweroff,\/usr\/bin\/systemctl halt,\/usr\/bin\/systemctl reboot$/d" /etc/sudoers
+                        colorecho "$GREEN" "Enabled Reboot Password"
+                    else
+                        echo "$selected_user $hostname =NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot" | sudo tee -a "/etc/sudoers" >/dev/null
+                        colorecho "$GREEN" "Disabled Reboot Password"
                     fi
                     ;;
             esac
