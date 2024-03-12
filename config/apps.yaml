@@ -1,0 +1,48 @@
+# List of common apps to show on ACU
+
+apps:
+
+## Example
+#- package: linux-aarch64
+#   description: Linux Mainline Kernel
+#   version: 6.X
+#   tags:
+#     - generic-aarch64
+#     - rpi
+#   firmware:
+#     - linux-firmware
+#   graphics:
+#     - mesa
+#   video:
+#     - ffmpeg
+
+  # Minimal required example
+  - name: neofetch
+    description: Prints system information
+    packages:
+      - neofetch
+
+  # Full example
+  - name: Lorem ipsum
+    description: Lorem ipsum dolor sit amet
+    category: suites
+    long_description: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus ornare mauris ex, id sodales quam hendrerit sit amet. Nam pretium, velit eu ultricies facilisis, ex sem bibendum velit, ut gravida dui ligula eu diam. Nulla molestie sem id arcu interdum, a tristique dui porta. Cras commodo lectus nec ex ullamcorper, eu interdum nisl egestas. Phasellus est mauris, blandit vel massa in, accumsan lacinia enim. Pellentesque feugiat nibh ac nulla mollis, bibendum elementum eros lobortis. Quisque nec congue tellus. Quisque eu diam quam. Nulla facilisi.
+    version: 1.23.456-b12345
+    published: 2016-01-01
+    updated: 2024-01-01
+    release-notes:
+      - Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+      - Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+    icon: https://github.com/icon.png
+    download-size: 1048576
+    actual-size: 2097152
+    screenshots:
+      - https://github.com/screenshot1.png
+      - https://github.com/screenshot2.png
+      - https://github.com/screenshot3.png
+    packages:
+      - lorem-ipsum
+    commands: |
+      cd $pwd
+      mkdir lorem-ipsum
+      lorem-ipsum --generate 100 > lorem-ipsum/sample.txt
