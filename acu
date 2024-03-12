@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24031111
+utilver=24031201
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -1539,11 +1539,18 @@ localization() {
 manage_user() {
 
     confirm_password() {
-        while [[ -z "$new_pw" || -z "$cfm_pw" || "$new_pw" != "$cfm_pw" ]]; do
+        while true; do
             read -s -p "Set a password for $new_user: " new_pw
             echo
             read -s -p "Confirm password for $new_user: " cfm_pw
             echo
+            if [ "$new_pw" != "$cfm_pw" ]; then
+                colorecho "$RED" "Password and confirm password does not match."
+            elif [ -z "$new_pw" ] || [ -z "$cfm_pw" ]; then
+                colorecho "$RED" "Password can not be empty."
+            else
+                return 0
+            fi
         done
     }
 
@@ -1581,6 +1588,8 @@ manage_user() {
             if [ -z "$new_user" ]; then
                 titlelogo "Add New User"
                 read -p "Enter username for the new user: " new_user
+            fi
+            if [ -z "$new_pw" ]; then
                 confirm_password
             fi
             sudo useradd -m "$new_user"
