@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24031107
+utilver=24031109
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -1540,8 +1540,10 @@ manage_user() {
 
     confirm_password() {
         while [[ -z "$new_pw" || -z "$cfm_pw" || "$new_pw" != "$cfm_pw" ]]; do
-            read -p "Set a password for $new_user: " new_pw
-            read -p "Confirm password for $new_user: " cfm_pw
+            read -s -p "Set a password for $new_user: " new_pw
+            echo
+            read -s -p "Confirm password for $new_user: " cfm_pw
+            echo
         done
     }
 
@@ -1686,18 +1688,18 @@ locale() {
     generated_locales=$(sudo locale -a)
     
     if [ -z "$1" ]; then
-    titlelogo "Locale"
-    
-    # List available locales
-    colorecho "$GREEN" "Generated Locales:"
+        titlelogo "Locale"
+        
+        # List available locales
+        colorecho "$GREEN" "Generated Locales:"
 
-    echo "$generated_locales"
-    echo ""
+        echo "$generated_locales"
+        echo ""
 
-    # Prompt to select and generate locale
-    select_options=("Generate New Locales" "Return to Localization Menu")
-    select_option "${select_options[@]}"
-    choice=$?
+        # Prompt to select and generate locale
+        select_options=("Generate New Locales" "Return to Localization Menu")
+        select_option "${select_options[@]}"
+        choice=$?
     elif [ "$1" = "list-generated" ]; then
         echo "$generated_locales"
         exit 1
@@ -1716,7 +1718,7 @@ locale() {
 
             if [ ! "$1" = "list-available" ]; then
 
-                if [ "$1" = "generate" ] && [ -z "$2" ]; then
+                if [ "$1" = "generate" ] && [ -z "$2" ] || [ "$1" = "locale" ] && [ -z "$2" ] || [ -z "$1" ]; then
                     colorecho "$GREEN" "Available Locales for generation:"
 
                     for ((i = 0; i < ${#langcode[@]}; i++)); do
