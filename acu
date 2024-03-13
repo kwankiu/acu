@@ -29,7 +29,7 @@ utilname="Arch (ARM) Configuration Utility"
 # utilver
 # this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
 # format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24031201
+utilver=24031202
 
 # branch
 # currently, there are two branch/channel which is main and dev
@@ -43,7 +43,7 @@ update_available=false
 # for detecting system architecture
 system_arch=$(uname -m)
 
-# Note: for acu user configurations, please edit ~/.acu/config/config.yaml
+# Note: for acu user configurations, please edit $HOME/.acu/config/config.yaml
 config_file="$HOME/.acu/config/config.yaml"
 
 ################################################################
@@ -54,8 +54,10 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;36m'
+DEBUG='\033[0;37m'
 NC='\033[0m' # No Color
 
+# sudo override
 sudo () {
     local command=$@
     if [ "$(id -u)" -eq 0 ]; then
@@ -64,6 +66,14 @@ sudo () {
     else
         #echo "Running with sudo."
         command sudo "$@"
+    fi
+}
+
+# clear override
+clear () {
+    local command=$@
+    if [ -z "$no_clear" ]; then
+        command clear "$@"
     fi
 }
 
@@ -133,7 +143,7 @@ function select_option {
 colorecho() {
     color="$1"
     text="$2"
-    [ -n "$no_warning" ] && [ "$color" = "$YELLOW" ] || echo -e "${color}${text}${NC}"
+    [ -n "$no_warning" ] && [ "$color" = "$YELLOW" ] || [ "$color" = "$DEBUG" ] && [ -z "$debug_log" ] || echo -e "${color}${text}${NC}"
 }
 
 # Title / Heading
@@ -281,7 +291,7 @@ install_from_source() {
         fi
     
         # Clean Up
-        cd ~
+        cd $HOME
         sudo rm -rf "$source_repo_dir"
     fi 
 
@@ -448,17 +458,14 @@ remove_repository() {
     create_repo_yaml
     for ((i = 0; i < ${#repo_names[@]}; i++)); do
         # Append new repository item to YAML file
-        if [ "$toremove" != "$repo_name" ]; then
-            echo "- repo_name: ${repo_names[i]}" | tee -a "$repositories_file" >/dev/null
-            echo "  repo_type: ${repo_types[i]}" | tee -a "$repositories_file" >/dev/null
-            echo "  repo_url: ${repo_urls[i]}" | tee -a "$repositories_file" >/dev/null
-            echo " " | tee -a "$repositories_file" >/dev/null
+        if [ "$toremove" != "${repo_names[i]}" ]; then
+            acu rem set ${repo_names[i]} ${repo_urls[i]}
         else
-            if [ "$repo_type" == "agr" ]; then
-                echo "Removing $repo_name from agr ..."
-                agr rem del $repo_name
+            if [ "${repo_types[i]}" == "agr" ]; then
+                echo "Removing ${repo_names[i]} from agr ..."
+                agr rem del ${repo_names[i]}
             fi
-            echo "removed $repo_name successfully."
+            echo "removed ${repo_names[i]} successfully."
         fi
     done
 }
@@ -1934,33 +1941,68 @@ wifi_country() {
 
 # NOTE that if new configurations (that arent optional / have a default value) are added, need to patch the existing user configurations file
 # Load user configurations from YAML file
-    if [ -f "$config_file" ]; then
+load_config() {
+    if [ -f "$config_file" ] || [[ "$config_file" == *"://"* ]] ; then
+        if [[ "$config_file" == *"://"* ]]; then
+            config_file="$(curl -s "$config_file")"
+        fi
         while IFS= read -r line; do
             # Ignore lines starting with '#'
             if [[ $line != *"#"* ]]; then
                 case $line in
-                    *device_config*)
-                        device_config=$(echo "$line" | awk '{print $2}')
+                    *"device_config: "*)
+                        [[ -z "$device_config" ]] && device_config=$(echo "$line" | awk '{print $2}')
                         ;;
-                    *no_confirm*)
-                        no_confirm=$(echo "$line" | awk '{print $2}')
+                    *"no_confirm: "*)
+                        [[ -z "$no_confirm" ]] && no_confirm=$(echo "$line" | awk '{print $2}')
                         ;;
-                    *no_warning*)
-                        no_warning=$(echo "$line" | awk '{print $2}')
+                    *"no_warning: "*)
+                        [[ -z "$no_warning" ]] && no_warning=$(echo "$line" | awk '{print $2}')
                         ;;
-                    *alaa_url*)
-                        alaa_url=$(echo "$line" | awk '{print $2}')
-                        alaa_url="$alaa_url/"
+                    *"no_clear: "*)
+                        [[ -z "$no_clear" ]] && no_clear=$(echo "$line" | awk '{print $2}')
                         ;;
-                    *adrepo_url*)
-                        adrepo_url=$(echo "$line" | awk '{print $2}')
+                    *"debug_log: "*)
+                        [[ -z "$debug_log" ]] && debug_log=$(echo "$line" | awk '{print $2}')
                         ;;
-                    *source_repo_dir*)
-                        source_repo_dir=$(echo "$line" | awk '{print $2}')
+                    *"auto_update: "*)
+                        [[ -z "$auto_update" ]] && auto_update=$(echo "$line" | awk '{print $2}')
                         ;;
-                    *repositories_file*)
-                        repositories_file=$(echo "$line" | awk '{print $2}')
-                        repositories_file="$HOME/$repositories_file"
+                    *"alaa_url: "*)
+                        [[ -z "$alaa_url" ]] && alaa_url=$(echo "$line" | awk '{print $2}') && alaa_url="$alaa_url/"
+                        ;;
+                    *"source_repo_dir: "*)
+                        [[ -z "$source_repo_dir" ]] && source_repo_dir=$(echo "$line" | awk '{print $2}')
+                        ;;
+                    *"repositories_file: "*)
+                        [[ -z "$repositories_file" ]] && repositories_file=$(echo "$line" | awk '{print $2}') && repositories_file="$HOME/$repositories_file"
+                        ;;
+                    *"repositories_url: "*)
+                        [[ -z "$repositories_url" ]] && repositories_url=$(echo "$line" | awk '{print $2}')
+                        ;;
+                    *"tags_file: "*)
+                        [[ -z "$tags_file" ]] && tags_file=$(echo "$line" | awk '{print $2}') && tags_file="$HOME/$tags_file"
+                        ;;
+                    *"tags_url: "*)
+                        [[ -z "$tags_url" ]] && tags_url=$(echo "$line" | awk '{print $2}')
+                        ;;
+                    *"kernel_file: "*)
+                        [[ -z "$kernel_file" ]] && kernel_file=$(echo "$line" | awk '{print $2}') && kernel_file="$HOME/$kernel_file"
+                        ;;
+                    *"kernel_url: "*)
+                        [[ -z "$kernel_url" ]] && kernel_url=$(echo "$line" | awk '{print $2}')
+                        ;;
+                    *"bootloader_file: "*)
+                        [[ -z "$bootloader_file" ]] && bootloader_file=$(echo "$line" | awk '{print $2}') && bootloader_file="$HOME/$bootloader_file"
+                        ;;
+                    *"bootloader_url: "*)
+                        [[ -z "$bootloader_url" ]] && bootloader_url=$(echo "$line" | awk '{print $2}')
+                        ;;
+                    *"apps_file: "*)
+                        [[ -z "$apps_file" ]] && apps_file=$(echo "$line" | awk '{print $2}') && apps_file="$HOME/$apps_file"
+                        ;;
+                    *"apps_url: "*)
+                        [[ -z "$apps_url" ]] && apps_url=$(echo "$line" | awk '{print $2}')
                         ;;
                 esac
             fi
@@ -1977,10 +2019,35 @@ wifi_country() {
             exit 0
         fi
     fi
+}
+
+print_config_values() {
+    echo "Device Configuration: ${device_config:-"(unset)"}"
+    echo "No Confirm: ${no_confirm:-"(unset)"}"
+    echo "No Warning: ${no_warning:-"(unset)"}"
+    echo "No Clear: ${no_clear:-"(unset)"}"
+    echo "Debug Log: ${debug_log:-"(unset)"}"
+    echo "Auto Update: ${auto_update:-"(unset)"}"
+    echo "ALAA URL: ${alaa_url:-"(unset)"}"
+    echo "Source Repo Dir: ${source_repo_dir:-"(unset)"}"
+    echo "Repositories File: ${repositories_file:-"(unset)"}"
+    echo "Repositories URL: ${repositories_url:-"(unset)"}"
+    echo "Tags File: ${tags_file:-"(unset)"}"
+    echo "Tags URL: ${tags_url:-"(unset)"}"
+    echo "Kernel File: ${kernel_file:-"(unset)"}"
+    echo "Kernel URL: ${kernel_url:-"(unset)"}"
+    echo "Bootloader File: ${bootloader_file:-"(unset)"}"
+    echo "Bootloader URL: ${bootloader_url:-"(unset)"}"
+    echo "Apps File: ${apps_file:-"(unset)"}"
+    echo "Apps URL: ${apps_url:-"(unset)"}"
+}
 
 # Handle arguments
 for arg in "$@"; do
     case "$arg" in
+        -d | --debug)
+            debug_log=1
+            ;;
         -v | --version)
             colorecho "$BLUE" "$utilname (BUILD $utilver-$branch)"
             exit 0
@@ -1997,13 +2064,17 @@ for arg in "$@"; do
             echo
             echo "  -h / --help : Usage and Infomation of this configuration utility."
             echo "  -v / --version : Version of this configuration utility."
+            echo "  -d / --debug : Show more logs, useful for debugging."
             echo "  -u / --update : Install / Update to latest configuration utility."
             echo "  -y / --yes : Automatically confirm y / yes for everything, not recommended for install command."
+            echo "  --loadconfig=<path/url> : load an acu config file from path or url. (use with -u to install this config as default config file)"
             echo "  --update=<branch> : Install / Update to latest configuration utility from a different branch. <branch> options: main, dev."
             echo "  --usepm=<pm> : Specify a package manager to use when installing packages. <pm> options: pacman, agr, git."
-            echo "  --device=<device> : Specify target device. <device> options: rock5, edge2, orangepi5, zero3."
+            echo "  --device=<tag> : Specify target device tag. <device> options are determined by the tags_file set in acu config."
             echo "  --branch=<branch> : Specify a git branch for setting or cloning from remote repository."
             echo "  --noconfirm : Do not ask for confirmation when resolving dependencies and installing packages managed by pacman / makepkg."
+            echo "  --nowarning : Do not show warning messages."
+            echo "  --noclear : Do not clear terminal output."
             echo "  --nowarning : Do not show warning messages."
             echo
             colorecho "$GREEN" "Features"
@@ -2022,6 +2093,7 @@ for arg in "$@"; do
             echo
             echo "  -S / install : show interactive menu to install a collection of apps / packages."
             echo "  -S / install <package> : install a package using acu, you can install multiple packages with one command, example: acu install package1 package4 package3"
+            echo "  update : Fetch pacman and acu repositories."
             echo "  upgrade : Check & Perform Selective / Full System Upgrade."
             echo "  -D / downgrade <package> <index> : Install / Downgrade any Arch Linux Packages from Archive. <package>: package name <index>: index to show, default=15."
             echo "  -R / remove : remove / uninstall a package from this system."
@@ -2052,10 +2124,15 @@ for arg in "$@"; do
             echo "  user <option> : Add, Remove and Change User Account Settings. options: add, remove, manage"
             exit 0
             ;;
+        --loadconfig=*)
+            config_file="${arg#*=}"
+        ;;  
         -u | --update)
             arginstall="install"
-            update_util "$@"
-            exit 0
+        ;;
+        --update=*)
+            branch="${arg#*=}"
+            arginstall="install"
         ;;
         -y | --yes)
             args=("$@")
@@ -2073,19 +2150,16 @@ for arg in "$@"; do
         --nowarning)
             no_warning=1
         ;;
-        --update=*)
-            branch="${arg#*=}"
-            arginstall="install"
-            update_util "$@"
-            exit 0
-        ;;
+        --noclear)
+            no_clear=1
+        ;;      
         --device=*)
             device_config="${arg#*=}"
-            echo "use target device : $device_config"
+            colorecho "$DEBUG" "use target device : $device_config"
         ;;
         --branch=*)
             git_branch="${arg#*=}"
-            echo "clone from branch : $git_branch"
+            colorecho "$DEBUG" "clone from branch : $git_branch"
         ;;
         --usepm=*)
             use_pm="${arg#*=}"
@@ -2104,15 +2178,36 @@ for arg in "$@"; do
     esac
 done
 
-# Handle options
+# Initialization
 colorecho "$YELLOW" "warning: acu is experimental."
+
+# non-aarch64 system warning
 if [ "$system_arch" != "aarch64" ] && [ "$system_arch" != "arm64" ] && [ "$system_arch" != "armv8" ]; then
     colorecho "$YELLOW" "System is $system_arch, Some features are not supported, build command will automatically enable cross-compile (target to aarch64)."
     sleep 1
 fi
 
+# Load configurations
+load_config
+
+# Debug logging
+colorecho "$DEBUG" "Debug logging is enabled"
+colorecho "$DEBUG" "Configuration ($config_file):"
+colorecho "$DEBUG" ""
+
+# Print loaded ACU Config if debug enabled
+if [ -n "$debug_log" ]; then
+    print_config_values
+fi
+
+# Install / Reinstall / Updates
+if [ "$arginstall" = "install" ]; then
+    update_util "$@"
+    exit 0
+fi
+
 # make sure it is in a working directory
-cd ~/
+cd $HOME
 
 ### Features - Manage Packages ###
 if [ "$1" = "upgrade" ]; then
@@ -2133,7 +2228,7 @@ elif [ "$1" = "remove" ] || [ "$1" = "-R" ]; then
                 [yY])
                     echo "Removing acu ..."
                     sudo rm -rf /usr/bin/acu
-                    sudo rm -rf ~/.acu
+                    sudo rm -rf $HOME/.acu
                     exit 0
                     ;;
                 *)
@@ -2181,10 +2276,10 @@ elif [ "$1" = "build" ] || [ "$1" = "-B" ]; then
     else
         install_from_source "$2" "$3" "--noinstall"
     fi
-    mkdir -p ~/packages/$2
-    cp -r "$source_repo_dir"/*.pkg.tar.* ~/packages/$2/*.pkg.tar.*
-    echo "packages built at ~/packages/$2"
-    echo "sources located at ~/.acu/sources"
+    mkdir -p $HOME/packages/$2
+    cp -r "$source_repo_dir"/*.pkg.tar.* $HOME/packages/$2/*.pkg.tar.*
+    echo "packages built at $HOME/packages/$2"
+    echo "sources located at $HOME/.acu/sources"
 
 elif [ "$1" = "downgrade" ] || [ "$1" = "-D" ]; then
     downgrade_packages "$2" "$3"

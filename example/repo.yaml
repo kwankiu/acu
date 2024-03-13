@@ -1,0 +1,19 @@
+#List of package repositories managed by acu
+repositories:
+ 
+#- repo_name: example
+#  repo_type: git #available types are agr, ghapi-orgs, ghapi-releases, and git.
+#  repo_url: https://example.com
+ 
+- repo_name: acu
+  repo_type: agr
+  repo_url: https://github.com/kwankiu/acu
+ 
+- repo_name: adrepo
+  repo_type: ghapi-releases
+  repo_url: https://api.github.com/repos/kwankiu/archlinux-installer-rock5/releases/tags/kernel
+ 
+- repo_name: aur
+  repo_type: git
+  repo_url: https://aur.archlinux.org
+ 

@@ -1,7 +1,7 @@
 #acu user configurations
 configurations:
- 
-  # load configuration for a target device (e.g. rock-5b)
+
+  # load device configuration determined by tags (e.g. rock-5b)
   #device_config: generic-aarch64
 
   # do not confirm when installing a package using pacman -S / -U or makepkg -si
@@ -10,17 +10,38 @@ configurations:
   # do not print warning ($YELLOW) messages
   #no_warning: 1
 
+  # do not clear terminal outputs
+  #no_clear: 1
+
+  # do not print warning ($YELLOW) messages
+  #debug_log: 1
+
+  # auto update acu when launch without asking
+  #auto_update: 1
+
   # archive repo url for downgrading packages
   # Arch Linux ARM Archive repo
   alaa_url: https://alaa.ad24.cz
-
-  # default remote repo urls
-  # arch-linux-installer-rock5 github release kernel repo
-  adrepo_url: https://api.github.com/repos/kwankiu/archlinux-installer-rock5/releases/tags/kernel
 
   # directory for storing source files
   source_repo_dir: .acu/sources
 
   # repo list
   repositories_file: .acu/config/repo.yaml
+  repositories_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/tags.yaml
 
+  # tags list
+  tags_file: .acu/config/tags.yaml
+  tags_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/tags.yaml
+
+  # kernel list
+  kernel_file: .acu/config/kernel.yaml
+  kernel_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/kernel.yaml
+
+  # bootloader list
+  bootloader_file: .acu/config/bootloader.yaml
+  bootloader_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/bootloader.yaml
+
+  # apps list
+  apps_file: .acu/config/apps.yaml
+  apps_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/apps.yaml
