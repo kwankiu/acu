@@ -26,14 +26,14 @@
 # name of this utility (used for title)
 utilname="Arch (ARM) Configuration Utility"
 
-# utilver
-# this value is updated for release (acu compares this value with the remote one to determine whether an update is available)
-# format of Version Number is YYMMDDNN which NN is 1-99 count on updates commited on the same day
-utilver=24031202
+# ACU Release Version : (github tags) (or branch*)
+release="0.0.2-dev"
 
-# branch
-# currently, there are two branch/channel which is main and dev
-branch=dev
+# ACU Build Number: utilver (YYMMDDNN)
+utilver=24031299
+
+# Remote Repository for update check
+remote_repo="https://github.com/kwankiu/acu"
 
 # update_available
 # acu uses this variable to determine whether to show the "update available" menu option
@@ -43,7 +43,7 @@ update_available=false
 # for detecting system architecture
 system_arch=$(uname -m)
 
-# Note: for acu user configurations, please edit $HOME/.acu/config/config.yaml
+# Note: for acu user configurations, please edit $HOME/.acu/config/config.yaml or --loadconfig
 config_file="$HOME/.acu/config/config.yaml"
 
 ################################################################
@@ -184,19 +184,23 @@ titlelogo() {
 
 # Check updates
 check_util_updates() {
-    remote_utilver=$(curl -s "https://raw.githubusercontent.com/kwankiu/acu/$branch/acu" | grep -o 'utilver=[0-9]*' | cut -d= -f2)
-    if [ "$remote_utilver" -gt "$utilver" ]; then
+    if [[ "$release" == *"-dev"* ]]; then
+        remote_release=$(git ls-remote --tags $remote_repo | sort -Vr -k2 | grep -Po -m 1 "tags/\K.*..*..*")
+    else
+        remote_release=$(git ls-remote --tags $remote_repo | grep -v "dev" | sort -Vr -k2 | grep -Po -m 1 "tags/\K.*..*..*")
+    fi
+    if [ "$(echo "$remote_release" | sed 's/-.*//' | tr -d '.')" -gt "$(echo "$release" | sed 's/-.*//' | tr -d '.')" ]; then
         update_available=true
     fi
 }
 
 # Install / Update Utility to PATH
 update_util() {
-    if [ "$update_available" = true ] || [ "$arginstall" = "install" ]; then 
+    if [ "$update_available" = true ]  || [ -n "$argupdate" ]; then
         titlelogo
         colorecho "$GREEN" "Installing / Updating $utilname ..."
         sudo rm -rf /usr/bin/acu
-        sudo curl -o /usr/bin/acu -L "https://raw.githubusercontent.com/kwankiu/acu/$branch/acu"
+        sudo curl -o /usr/bin/acu -L "https://raw.githubusercontent.com/kwankiu/acu/$remote_release/acu"
         sudo chmod +x /usr/bin/acu
         args=("$@")
         for ((i = 0; i < ${#args[@]}; i++)); do
@@ -601,7 +605,7 @@ config_options() {
     options+=("User Accounts \t\t Add, Remove or Change user account settings")
 
     if [ "$update_available" = true ]; then 
-        options+=("Update Now $GREEN(Updates available)$NC Update Utility to latest version $GREEN($utilver -> $remote_utilver)$NC ")
+        options+=("Update Now $GREEN(Updates available)$NC Update Utility to latest version $GREEN($release -> $remote_release)$NC ")
     fi
     
     options+=("Exit Utility")
@@ -1043,11 +1047,7 @@ install_pkg_category() {
                 ;;
             8)
                 categorytitle="$utilname - Install Gaming / Emulation / Virtualization"
-                if [ "$branch" = "dev" ]; then
-                    update_list=("box64" "box86" "steam" "malior" "malior-droid" "wine64" "qemu-full")
-                else
-                    update_list=("box64" "qemu-full")
-                fi
+                update_list=("box64" "box86" "steam" "malior" "malior-droid" "wine64" "qemu-full")
                 ;;
             9)
                 categorytitle="$utilname - Install Development Tools"
@@ -2011,7 +2011,7 @@ load_config() {
         # Create a default configurations file if not exists
         echo "No configuration file found, downloading default configuration file ..."
         mkdir -p "$(dirname "$config_file")"
-        curl -L https://raw.githubusercontent.com/kwankiu/acu/$branch/config/config.yaml -o tmpdownload_config.yaml
+        curl -L https://raw.githubusercontent.com/kwankiu/acu/$release/config/config.yaml -o tmpdownload_config.yaml
         cp -r tmpdownload_config.yaml $HOME/.acu/config/config.yaml
         sudo rm -rf tmpdownload_config.yaml
         if [ "$1" != "-u" ] && [ "$1" != "--update" ]; then
@@ -2049,11 +2049,13 @@ for arg in "$@"; do
             debug_log=1
             ;;
         -v | --version)
-            colorecho "$BLUE" "$utilname (BUILD $utilver-$branch)"
+            colorecho "$BLUE" "$utilname $release"
+            colorecho "$DEBUG" "Build Number: $utilver"
             exit 0
             ;;
         -h | --help)
-            colorecho "$BLUE" "$utilname (BUILD $utilver-$branch)"
+            colorecho "$BLUE" "$utilname $release"
+            colorecho "$DEBUG" "Build Number: $utilver"
             echo
             colorecho "$GREEN" "Usage"
             echo
@@ -2068,7 +2070,7 @@ for arg in "$@"; do
             echo "  -u / --update : Install / Update to latest configuration utility."
             echo "  -y / --yes : Automatically confirm y / yes for everything, not recommended for install command."
             echo "  --loadconfig=<path/url> : load an acu config file from path or url. (use with -u to install this config as default config file)"
-            echo "  --update=<branch> : Install / Update to latest configuration utility from a different branch. <branch> options: main, dev."
+            echo "  --update=<release> : Install / Update configuration utility to a specified release tag."
             echo "  --usepm=<pm> : Specify a package manager to use when installing packages. <pm> options: pacman, agr, git."
             echo "  --device=<tag> : Specify target device tag. <device> options are determined by the tags_file set in acu config."
             echo "  --branch=<branch> : Specify a git branch for setting or cloning from remote repository."
@@ -2128,11 +2130,11 @@ for arg in "$@"; do
             config_file="${arg#*=}"
         ;;  
         -u | --update)
-            arginstall="install"
+            argupdate=1
         ;;
         --update=*)
-            branch="${arg#*=}"
-            arginstall="install"
+            remote_release="${arg#*=}"
+            argupdate=1
         ;;
         -y | --yes)
             args=("$@")
@@ -2201,9 +2203,9 @@ if [ -n "$debug_log" ]; then
 fi
 
 # Install / Reinstall / Updates
-if [ "$arginstall" = "install" ]; then
+if [ -n "$argupdate" ]; then
+    check_util_updates
     update_util "$@"
-    exit 0
 fi
 
 # make sure it is in a working directory
