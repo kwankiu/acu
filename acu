@@ -27,7 +27,7 @@
 utilname="Arch (ARM) Configuration Utility"
 
 # ACU Release Version : (github tags) (or branch*)
-release="0.0.2-dev"
+release="0.0.3-dev"
 
 # ACU Build Number: utilver (YYMMDDNN)
 utilver=24031299
@@ -76,6 +76,12 @@ clear () {
         command clear "$@"
     fi
 }
+
+# acu override (just for development use)
+#   acu () {
+#       local command=$@
+#       command bash $HOME/Documents/GitHub/acu/acu "$@"
+#   }
 
 # Option Picker
 function select_option {
@@ -196,7 +202,7 @@ check_util_updates() {
 
 # Install / Update Utility to PATH
 update_util() {
-    if [ "$update_available" = true ]  || [ -n "$argupdate" ]; then
+    if [ "$update_available" = true ] || [ -n "$argupdate" ]; then
         titlelogo
         colorecho "$GREEN" "Installing / Updating $utilname ..."
         sudo rm -rf /usr/bin/acu
@@ -362,27 +368,9 @@ add_repository() {
         repo_type="ghapi-releases"
     elif [[ "$repo_url" == "http://"*"/"*"/"* || "$repo_url" == "https://"*"/"*"/"* ]]; then
         repo_type="agr"
-        if ! command -v agr &> /dev/null; then
-            # Install AGR if not installed
-            colorecho "$RED" "This repository requires agr to be installed, do you want to install it? [y/N]:" 
-            read -r agrconfirm
-            case "$agrconfirm" in
-                [yY])
-                    acu install agr --noconfirm
-                    if [ -z "$git_branch" ]; then
-                        echo "Adding $repo_name to agr ..."
-                        agr rem set $repo_name $repo_url
-                    else
-                        echo "Adding $repo_name to agr using branch $git_branch ..."
-                        agr rem set $repo_name $repo_url --branch $git_branch
-                    fi
-                    ;;
-                *)
-                    colorecho "$RED" "Error: This repository will not be added."
-                    ;;
-            esac
+        if [ -n "$git_branch" ]; then
+            repo_url="$repo_url:$git_branch"
         fi
-
     elif [[ "$repo_url" == "http://"* || "$repo_url" == "https://"* ]]; then
         repo_type="git"
     else
@@ -484,7 +472,34 @@ fetch_repositories() {
         printf "\t\t [ ########################## ] \t"
         case ${repo_types[i]} in
             agr)
-                agr 2>&1
+                if ! command -v agr &> /dev/null; then
+                    # Install AGR if not installed
+                    colorecho "$RED" "This repository requires agr to be installed, do you want to install it? [y/N]:" 
+                    read -r agrconfirm
+                    case "$agrconfirm" in
+                        [yY])
+                            acu install agr --noconfirm
+                            ;;
+                        *)
+                            colorecho "$YELLOW" "WARNING $NC | This repository will be skipped and will not be fetched."
+                            ;;
+                    esac
+                fi
+                if command -v agr &> /dev/null; then
+                # Extract the branch name using parameter expansion and pattern matching
+                    if [[ "${repo_urls[i]}" == *"://"*"/"*"/"*":"* ]]; then
+                        local agr_url="${repo_urls[i]%:*}"
+                        local agr_branch="${repo_urls[i]##*:}"  # Remove everything up to the last ":"
+                        agr rem set "${repo_names[i]}" "$agr_url" --branch "$agr_branch"
+                    else
+                        agr rem set "${repo_names[i]}" "${repo_urls[i]}"
+                    fi
+                    if [ -n "$debug_log" ]; then
+                        agr -d 2>&1
+                    else
+                        agr 2>&1
+                    fi
+                fi
                 ;;
             ghapi-orgs)
                 colorecho "$BLUE" "INFO $NC | Looking up remote: ${repo_urls[i]}"
@@ -1210,7 +1225,7 @@ install_selected_pkg() {
                 if [ "$use_pm" = "git" ]; then
                     colorecho "$GREEN" "Compling & Installing ${selection[i]} ..."   
                     install_from_source "${selection[i]}"
-                elif [ "$use_pm" = "pacman" ] || ([ -z "$use_pm" ] && sudo pacman -Ssy "${selection[i]}" &> /dev/null); then
+                elif [ "$use_pm" = "pacman" ] || ([ -z "$use_pm" ] && sudo pacman -Ssy "^${selection[i]}$" &> /dev/null); then
                     colorecho "$GREEN" "Installing ${selection[i]} with pacman ..."
                     if [ -z "$no_confirm" ]; then
                         sudo pacman -S ${selection[i]} 
@@ -1231,9 +1246,11 @@ install_selected_pkg() {
                 elif [ "$use_pm" = "adrepo" ] || ([ -z "$use_pm" ] && pkg_tar=($(echo -e "n" | install_ghrel_packages "${selection[i]}" | grep '.*pkg.*'))); then
                     colorecho "$GREEN" "Installing ${selection[i]} from adrepo ..."
                     install_ghrel_packages "${selection[i]}"
-                else
+                elif aurrepo=$(git ls-remote "https://aur.archlinux.org/${selection[i]}") && [ -n "$aurrepo" ] ; then
                     colorecho "$GREEN"  "Compling & Installing ${selection[i]} from AUR ..."
                     install_from_source "aur://${selection[i]}"
+                else
+                    colorecho "$RED" "Error: package ${selection[i]} not found"
                 fi
 
                 # Handle Kernel Installation
@@ -1404,16 +1421,33 @@ system_info() {
     # Get shell
     sys_shell=$(basename "$SHELL")
 
-    # Get screen resolution (WIP)
+    # Get graphics session
     if [ -n "$WAYLAND_DISPLAY" ]; then
         sys_session="Wayland"
     elif [ -n "$DISPLAY" ]; then
-        # Get screen resolution under Xorg
-        sys_resolution=$(xdpyinfo | awk '/dimensions:/ {print $2}')
         sys_session="Xorg"
     fi
 
-    # Get desktop environment
+    # Get screen resolution
+    if command -v xdpyinfo &> /dev/null; then
+        sys_resolution=$(xdpyinfo | awk '/dimensions:/ {print $2}')
+    else
+        if [[ -d /sys/class/drm ]]; then
+            for dev in /sys/class/drm/*/modes; do
+                read -r single_resolution _ < "$dev"
+                [[ $single_resolution ]] && sys_resolution="${single_resolution}"
+            done
+        fi
+    fi
+
+    # GPU Model
+    if command -v glxinfo &> /dev/null; then
+        sys_gpu=$(glxinfo | grep "OpenGL renderer string" | cut -d ":" -f 2 | cut -c 2-)
+    else
+        sys_gpu="Unknown (mesa-utils not installed)"
+    fi
+
+    # Get Desktop Environment
     sys_de=$(echo "$XDG_CURRENT_DESKTOP" | sed 's/.\+://')
 
     # Get terminal
@@ -1431,9 +1465,10 @@ system_info() {
     colorecho "$BLUE" "DE: $NC $sys_de ($sys_session)"
     colorecho "$BLUE" "Terminal: $NC $sys_terminal ($sys_terminal_font)"
     colorecho "$BLUE" "CPU: $NC ($sys_cpu_thread) $sys_cpu @ $(awk "BEGIN{printf \"%.2f\\n\", ((${sys_cpu_clock[4]:-${sys_cpu_clock[0]}}/1000000))}") Ghz (${sys_cpu_governor[4]:-${sys_cpu_governor[0]}})"
+    colorecho "$BLUE" "GPU: $NC $sys_gpu"
+    colorecho "$BLUE" "Resolution: $NC $sys_resolution"
     colorecho "$BLUE" "Memory: $NC $sys_mem_free GiB / $sys_mem_total GiB ($(awk "BEGIN{printf \"%.2f%%\\n\", (1-(${sys_mem_free}/${sys_mem_total}))*100}"))"
     colorecho "$BLUE" "Disk: $NC $sys_disk"
-
 }
 
 # SoC Performance Profile
@@ -2029,7 +2064,7 @@ print_config_values() {
     echo "Debug Log: ${debug_log:-"(unset)"}"
     echo "Auto Update: ${auto_update:-"(unset)"}"
     echo "ALAA URL: ${alaa_url:-"(unset)"}"
-    echo "Source Repo Dir: ${source_repo_dir:-"(unset)"}"
+    echo "Source Repo Dir: $HOME/${source_repo_dir:-"(unset)"}"
     echo "Repositories File: ${repositories_file:-"(unset)"}"
     echo "Repositories URL: ${repositories_url:-"(unset)"}"
     echo "Tags File: ${tags_file:-"(unset)"}"
@@ -2051,7 +2086,6 @@ for arg in "$@"; do
         -v | --version)
             colorecho "$BLUE" "$utilname $release"
             colorecho "$DEBUG" "Build Number: $utilver"
-            exit 0
             ;;
         -h | --help)
             colorecho "$BLUE" "$utilname $release"
@@ -2202,8 +2236,8 @@ if [ -n "$debug_log" ]; then
     print_config_values
 fi
 
-# Install / Reinstall / Updates
-if [ -n "$argupdate" ]; then
+# Install / Reinstall / Updates / Auto Update
+if [ -n "$argupdate" ] || [ -n "$auto_update" ]; then
     check_util_updates
     update_util "$@"
 fi
@@ -2217,7 +2251,7 @@ if [ "$1" = "upgrade" ]; then
 
 elif [ "$1" = "update" ]; then
     sudo pacman -Syy --noconfirm
-    # fetch rem repos for available updates
+    fetch_repositories
 
 elif [ "$1" = "remove" ] || [ "$1" = "-R" ]; then
     for ((i = 2; i <= $#; i++)); do
@@ -2361,7 +2395,7 @@ elif [ "$1" = "alias" ]; then
         colorecho "$GREEN" "Alias command $3 has been removed."
     fi
 ### Main Menu ###
-else
+elif [ "$1" != "-v" ] && [ "$1" != "--version" ]; then
     check_util_updates
     config_options
 fi
