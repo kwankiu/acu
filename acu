@@ -2321,17 +2321,17 @@ elif [ "$1" = "update" ]; then
         rm -rf tmpdownload.yaml
     fi
     # Update ACU bootloader list
-    if [ -n "$bootloader_file" ] && [ -n "$bootloader_url" ]; then
-        echo ":: Updating ACU bootloader list ..."
-        response_code=$(curl --write-out '%{response_code}' -L "$bootloader_url" -o tmpdownload.yaml)
-        colorecho "$DEBUG" "CURL Response code: $response_code"
-        if [ "$response_code" = 200 ]; then
-            cp -r tmpdownload.yaml $bootloader_file
-        else
-            colorecho "$RED" "Error: failed to update bootloader list."
-        fi
-        rm -rf tmpdownload.yaml
-    fi
+    #if [ -n "$bootloader_file" ] && [ -n "$bootloader_url" ]; then
+    #    echo ":: Updating ACU bootloader list ..."
+    #    response_code=$(curl --write-out '%{response_code}' -L "$bootloader_url" -o tmpdownload.yaml)
+    #    colorecho "$DEBUG" "CURL Response code: $response_code"
+    #    if [ "$response_code" = 200 ]; then
+    #        cp -r tmpdownload.yaml $bootloader_file
+    #    else
+    #        colorecho "$RED" "Error: failed to update bootloader list."
+    #    fi
+    #    rm -rf tmpdownload.yaml
+    #fi
     # Update ACU apps list
     if [ -n "$apps_file" ] && [ -n "$apps_url" ]; then
         echo ":: Updating ACU apps list ..."
