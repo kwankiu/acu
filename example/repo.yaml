@@ -7,7 +7,7 @@ repositories:
  
 - repo_name: acu
   repo_type: agr
-  repo_url: https://github.com/kwankiu/acu
+  repo_url: https://github.com/kwankiu/acu:pkgbuilds
  
 - repo_name: adrepo
   repo_type: ghapi-releases
