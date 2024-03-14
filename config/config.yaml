@@ -4,6 +4,10 @@ configurations:
   # load device configuration determined by tags (e.g. rock-5b)
   #device_config: generic-aarch64
 
+  # do not update (overwrite) this configuration file during an update
+  # if you edited this configuration file, uncomment this to prevent ACU overwriting it during an update
+  #no_config_update: 1
+
   # do not confirm when installing a package using pacman -S / -U or makepkg -si
   #no_confirm: 1
 
@@ -26,22 +30,32 @@ configurations:
   # directory for storing source files
   source_repo_dir: .acu/sources
 
-  # repo list
+  # Repositories List
+  # repositories_file - file to load repositories list
+  # repositories_url - Sync local file from url when fetching updates (optional)
   repositories_file: .acu/config/repo.yaml
   repositories_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/tags.yaml
 
-  # tags list
+  # Tags List
+  # tags_file - file to load tags list
+  # tags_url - Sync local file from url when fetching updates (optional)
   tags_file: .acu/config/tags.yaml
   tags_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/tags.yaml
 
-  # kernel list
+  # Kernel List
+  # kernel_file - file to load kernel list
+  # kernel_url - Sync local file from url when fetching updates (optional)
   kernel_file: .acu/config/kernel.yaml
   kernel_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/kernel.yaml
 
-  # bootloader list
+  # Bootloader List
+  # bootloader_file - file to load bootloader list
+  # bootloader_url - Sync local file from url when fetching updates (optional)
   bootloader_file: .acu/config/bootloader.yaml
   bootloader_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/bootloader.yaml
 
-  # apps list
+  # Apps List
+  # apps_file - file to load apps list
+  # apps_url - Sync local file from url when fetching updates (optional)
   apps_file: .acu/config/apps.yaml
   apps_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/apps.yaml

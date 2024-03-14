@@ -212,9 +212,18 @@ update_util() {
     if [ "$update_available" = true ] || [ -n "$argupdate" ]; then
         titlelogo
         colorecho "$GREEN" "Installing / Updating $utilname ..."
-        sudo rm -rf /usr/bin/acu
-        sudo curl -o /usr/bin/acu -L "https://raw.githubusercontent.com/kwankiu/acu/$remote_release/acu"
+        local response_code=$(sudo curl --write-out '%{response_code}' -o /usr/bin/acu -L "https://raw.githubusercontent.com/kwankiu/acu/$remote_release/acu")
         sudo chmod +x /usr/bin/acu
+        if [ "$response_code" = 200 ]; then
+            local config_dir=$(dirname "$config_file")
+            if [ -z "$no_config_update" ]; then
+                colorecho "$DEBUG" "Renaming existing config.yaml to config.old ..."
+                mv "$config_file" "$config_dir/config.old"
+            fi
+        else
+            colorecho "$RED" "Error: failed to install / update $utilname. Check your internet or user permissions."
+            exit 1
+        fi
         args=("$@")
         for ((i = 0; i < ${#args[@]}; i++)); do
             if [[ "${args[i]}" == "-u" || "${args[i]}" == "--update" ]]; then
@@ -2001,6 +2010,9 @@ load_config() {
                     *"device_config: "*)
                         [[ -z "$device_config" ]] && device_config=$(echo "$line" | awk '{print $2}')
                         ;;
+                    *"no_config_update: "*)
+                        [[ -z "$no_config_update" ]] && no_config_update=$(echo "$line" | awk '{print $2}')
+                        ;;
                     *"no_confirm: "*)
                         [[ -z "$no_confirm" ]] && no_confirm=$(echo "$line" | awk '{print $2}')
                         ;;
@@ -2056,9 +2068,14 @@ load_config() {
             fi
         done < "$config_file"
     elif [ ! "$(id -u)" -eq 0 ]; then
-        # Create a default configurations file if not exists
-        echo "No configuration file found, downloading default configuration file ..."
-        mkdir -p "$(dirname "$config_file")"
+        # Download default configurations file
+        local config_dir=$(dirname "$config_file")
+        if [ -f "$config_dir/config.old" ]; then
+            echo "Downloading new configuration file ..."
+        else
+            echo "No configuration file found, downloading configuration file ..."
+        fi
+        mkdir -p "$config_dir"
         response_code=$(curl --write-out '%{response_code}' -L https://raw.githubusercontent.com/kwankiu/acu/$release/config/config.yaml -o tmpdownload_config.yaml)
         if [ "$response_code" = 200 ]; then
             cp -r tmpdownload_config.yaml $HOME/.acu/config/config.yaml
@@ -2072,6 +2089,7 @@ load_config() {
 
 print_config_values() {
     echo "Device Configuration: ${device_config:-"(unset)"}"
+    echo "No Configuration Update: ${no_config_update:-"(unset)"}"
     echo "No Confirm: ${no_confirm:-"(unset)"}"
     echo "No Warning: ${no_warning:-"(unset)"}"
     echo "No Clear: ${no_clear:-"(unset)"}"
