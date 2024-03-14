@@ -34,7 +34,7 @@ configurations:
   # repositories_file - file to load repositories list
   # repositories_url - Sync local file from url when fetching updates (optional)
   repositories_file: .acu/config/repo.yaml
-  repositories_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/tags.yaml
+  repositories_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/repo.yaml
 
   # Tags List
   # tags_file - file to load tags list
