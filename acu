@@ -2282,7 +2282,19 @@ if [ "$1" = "upgrade" ]; then
     package_update
 
 elif [ "$1" = "update" ]; then
+    # Fetch pacman repositories updates
     sudo pacman -Syy --noconfirm
+    # Update ACU repositories list
+    if [ -n "$repositories_file" ] && [ -n "$repositories_url" ]; then
+        echo " :: Updating ACU repositories list ..."
+        local response_code=$(curl --write-out '%{response_code}' -L "$repositories_url" -o tmpdownload.yaml)
+        colorecho "$DEBUG" "CURL Response code: $response_code"
+        if [ "$response_code" = 200 ]; then
+            cp -r tmpdownload.yaml $repositories_file
+        fi
+        rm -rf tmpdownload.yaml
+    fi
+    # Fetch ACU repositories packages
     fetch_repositories
 
 elif [ "$1" = "remove" ] || [ "$1" = "-R" ]; then
