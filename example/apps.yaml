@@ -1,48 +1,449 @@
 # List of common apps to show on ACU
 
-apps:
-
+################################################################
 ## Example
-#- package: linux-aarch64
-#   description: Linux Mainline Kernel
-#   version: 6.X
-#   tags:
-#     - generic-aarch64
-#     - rpi
-#   firmware:
-#     - linux-firmware
-#   graphics:
-#     - mesa
-#   video:
-#     - ffmpeg
-
-  # Minimal required example
-  - name: neofetch
-    description: Prints system information
-    packages:
-      - neofetch
-
-  # Full example
-  - name: Lorem ipsum
-    description: Lorem ipsum dolor sit amet
-    category: suites
-    long_description: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus ornare mauris ex, id sodales quam hendrerit sit amet. Nam pretium, velit eu ultricies facilisis, ex sem bibendum velit, ut gravida dui ligula eu diam. Nulla molestie sem id arcu interdum, a tristique dui porta. Cras commodo lectus nec ex ullamcorper, eu interdum nisl egestas. Phasellus est mauris, blandit vel massa in, accumsan lacinia enim. Pellentesque feugiat nibh ac nulla mollis, bibendum elementum eros lobortis. Quisque nec congue tellus. Quisque eu diam quam. Nulla facilisi.
-    version: 1.23.456-b12345
-    published: 2016-01-01
-    updated: 2024-01-01
-    release-notes:
-      - Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-      - Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-    icon: https://github.com/icon.png
-    download-size: 1048576
-    actual-size: 2097152
-    screenshots:
-      - https://github.com/screenshot1.png
-      - https://github.com/screenshot2.png
-      - https://github.com/screenshot3.png
-    packages:
-      - lorem-ipsum
-    commands: |
-      cd $pwd
-      mkdir lorem-ipsum
-      lorem-ipsum --generate 100 > lorem-ipsum/sample.txt
+#apps:
+# - category: misc
+#   description: Miscellaneous softwares
+#   items:
+#       # Minimal required example
+#      - package_name: neofetch
+#        name: Neofetch
+#        description: Print System Information
+#        packages:
+#          - neofetch
+#       # ACU example
+#      - package_name: chromium
+#        name: Chromium
+#        description: Chromium web browser (with Rockchip MPP support)
+#        compatible:
+#          - rockchip
+#        packages:
+#          - chromium-mpp
+#        commands: |
+#          sudo systemctl enable --now libv4l-rkmpp-setup.service
+#          # Check if the file /etc/chromium-browser exists
+#          if [ ! -e "/etc/chromium-browser" ]; then
+#              # Create the directory /etc/chromium-browser
+#              sudo mkdir -p "/etc/chromium-browser"
+#          fi
+#       # Full example (not for ACU)
+#       - package_name: lorem-ipsum
+#         name: Lorem ipsum
+#         description: Lorem ipsum dolor sit amet
+#         compatible:
+#           - generic-aarch64
+#         submited-by: Lore
+#         long_description: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus ornare mauris ex, id sodales quam hendrerit sit amet. Nam pretium, velit eu ultricies facilisis, ex sem bibendum velit, ut gravida dui ligula eu diam. Nulla molestie sem id arcu interdum, a tristique dui porta. Cras commodo lectus nec ex ullamcorper, eu interdum nisl egestas. Phasellus est mauris, blandit vel massa in, accumsan lacinia enim. Pellentesque feugiat nibh ac nulla mollis, bibendum elementum eros lobortis. Quisque nec congue tellus. Quisque eu diam quam. Nulla facilisi.
+#         version: 1.23.456-b12345
+#         published: 2016-01-01
+#         updated: 2024-01-01
+#         release-notes:
+#           - Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+#           - Lorem ipsum dolor sit amet, consectetur adipiscing elit.
+#         icon: https://github.com/icon.png
+#         download-size: 1048576
+#         actual-size: 2097152
+#         screenshots:
+#           - https://github.com/screenshot1.png
+#           - https://github.com/screenshot2.png
+#           - https://github.com/screenshot3.png
+#         packages:
+#           - lorem-ipsum
+#         commands: |
+#           cd $pwd
+#           mkdir lorem-ipsum
+#           lorem-ipsum --generate 100 > lorem-ipsum/sample.txt
+################################################################
+# ACU Apps List
+apps:
+################################################################
+  # Web
+  - category: Web
+    description: Surf the Internet
+    items:
+      - package_name: chromium
+        name: Chromium
+        description: Chromium web browser
+        compatible:
+          - generic-aarch64
+          - rpi
+        packages:
+          - chromium
+      - package_name: chromium
+        name: Chromium
+        description: Chromium web browser (with Rockchip MPP support)
+        compatible:
+          - rockchip
+        packages:
+          - chromium-mpp
+        commands: |
+          sudo systemctl enable --now libv4l-rkmpp-setup.service
+          # Check if the file /etc/chromium-browser exists
+          if [ ! -e "/etc/chromium-browser" ]; then
+              # Create the directory /etc/chromium-browser
+              sudo mkdir -p "/etc/chromium-browser"
+          fi
+          echo -e "# Default settings for chromium-browser. This file is sourced by /bin/sh from\n# /usr/bin/chromium-browser\n\n# Options to pass to chromium-browser\nLD_LIBRARY_PATH=/usr/lib/mali-valhall-g610/x11-wayland-gbm\nCHROMIUM_FLAGS=\"--use-gl=egl\"" | sudo tee /etc/chromium-browser/default >/dev/null
+      - package_name: ungoogled-chromium
+        name: Ungoogled Chromium
+        description: Chromium browser
+        packages:
+          - ungoogled-chromium
+      - package_name: firefox
+        name: Firefox
+        description: Firefox web browser
+        packages:
+          - firefox
+      - package_name: openssh
+        name: OpenSSH
+        description: OpenSSH Client
+        packages:
+          - openssh
+      - package_name: nodejs
+        name: NodeJS
+        description: NodeJS JavaScript runtime
+        commands: |
+          curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
+          export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
+          source ~/.bashrc
+      - package_name: neofetch
+        name: NVM
+        description: Node Version Manager
+        packages:
+          - neofetch
+      - package_name: wget
+        name: Wget
+        description: Non-interactive download of files from the Web
+        packages:
+          - wget
+################################################################
+  # Communication
+  - category: Communication
+    description: Connect with friends, family, teams
+    items:
+      - package_name: telegram-desktop
+        name: Telegram Desktop
+        description: Fast and secure desktop app for Telegram
+        packages:
+          - telegram-desktop
+      - package_name: teams
+        name: Microsoft Teams
+        description: Microsoft Teams meeting desktop app
+        packages:
+          - teams-for-linux
+      - package_name: discord
+        name: Discord (Armcord)
+        description: Discord desktop app for ARM
+        packages:
+          - armcord-bin
+      - package_name: signal
+        name: Signal
+        description: Signal Messenger desktop app
+        packages:
+          - fpm
+          - signal-desktop-arm
+################################################################
+  # Suites
+  - category: Suites
+    description: Office & Productivity Software
+    items:
+      - package_name: libreoffice
+        name: LibreOffice
+        description: Free and open-source office suite
+        packages:
+          - libreoffice
+      - package_name: wps-office-cn
+        name: WPS Office (CN)
+        description: Chinese version of WPS Office
+        packages:
+          - wps-office-cn
+      - package_name: abiword
+        name: AbiWord
+        description: Lightweight word processing program
+        packages:
+          - abiword
+      - package_name: gnumeric
+        name: Gnumeric
+        description: Spreadsheet program
+        packages:
+          - gnumeric
+      - package_name: gnucash
+        name: GNUcash
+        description: Personal and small-business financial accounting software
+        packages:
+          - gnucash
+      - package_name: glabels
+        name: Glabels
+        description: Program for creating labels
+        packages:
+          - glabels
+      - package_name: glom
+        name: Glom
+        description: Database designer and user interface
+        packages:
+          - glom
+      - package_name: dia
+        name: Dia
+        description: Diagram creation program
+        packages:
+          - dia
+################################################################
+  # Multimedia
+  - category: Multimedia
+    description: Audio, Video & Graphics Software
+    items:
+      - package_name: kodi
+        name: Kodi
+        description: Media player and entertainment hub
+        compatible:
+          - generic-aarch64
+          - rpi
+        packages:
+          - kodi
+      - package_name: kodi
+        name: Kodi
+        description: Media player and entertainment hub (with MPP support)
+        compatible:
+          - rockchip      
+        packages:
+          - kodi-mpp-git
+      - package_name: vlc
+        name: VLC
+        description: Multimedia player
+        packages:
+          - vlc
+      - package_name: lollypop
+        name: Lollypop
+        description: Music player for GNOME
+        packages:
+          - lollypop
+      - package_name: rhythmbox
+        name: Rhythmbox
+        description: Music player
+        packages:
+          - rhythmbox
+      - package_name: gimp
+        name: GIMP
+        description: Image editor
+        packages:
+          - gimp
+      - package_name: inkscape
+        name: Inkscape
+        description: Vector graphics editor
+        packages:
+          - inkscape
+      - package_name: krita
+        name: Krita
+        description: Digital painting application
+        packages:
+          - krita
+      - package_name: audacity
+        name: Audacity
+        description: Audio editor and recorder
+        packages:
+          - audacity
+      - package_name: ardour
+        name: Ardour
+        description: Digital audio workstation
+        packages:
+          - ardour
+      - package_name: blender
+        name: Blender
+        description: 3D creation software
+        packages:
+          - blender
+################################################################
+  # Gaming
+  - category: Gaming
+    description: Games, Game Stores & Emulators
+    items:
+      - package_name: minecraft
+        name: Minecraft
+        description: Minecraft
+        packages:
+          - minecraft
+################################################################
+  # Virtualization
+  - category: Virtualization
+    description: Virtual machines & Containers
+    items:
+      - package_name: virt-manager
+        name: Virt Manager
+        description: QEMU Virtual Machine Manager
+        packages:
+          - virt-manager
+      - package_name: qemu-full
+        name: QEMU
+        description: Generic and open-source machine emulator and virtualizer
+        packages:
+          - qemu-full
+      - package_name: box64
+        name: Box64
+        description: 64-bit x86 emulator
+        packages:
+          - box64
+      - package_name: malior-droid
+        name: Malior Droid
+        description: MaliorDroid (Redroid-based) Android emulator for RK3588
+        compatible:
+          - rockchip
+        packages:
+          - wget
+          - docker
+          - android-tools
+          - scrcpy
+          - malior
+        commands: |
+          systemctl start docker --now
+          echo "starting docker ..."
+          sleep 3
+          sudo mkdir /dev/binderfs
+          sudo mount -t binder binder /dev/binderfs
+          malior install malior-droid
+          malior-droid update
+      - package_name: redroid-rk3588
+        name: ReDroid
+        description: Redroid Android emulator for RK3588
+        compatible:
+          - rockchip
+        packages:
+          - redroid
+################################################################
+  # Development
+  - category: Development
+    description: Code Editors, IDEs & Build Tools
+    items:
+      - package_name: code
+        name: Visual Studio Code
+        description: Visual Studio Code Editor
+        packages:
+          - visual-studio-code-bin
+      - package_name: sublime-text-4
+        name: Sublime Text 4
+        description: Sublime Text 4 Code Editor
+        packages:
+          - sublime-text-4
+      - package_name: gedit
+        name: Gedit
+        description: Gedit Text Editor
+        packages:
+          - gedit
+      - package_name: vim
+        name: Vim
+        description: Vim Text Editor
+        packages:
+          - vim
+      - package_name: git
+        name: Git
+        description: Git Version Control
+        packages:
+          - git
+      - package_name: github-desktop-bin
+        name: GitHub Desktop
+        description: GitHub Desktop App
+        packages:
+          - github-desktop-bin
+      - package_name: python-pipx
+        name: Python PIP
+        description: Python Package Installer
+        packages:
+          - python-pipx
+      - package_name: python2
+        name: Python 2
+        description: Programming Language
+        packages:
+          - python2
+################################################################
+  # System
+  - category: System
+    description: Monitoring, Maintenance & Benchmarking
+    items:
+      - package_name: neofetch
+        name: Neofetch
+        description: Print System Information
+        packages:
+          - neofetch
+      - package_name: screenfetch
+        name: Screenfetch
+        description: Print System Information
+        packages:
+          - screenfetch
+      - package_name: s-tui
+        name: S-TUI
+        description: System Monitor
+        packages:
+          - s-tui
+      - package_name: htop
+        name: Htop
+        description: System Monitor
+        packages:
+          - htop
+      - package_name: stress
+        name: Stress
+        description: CPU Stress Testing Tool
+        packages:
+          - stress
+      - package_name: glmark2
+        name: GL Mark 2
+        description: OpenGL & OpenGL ES Benchmarking
+        packages:
+          - glmark2
+      - package_name: geekbench
+        name: Geekbench 5
+        description: Geekbench System Benchmark
+        packages:
+          - geekbench
+      - package_name: malior
+        name: Malior
+        description: Containerized game packaging for RK3588
+        compatible:
+          - rockchip
+        commands: |
+          bash <(curl -fsSL https://github.com/ChisBread/malior/raw/main/install.sh)
+          malior update
+################################################################
+  # Others
+  - category: Others
+    description: Miscellaneous, Utilities & Others
+    items:
+      - package_name: intel-ax210-fw
+        name: Intel AX210 Firmware
+        description: Wi-Fi Firmware
+        commands: |
+          # wifi
+          sudo curl -o /lib/firmware/iwlwifi-ty-a0-gf-a0-59.ucode https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/iwlwifi-ty-a0-gf-a0-59.ucode
+          sudo mv /lib/firmware/iwlwifi-ty-a0-gf-a0.pnvm /lib/firmware/iwlwifi-ty-a0-gf-a0.pnvm.bak
+          # bt
+          sudo curl -o /lib/firmware/intel/ibt-0041-0041.sfi https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/intel/ibt-0041-0041.sfi
+          sudo curl -o /lib/firmware/intel/ibt-0041-0041.ddc https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/intel/ibt-0041-0041.ddc          
+      - package_name: yay-bin
+        name: Yay
+        description: AUR Package Helper
+        packages:
+          - yay-bin
+      - package_name: agr
+        name: AGR
+        description: Archlinux Git Repositories Package Helper
+        packages:
+          - python-pip
+        commands: |
+            python -m pip install https://github.com/hbiyik/agr/archive/master.zip --break-system-packages --force-reinstall
+            sudo ln -s ~/.local/bin/agr /usr/local/bin/agr
+      - package_name: gnome-terminal
+        name: GNOME Terminal
+        description: Terminal Emulator
+        packages:
+          - gnome-terminal
+      - package_name: konsole
+        name: Konsole
+        description: Terminal Emulator
+        packages:
+          - konsole
+      - package_name: xterm
+        name: Xterm
+        description: Terminal Emulator
+        packages:
+          - xterm
+################################################################ 
