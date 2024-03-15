@@ -15,11 +15,8 @@ colorecho() {
     [ -n "$no_warning" ] && [ "$color" = "$YELLOW" ] || [ "$color" = "$DEBUG" ] && [ -z "$debug_log" ] || echo -e "${color}${text}${NC}"
 }
 
-# ACU File Parser
-debug_log=1
-
-# ACU (YAML) File Pre-Parser
-# source: https://github.com/mrbaseman/parse_yaml.git
+# ACU File Pre-Parser
+# source: https://github.com/mrbaseman/pasrse_yaml.git
 # awk : process multi-line text (handle YAML pipe) (added a space for better syntax / readability)
 # sed : replace '-' with a space
 pre_parser() {
@@ -79,11 +76,16 @@ pre_parser() {
     fi
 }
 
-# Load user configurations from YAML file
+# ACU File Parser
+# Limitation: this is not a full YAML parser, it is only designed to properly handle upto two sub-tree (subhead)
+# Limitation: an unnecessary space at line ending can potentially cause issues
+debug_log=1
 load_yaml() {
     local target_file=$1
     local suffix=$2
     local current_head=""
+    local current_subhead=""
+    local last_indent=""
     target_file="$(pre_parser "$target_file")"
     if [ -f "$target_file" ] || [[ "$target_file" == *"://"* ]] ; then
         while IFS= read -r line; do
@@ -91,11 +93,11 @@ load_yaml() {
             if ! [[ $line =~ ^[[:space:]]*($|#) ]]; then
                 # Count indentation
                 local indentation=$(expr "$line" : '^ *' / 2)
+                # Remove indent spaces
+                line="${line#"${line%%[![:space:]]*}"}"
                 if [ "$indentation" = 0 ]; then
                     current_head="${line/:/}"
-                    #colorecho "$GREEN" "$current_head"
-                else
-                    line="${line#"${line%%[![:space:]]*}"}"
+                elif [[ "$line" == *":"* ]]; then
                     if [ -z "$suffix" ]; then
                         # Use current head as suffix
                         current_value="${current_head}_${line//: /=\"}\""
@@ -106,9 +108,18 @@ load_yaml() {
                         # Set suffix to a space to set without suffix
                         current_value="${line//: /=\"}\""
                     fi
+                    if [[ "$current_value" != *":\"" ]]; then
+                        echo "$current_value"
+                    else
+                        current_subhead="${line/:/}"
+                    fi
+                elif [ "$indentation" -gt "$last_indent" ] || [ "$indentation" == "$last_indent" ]; then
+                    current_value="${current_head}_${current_subhead}=\"${line}\""
                     echo "$current_value"
-                    #colorecho "$DEBUG" "Indent: $indentation, Value: $current_value"
+                else
+                    colorecho "$DEBUG" "Indent: $indentation, Unhandled Line: $line"
                 fi
+                last_indent=$indentation
             fi
         done <<< "$target_file"
     fi
@@ -116,10 +127,10 @@ load_yaml() {
 
 set_before=$( set -o posix; set | sed -e '/^_=*/d' )
 #eval $(load_yaml "config/config.yaml" " ")
-load_yaml "example/apps.yaml"
+#load_yaml "example/apps.yaml"
 #load_yaml "example/apps.yaml"
 #load_yaml "config/config.yaml"
-#load_yaml "$@"
+load_yaml "$@"
 
 #set_after=$( set -o posix; unset set_before; set | sed -e '/^_=/d' )
 #diff  <(echo "$set_before") <(echo "$set_after") | sed -e 's/^> //' -e '/^[[:digit:]].*/d'
