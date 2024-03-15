@@ -337,7 +337,187 @@ install_pkg_from_url() {
     rm -rf $ipkgname
 }
 
-# Function to add a repository item to the YAML file
+
+# Get available repo of GitHub Organizations
+get_ghapi_orgs() {
+    local selection
+    if [ -z "$1" ]; then
+        colorecho "$RED" "Error: No url specified."
+        exit 1
+    else
+        apiurl=$1
+    fi
+    
+    ghrel_url=("$apiurl")
+    dgpkg_list=()
+
+    for which_url in "${ghrel_url[@]}"; do
+      dgpkg_list+=($(curl -s "${which_url}?per_page=100" | grep -oP '"full_name": "(?!.*/\.)\K[^"]+'))
+    done
+
+    ghapi_pkg_results=()
+    for url in "${dgpkg_list[@]}"; do
+        selection=$(basename "$url")
+        ghapi_pkg_results+=("$selection")
+    done
+}
+
+# Download Packages from a GitHub Release Repo
+install_ghrel_packages() {
+    local selection
+    if [ -z "$1" ]; then
+        colorecho "$RED" "Error: No package specified."
+        exit 1
+    else
+        dgpkg=$1
+    fi
+    
+    ghrel_url=("$adrepo_url")
+    dgpkg_list=()
+
+    for which_url in "${ghrel_url[@]}"; do
+      colorecho "$GREEN" "Fetching $which_url ..."
+      dgpkg_list+=($(curl -s "$which_url" | grep -v '.sig' | grep -B 1 ${dgpkg} | grep -oP '"browser_download_url": "\K[^"]+'))
+    done
+
+    echo ""
+    colorecho "$BLUE" "The following packages will be downloaded:"
+    echo ""
+    for url in "${dgpkg_list[@]}"; do
+        selection=$(basename "$url")
+        echo "$selection"
+    done
+    echo ""
+    echo -ne $"${BLUE}Are you sure to download the packages (y/n)?${NC}"
+    read answer
+
+    if [ "$answer" = "y" ]; then
+        for url in "${dgpkg_list[@]}"; do
+            selection=$(basename "$url")
+            echo "Downloading and Installing $selection ..."
+            install_pkg_from_url "$url"
+
+            if [ ! -z "$2" ]; then
+              sudo cp -r $selection $2/$selection
+              sudo rm -rf $selection
+            fi
+
+        done
+    fi
+
+}
+
+################################################################
+# ACU File Pre-Parser
+# source: https://github.com/mrbaseman/pasrse_yaml.git
+# awk : process multi-line text (handle YAML pipe) (added a space for better syntax / readability)
+# sed : replace '-' with a space
+pre_parser() {
+    local indexfix=-1
+    local target_file=$1
+
+    # Handle URL
+    if [[ "$target_file" == *"://"* ]]; then
+        local temp_file=$(mktemp)
+        curl -s "$target_file" > "$temp_file"
+        target_file="$temp_file"
+    fi
+
+    # Detect awk flavor
+    if awk --version 2>&1 | grep -q "GNU Awk" ; then
+        # GNU Awk detected
+        indexfix=-1
+    elif awk -Wv 2>&1 | grep -q "mawk" ; then
+        # mawk detected
+        indexfix=0
+    fi
+
+    local s='[[:space:]]*' sm='[ \t]*' w='[a-zA-Z0-9_.]*' fs=${fs:-$(echo @|tr @ '\034')} i=${i:-  }
+
+    cat $target_file | \
+    awk -F$fs "{multi=0;
+        if(match(\$0,/$sm\|$sm$/)){multi=1; sub(/$sm\|$sm$/,\" \");}
+        if(match(\$0,/$sm>$sm$/)){multi=2; sub(/$sm>$sm$/,\" \");}
+        while(multi>0){
+            str=\$0; gsub(/^$sm/,\"\", str);
+            indent=index(\$0,str);
+            indentstr=substr(\$0, 0, indent+$indexfix) \"$i\";
+            obuf=\$0;
+            getline;
+            while(index(\$0,indentstr)){
+                obuf=obuf substr(\$0, length(indentstr)+1);
+                if (multi==1){obuf=obuf \"\\\\n\";}
+                if (multi==2){
+                    if(match(\$0,/^$sm$/))
+                        obuf=obuf \"\\\\n\";
+                        else obuf=obuf \" \";
+                }
+                getline;
+            }
+            sub(/$sm$/,\"\",obuf);
+            print obuf;
+            multi=0;
+            if(match(\$0,/$sm\|$sm$/)){multi=1; sub(/$sm\|$sm$/,\"\");}
+            if(match(\$0,/$sm>$sm$/)){multi=2; sub(/$sm>$sm$/,\"\");}
+        }
+    print}" | \
+    sed 's/^\( *\)-/\1 /'
+
+    # Remove the temporary file if it was created
+    if [[ -n $temp_file ]]; then
+        rm "$temp_file"
+    fi
+}
+
+# ACU File Parser
+# Limitation: this is not a full YAML parser, it is only designed to properly handle upto two sub-tree (subhead)
+# Limitation: an unnecessary space at line ending can potentially cause issues
+load_yaml() {
+    local target_file=$1
+    local suffix=$2
+    local current_head=""
+    local current_subhead=""
+    local last_indent=""
+    target_file="$(pre_parser "$target_file")"
+    if [ -f "$target_file" ] || [[ "$target_file" == *"://"* ]] ; then
+        while IFS= read -r line; do
+            # Ignore comments and empty lines
+            if ! [[ $line =~ ^[[:space:]]*($|#) ]]; then
+                # Count indentation
+                local indentation=$(expr "$line" : '^ *' / 2)
+                # Remove indent spaces
+                line="${line#"${line%%[![:space:]]*}"}"
+                if [ "$indentation" = 0 ]; then
+                    current_head="${line/:/}"
+                elif [[ "$line" == *":"* ]]; then
+                    if [ -z "$suffix" ]; then
+                        # Use current head as suffix
+                        current_value="${current_head}_${line//: /=\"}\""
+                    elif [ "$suffix" != " " ]; then
+                        # Use user specified suffix
+                        current_value="${suffix}_${line//: /=\"}\""
+                    else
+                        # Set suffix to a space to set without suffix
+                        current_value="${line//: /=\"}\""
+                    fi
+                    if [[ "$current_value" != *":\"" ]]; then
+                        echo "$current_value"
+                    else
+                        current_subhead="${line/:/}"
+                    fi
+                elif [ "$indentation" -gt "$last_indent" ] || [ "$indentation" == "$last_indent" ]; then
+                    current_value="${current_head}_${current_subhead}=\"${line}\""
+                    echo "$current_value"
+                else
+                    colorecho "$DEBUG" "Indent: $indentation, Unhandled Line: $line"
+                fi
+                last_indent=$indentation
+            fi
+        done <<< "$target_file"
+    fi
+}
+
+# Generate repo.yaml header
 create_repo_yaml() {
     echo "#List of package repositories managed by acu" | tee "$repositories_file" >/dev/null
     echo "repositories:" | tee -a "$repositories_file" >/dev/null
@@ -349,6 +529,7 @@ create_repo_yaml() {
     echo " " | tee -a "$repositories_file" >/dev/null
 }
 
+# Function to add a repository item to the YAML file
 add_repository() {
     # Check if YAML file exists
     if [ ! -f "$repositories_file" ]; then
@@ -552,75 +733,6 @@ fetch_repositories() {
         esac
 
     done
-}
-
-# Get available repo of GitHub Organizations
-get_ghapi_orgs() {
-    local selection
-    if [ -z "$1" ]; then
-        colorecho "$RED" "Error: No url specified."
-        exit 1
-    else
-        apiurl=$1
-    fi
-    
-    ghrel_url=("$apiurl")
-    dgpkg_list=()
-
-    for which_url in "${ghrel_url[@]}"; do
-      dgpkg_list+=($(curl -s "${which_url}?per_page=100" | grep -oP '"full_name": "(?!.*/\.)\K[^"]+'))
-    done
-
-    ghapi_pkg_results=()
-    for url in "${dgpkg_list[@]}"; do
-        selection=$(basename "$url")
-        ghapi_pkg_results+=("$selection")
-    done
-}
-
-# Download Packages from a GitHub Release Repo
-install_ghrel_packages() {
-    local selection
-    if [ -z "$1" ]; then
-        colorecho "$RED" "Error: No package specified."
-        exit 1
-    else
-        dgpkg=$1
-    fi
-    
-    ghrel_url=("$adrepo_url")
-    dgpkg_list=()
-
-    for which_url in "${ghrel_url[@]}"; do
-      colorecho "$GREEN" "Fetching $which_url ..."
-      dgpkg_list+=($(curl -s "$which_url" | grep -v '.sig' | grep -B 1 ${dgpkg} | grep -oP '"browser_download_url": "\K[^"]+'))
-    done
-
-    echo ""
-    colorecho "$BLUE" "The following packages will be downloaded:"
-    echo ""
-    for url in "${dgpkg_list[@]}"; do
-        selection=$(basename "$url")
-        echo "$selection"
-    done
-    echo ""
-    echo -ne $"${BLUE}Are you sure to download the packages (y/n)?${NC}"
-    read answer
-
-    if [ "$answer" = "y" ]; then
-        for url in "${dgpkg_list[@]}"; do
-            selection=$(basename "$url")
-            echo "Downloading and Installing $selection ..."
-            install_pkg_from_url "$url"
-
-            if [ ! -z "$2" ]; then
-              sudo cp -r $selection $2/$selection
-              sudo rm -rf $selection
-            fi
-
-        done
-    fi
-
 }
 
 ################################################################
@@ -2000,73 +2112,7 @@ wifi_country() {
 # Load user configurations from YAML file
 load_config() {
     if [ -f "$config_file" ] || [[ "$config_file" == *"://"* ]] ; then
-        if [[ "$config_file" == *"://"* ]]; then
-            config_file="$(curl -s "$config_file")"
-        fi
-        while IFS= read -r line; do
-            # Ignore lines starting with '#'
-            if [[ $line != *"#"* ]]; then
-                case $line in
-                    *"device_config: "*)
-                        [[ -z "$device_config" ]] && device_config=$(echo "$line" | awk '{print $2}')
-                        ;;
-                    *"no_config_update: "*)
-                        [[ -z "$no_config_update" ]] && no_config_update=$(echo "$line" | awk '{print $2}')
-                        ;;
-                    *"no_confirm: "*)
-                        [[ -z "$no_confirm" ]] && no_confirm=$(echo "$line" | awk '{print $2}')
-                        ;;
-                    *"no_warning: "*)
-                        [[ -z "$no_warning" ]] && no_warning=$(echo "$line" | awk '{print $2}')
-                        ;;
-                    *"no_clear: "*)
-                        [[ -z "$no_clear" ]] && no_clear=$(echo "$line" | awk '{print $2}')
-                        ;;
-                    *"debug_log: "*)
-                        [[ -z "$debug_log" ]] && debug_log=$(echo "$line" | awk '{print $2}')
-                        ;;
-                    *"auto_update: "*)
-                        [[ -z "$auto_update" ]] && auto_update=$(echo "$line" | awk '{print $2}')
-                        ;;
-                    *"alaa_url: "*)
-                        [[ -z "$alaa_url" ]] && alaa_url=$(echo "$line" | awk '{print $2}') && alaa_url="$alaa_url/"
-                        ;;
-                    *"source_repo_dir: "*)
-                        [[ -z "$source_repo_dir" ]] && source_repo_dir=$(echo "$line" | awk '{print $2}')
-                        ;;
-                    *"repositories_file: "*)
-                        [[ -z "$repositories_file" ]] && repositories_file=$(echo "$line" | awk '{print $2}') && repositories_file="$HOME/$repositories_file"
-                        ;;
-                    *"repositories_url: "*)
-                        [[ -z "$repositories_url" ]] && repositories_url=$(echo "$line" | awk '{print $2}')
-                        ;;
-                    *"tags_file: "*)
-                        [[ -z "$tags_file" ]] && tags_file=$(echo "$line" | awk '{print $2}') && tags_file="$HOME/$tags_file"
-                        ;;
-                    *"tags_url: "*)
-                        [[ -z "$tags_url" ]] && tags_url=$(echo "$line" | awk '{print $2}')
-                        ;;
-                    *"kernel_file: "*)
-                        [[ -z "$kernel_file" ]] && kernel_file=$(echo "$line" | awk '{print $2}') && kernel_file="$HOME/$kernel_file"
-                        ;;
-                    *"kernel_url: "*)
-                        [[ -z "$kernel_url" ]] && kernel_url=$(echo "$line" | awk '{print $2}')
-                        ;;
-                    *"bootloader_file: "*)
-                        [[ -z "$bootloader_file" ]] && bootloader_file=$(echo "$line" | awk '{print $2}') && bootloader_file="$HOME/$bootloader_file"
-                        ;;
-                    *"bootloader_url: "*)
-                        [[ -z "$bootloader_url" ]] && bootloader_url=$(echo "$line" | awk '{print $2}')
-                        ;;
-                    *"apps_file: "*)
-                        [[ -z "$apps_file" ]] && apps_file=$(echo "$line" | awk '{print $2}') && apps_file="$HOME/$apps_file"
-                        ;;
-                    *"apps_url: "*)
-                        [[ -z "$apps_url" ]] && apps_url=$(echo "$line" | awk '{print $2}')
-                        ;;
-                esac
-            fi
-        done < "$config_file"
+        eval $(load_yaml "config/config.yaml" " ")
     elif [ ! "$(id -u)" -eq 0 ]; then
         # Download default configurations file
         local config_dir=$(dirname "$config_file")
