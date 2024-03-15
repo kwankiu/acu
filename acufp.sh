@@ -114,8 +114,13 @@ load_yaml() {
     fi
 }
 
+set_before=$( set -o posix; set | sed -e '/^_=*/d' )
+#eval $(load_yaml "config/config.yaml" " ")
+load_yaml "example/apps.yaml"
 #load_yaml "example/apps.yaml"
 #load_yaml "config/config.yaml"
 #load_yaml "$@"
-eval $(load_yaml "config/config.yaml" " ")
-echo "$alaa_url"
+
+#set_after=$( set -o posix; unset set_before; set | sed -e '/^_=/d' )
+#diff  <(echo "$set_before") <(echo "$set_after") | sed -e 's/^> //' -e '/^[[:digit:]].*/d'
+
