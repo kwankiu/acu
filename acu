@@ -763,7 +763,7 @@ config_options() {
             manage_packages
             ;;
         2)
-            install_packages
+            apps_menu
             ;;
         3)
             performance_features
@@ -1115,7 +1115,7 @@ manage_packages() {
 }
 
 # Install Packages
-install_packages() {
+apps_menu() {
 
     if [ "$launch_as_installer" = 1 ]; then
         title "Install Additional Packages"
@@ -1144,7 +1144,7 @@ install_packages() {
             config_options
         fi
     elif [ "$choice" = "1" ] || [ "$choice" = "2" ] || [ "$choice" = "3" ]; then
-        install_packages
+        apps_menu
     else
         install_pkg_category $choice
     fi
@@ -1213,11 +1213,11 @@ install_pkg_category() {
     choice=$?
 
     if [ "$choice" = "0" ]; then
-        install_packages
+        apps_menu
     elif [ "$choice" = "1" ]; then
         #print_selected_pkg && exit 0
-        install_selected_pkg
-        install_packages
+        install_pkg
+        apps_menu
     elif [ "$choice" = "2" ]; then
         install_pkg_category
     else
@@ -1233,109 +1233,11 @@ print_selected_pkg() {
     done
 }
 
-install_selected_pkg() {
-
+install_pkg() {
+    # TODO: if install does not fetch cached list of packages on each execution, it should automatically update every 4 hours
+    # Handle each packages installation
     for ((i=0; i<${#selection[@]}; i++)); do
-        echo " Install ${selection[i]}"
-        case ${selection[i]} in
-            "chromium")
-                if sudo pacman -Ssy "^chromium-mpp$" &> /dev/null; then
-                    if [ -z "$no_confirm" ]; then
-                        sudo pacman -Sy chromium-mpp
-                    else
-                        sudo pacman -Sy chromium-mpp --noconfirm
-                    fi
-                    #install_pkg_from_url "$alaa_url/packages/r/re2/re2-1%3A20230301-1-aarch64.pkg.tar.xz"
-                    sudo systemctl enable --now libv4l-rkmpp-setup.service
-                    # Check if the file /etc/chromium-browser exists
-                    if [ ! -e "/etc/chromium-browser" ]; then
-                        # Create the directory /etc/chromium-browser
-                        sudo mkdir -p "/etc/chromium-browser"
-                    fi
-                    echo -e "# Default settings for chromium-browser. This file is sourced by /bin/sh from\n# /usr/bin/chromium-browser\n\n# Options to pass to chromium-browser\nLD_LIBRARY_PATH=/usr/lib/mali-valhall-g610/x11-wayland-gbm\nCHROMIUM_FLAGS=\"--use-gl=egl\"" | sudo tee /etc/chromium-browser/default >/dev/null
-                else
-                    if [ -z "$no_confirm" ]; then
-                        sudo pacman -Sy chromium
-                    else
-                        sudo pacman -Sy chromium --noconfirm
-                    fi
-                fi
-                ;;
-            "nvm")
-                curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
-                export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
-                [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
-                source ~/.bashrc
-                ;;
-            "teams")
-                install_from_source "aur://teams-for-linux-bin"
-                ;;
-            "discord")
-                install_from_source "aur://armcord-bin"
-                ;;
-            "wine64")
-                colorecho "$RED" "Warning: This is experimental."
-                ;;
-            "box86")
-                colorecho "$YELLOW" "This is experimental."
-                echo "Package Not Available, try update to latest utility."
-                ;;
-            "steam")
-                acu install box86
-                colorecho "$YELLOW" "Make sure you installed box86 before installing Steam. This is experimental."
-                installSteam
-                ;;
-            "code")
-                install_from_source "aur://visual-studio-code-bin"
-                ;;
-            "radxa-imager")
-                install_from_source "gh://rock5-images-repo/radxa-imager"
-                ;;
-            "kodi")
-                if sudo pacman -Ssy "^kodi-nexus-mpp-git$" &> /dev/null; then 
-                    if [ -z "$no_confirm" ]; then
-                        sudo pacman -Sy kodi-nexus-mpp-git
-                    else
-                        sudo pacman -Sy kodi-nexus-mpp-git --noconfirm
-                    fi
-                fi
-                ;;
-            "malior")
-                bash <(curl -fsSL https://github.com/ChisBread/malior/raw/main/install.sh)
-                malior update
-                ;;
-            "malior-droid")
-                colorecho "$YELLOW" "Requires kernel with binderfs support"
-                acu install wget docker android-tools scrcpy --noconfirm
-                systemctl start docker --now
-                echo "starting docker ..."
-                sleep 3
-                if ! command -v malior &> /dev/null; then
-                    acu install malior
-                fi
-                sudo mkdir /dev/binderfs
-	            sudo mount -t binder binder /dev/binderfs
-	            malior install malior-droid
-	            malior-droid update
-                ;;
-            "intel-ax210-fw")
-                # wifi
-                sudo curl -o /lib/firmware/iwlwifi-ty-a0-gf-a0-59.ucode https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/iwlwifi-ty-a0-gf-a0-59.ucode
-                sudo mv /lib/firmware/iwlwifi-ty-a0-gf-a0.pnvm /lib/firmware/iwlwifi-ty-a0-gf-a0.pnvm.bak
-
-                # bt
-                sudo curl -o /lib/firmware/intel/ibt-0041-0041.sfi https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/intel/ibt-0041-0041.sfi
-                sudo curl -o /lib/firmware/intel/ibt-0041-0041.ddc https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/intel/ibt-0041-0041.ddc
-                ;;
-            "yay")
-                install_from_source "aur://yay-bin"
-                ;;
-            "agr")
-                acu install python-pip --noconfirm
-                python -m pip install https://github.com/hbiyik/agr/archive/master.zip --break-system-packages --force-reinstall
-                sudo ln -s ~/.local/bin/agr /usr/local/bin/agr
-                ;;
-            *)
+        colorecho "$BLUE" "INFO $NC | Looking for ${selection[i]}"
                 # Handle Kernel Installation
                 if [[ "${selection[i]}" == "linux-"* ]] || [[ "${selection[i]}" == *"://linux-"* ]] || [[ "${selection[i]}" == *"://"*"/linux-"* ]]; then
                     sudo rm -rf /etc/mkinitcpio.old
@@ -1348,12 +1250,18 @@ install_selected_pkg() {
                     use_pm="git"
                 fi
 
-                # Find and Install packages                    
-                if [ "$use_pm" = "git" ]; then
-                    colorecho "$GREEN" "Compling & Installing ${selection[i]} ..."   
-                    install_from_source "${selection[i]}"
+                # TODO: Handle fallbacks
+                if [[ "${selection[i]}" == "(fallback)"* ]]; then
+                    use_pm="git" # TO BE REPLACED
+                fi
+
+                # Find and Install the package                    
+                if [ -z "$skip_apps" ] && ([ -z "$use_pm" ] && sudo pacman -Ssy "^${selection[i]}$" &> /dev/null); then
+                    colorecho "$GREEN" "APPS $NC | Installing ${selection[i]}"  
+                    echo "LOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOL COMING SOON"
+                    skip_apps="" # make sure next package handle this normally
                 elif [ "$use_pm" = "pacman" ] || ([ -z "$use_pm" ] && sudo pacman -Ssy "^${selection[i]}$" &> /dev/null); then
-                    colorecho "$GREEN" "Installing ${selection[i]} with pacman ..."
+                    colorecho "$GREEN" "PACMAN $NC | Installing ${selection[i]}"  
                     if [ -z "$no_confirm" ]; then
                         sudo pacman -S ${selection[i]} 
                     else
@@ -1361,23 +1269,27 @@ install_selected_pkg() {
                     fi
                 elif [ "$use_pm" = "agr" ] || ([ -z "$use_pm" ] && agr 2>&1 | grep -v -E '://' | grep -v 'INFO' | grep -q "${selection[i]}"); then
                     if [ "$(id -u)" -eq 0 ]; then
-                        colorecho "$RED" "Error: acu is running in root or sudo, the following command can not be executed."
+                        colorecho "$RED" "ERROR $NC | acu is running in root or sudo, the following command can not be executed"
                         exit 1
                     fi
-                    colorecho "$GREEN" "Compiling & Installing ${selection[i]} with agr ..."
+                    colorecho "$GREEN" "AGR $NC | Compiling & Installing ${selection[i]}"  
                     if [ -z "$no_confirm" ]; then
                         agr install ${selection[i]} 
                     else
                         agr install ${selection[i]} --noconfirm
                     fi
                 elif [ "$use_pm" = "ghrel" ] || ([ -z "$use_pm" ] && pkg_tar=($(echo -e "n" | install_ghrel_packages "${selection[i]}" | grep '.*pkg.*'))); then
-                    colorecho "$GREEN" "Installing ${selection[i]} from github release ..."
+                    colorecho "$GREEN" "GHREL $NC | Installing ${selection[i]}"  
                     install_ghrel_packages "${selection[i]}"
                 elif aurrepo=$(git ls-remote "https://aur.archlinux.org/${selection[i]}") && [ -n "$aurrepo" ] ; then
-                    colorecho "$GREEN"  "Compling & Installing ${selection[i]} from AUR ..."
+                    # THIS NEEDS TO BE UPDATED
+                    colorecho "$GREEN" "AUR $NC | Compiling & Installing ${selection[i]}"  
                     install_from_source "aur://${selection[i]}"
+                elif [ "$use_pm" = "git" ]; then
+                    colorecho "$GREEN" "MAKEPKG $NC | Compiling & Installing ${selection[i]}"
+                    install_from_source "${selection[i]}"
                 else
-                    colorecho "$RED" "Error: package ${selection[i]} not found"
+                    colorecho "$RED" "ERROR $NC | Package ${selection[i]} not found"
                 fi
 
                 # Handle Kernel Installation
@@ -1391,8 +1303,6 @@ install_selected_pkg() {
                     # Case 3: If it contains "://" and "/linux-", take the part after "/linux-" and prepend "linux-"
                     update_kernel_extlinux "linux-${selection[i]#*"/linux-"}"
                 fi
-                ;;
-        esac
     done
 }
 
@@ -2432,17 +2342,17 @@ elif [ "$1" = "remove" ] || [ "$1" = "-R" ]; then
 
 elif [ "$1" = "install" ] || [ "$1" = "-S" ] ; then
     if [ -z "$2" ]; then
-        install_packages
+        apps_menu
     elif [ "$2" = "--installer" ]; then
         launch_as_installer=1
-        install_packages
+        apps_menu
     else
         for ((i = 2; i <= $#; i++)); do
             if [[ "${!i}" != -* ]]; then
                 selection+=("${!i}")
             fi
         done
-        install_selected_pkg
+        install_pkg
     fi
 
 elif [ "$1" = "build" ] || [ "$1" = "-B" ]; then

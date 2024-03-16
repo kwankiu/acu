@@ -31,10 +31,10 @@ configurations:
   source_repo_dir: .acu/sources
 
   # Repositories List
-  # repositories_file - file to load repositories list
+  # repositories_file - file (or url) to load repositories list
   # repositories_url - Sync local file from url when fetching updates (optional)
   repositories_file: .acu/config/repo.yaml
-  repositories_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/repo.yaml
+  #repositories_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/repo.yaml
 
   # Tags List
   # tags_file - file to load tags list
