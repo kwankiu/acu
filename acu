@@ -1234,7 +1234,6 @@ print_selected_pkg() {
 }
 
 install_pkg() {
-    # TODO: if install does not fetch cached list of packages on each execution, it should automatically update every 4 hours
     # Handle each packages installation
     for ((i=0; i<${#selection[@]}; i++)); do
         colorecho "$BLUE" "INFO $NC | Looking for package: ${selection[i]}"
@@ -2063,8 +2062,19 @@ print_config_values() {
     echo "Apps File: ${apps_file:-"(unset)"}"
     echo "Apps URL: ${apps_url:-"(unset)"}"
 }
+# Handle load config argument
+for arg in "$@"; do
+    case "$arg" in
+        --loadconfig=*)
+            config_file="${arg#*=}"
+        ;;  
+    esac
+done
 
-# Handle arguments
+# Load configurations
+load_config
+
+# Handle other arguments
 for arg in "$@"; do
     case "$arg" in
         -d | --debug)
@@ -2147,9 +2157,6 @@ for arg in "$@"; do
             echo "  user <option> : Add, Remove and Change User Account Settings. options: add, remove, manage"
             exit 0
             ;;
-        --loadconfig=*)
-            config_file="${arg#*=}"
-        ;;  
         -u | --update)
             argupdate=1
         ;;
@@ -2189,8 +2196,8 @@ for arg in "$@"; do
         ;;
         -*)
             case "$arg" in
-                -S | -R | -D | -B ) 
-                    # Add more excluded arguments as needed (these args are handled as features below)
+                -S | -R | -D | -B | --loadconfig=*) 
+                    # Add more excluded arguments as needed (these args are handled before or after this loop)
                     ;;
                 *)
                     colorecho "$RED" "Invalid command or argument."
@@ -2201,21 +2208,17 @@ for arg in "$@"; do
     esac
 done
 
-# Initialization
-colorecho "$YELLOW" "warning: acu is experimental."
+# Experimental warning
+colorecho "$YELLOW" "WARNING $NC | $utilname is experimental"
 
 # non-aarch64 system warning
 if [ "$system_arch" != "aarch64" ] && [ "$system_arch" != "arm64" ] && [ "$system_arch" != "armv8" ]; then
-    colorecho "$YELLOW" "System is $system_arch, Some features are not supported, build command will automatically enable cross-compile (target to aarch64)."
-    sleep 1
+    colorecho "$YELLOW" "WARNING $NC | System is $system_arch, some features are unsupported"
 fi
 
-# Load configurations
-load_config
-
 # Debug logging
-colorecho "$DEBUG" "Debug logging is enabled"
-colorecho "$DEBUG" "Configuration ($config_file):"
+colorecho "$DEBUG" "INFO $NC | Debug logging is enabled"
+colorecho "$DEBUG" "INFO $NC | Configuration ($config_file):"
 colorecho "$DEBUG" ""
 
 # Print loaded ACU Config if debug enabled
@@ -2342,16 +2345,17 @@ elif [ "$1" = "remove" ] || [ "$1" = "-R" ]; then
 
 elif [ "$1" = "install" ] || [ "$1" = "-S" ] ; then
     if [ -z "$2" ]; then
-        apps_menu
-    elif [ "$2" = "--installer" ]; then
-        launch_as_installer=1
+        # Show apps menu if no packages are specified
         apps_menu
     else
+        # TODO: if install does not fetch cached list of packages on each execution, it should automatically update every 4 hours
+        # Add all packages to the list
         for ((i = 2; i <= $#; i++)); do
             if [[ "${!i}" != -* ]]; then
                 selection+=("${!i}")
             fi
         done
+        # Install the packages
         install_pkg
     fi
 
