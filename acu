@@ -324,19 +324,24 @@ install_from_source() {
 }
 
 # Install Single Packages from any URL
-install_pkg_from_url() {
-    colorecho "$GREEN" "Downloading package from $1 ..."
-    curl -LJO $1
+download_pkg_from_url() {
     ipkgname=$(basename $1)
-    colorecho "$GREEN" "Installing package $ipkgname ..."
+    colorecho "$GREEN" "  -> $NC Downloading $ipkgname ..."
+    colorecho "$DEBUG" "  CURL URL: $1"
+    curl -LJO $1
+}
+
+install_local_pkg() {
+    ipkgname=$(basename $1)
+    colorecho "$GREEN" "  -> $NC Installing $ipkgname ..."
     if [ -z "$no_confirm" ]; then
         sudo pacman -U $ipkgname
     else
         sudo pacman -U $ipkgname --noconfirm
     fi
-    rm -rf $ipkgname
+    colorecho "$DEBUG" "  -> Removing installed package file $ipkgname"
+    sudo rm -rf $ipkgname
 }
-
 
 # Get available repo of GitHub Organizations
 get_ghapi_orgs() {
@@ -375,32 +380,33 @@ install_ghrel_packages() {
     dgpkg_list=()
 
     for which_url in "${ghrel_url[@]}"; do
-      colorecho "$GREEN" "Fetching $which_url ..."
+      colorecho "$BLUE" "GHREL $NC | Looking up remote: $which_url"
       dgpkg_list+=($(curl -s "$which_url" | grep -v '.sig' | grep -B 1 ${dgpkg} | grep -oP '"browser_download_url": "\K[^"]+'))
     done
 
-    echo ""
-    colorecho "$BLUE" "The following packages will be downloaded:"
-    echo ""
+    colorecho "$BLUE" "GHREL $NC |"
+    colorecho "$BLUE" "GHREL $NC | Packages"
+    echo
     for url in "${dgpkg_list[@]}"; do
         selection=$(basename "$url")
         echo "$selection"
     done
-    echo ""
-    echo -ne $"${BLUE}Are you sure to download the packages (y/n)?${NC}"
-    read answer
+    echo
+    if [ -z "$no_confirm" ]; then
+        echo -ne $"${BLUE}GHREL $NC | Download the packages? [Y/n]: "
+        read answer
+    else
+        answer="y"
+    fi
 
-    if [ "$answer" = "y" ]; then
+    if [[ "$answer" == [Yy]* ]]; then
+        colorecho "$BLUE" "GHREL $NC | Downloading Packages"
         for url in "${dgpkg_list[@]}"; do
-            selection=$(basename "$url")
-            echo "Downloading and Installing $selection ..."
-            install_pkg_from_url "$url"
-
-            if [ ! -z "$2" ]; then
-              sudo cp -r $selection $2/$selection
-              sudo rm -rf $selection
-            fi
-
+            download_pkg_from_url "$url"
+        done
+        colorecho "$BLUE" "GHREL $NC | Installing Packages"
+        for url in "${dgpkg_list[@]}"; do
+            install_local_pkg "$url"
         done
     fi
 
@@ -1039,10 +1045,11 @@ flash_uboot() {
 update_kernel_extlinux() {
 
     # Update extlinux.conf
-    colorecho "$YELLOW" "Generating extlinux.conf for $1..."
+    colorecho "$BLUE" "INFO  $NC | Generate extlinux.conf for $1 ..."
 
-    if ! sudo pacman -Q $1 ; then
-        colorecho "$RED" "provided package may not be installed, extlinux.conf will not be updated ..."
+    if ! sudo pacman -Q "$1" > /dev/null 2>&1 ; then
+        colorecho "$RED" "ERROR $NC | Package $1 is not installed"
+        colorecho "$BLUE" "INFO  $NC | extlinux.conf will not be updated"
         sudo cp -r /etc/mkinitcpio.old/* /etc/mkinitcpio.d
         sudo rm -rf /etc/mkinitcpio.old
         exit 1
@@ -1053,24 +1060,24 @@ update_kernel_extlinux() {
         sudo mv /boot/extlinux/extlinux.arch.template /boot/extlinux/extlinux.conf
     elif [ -n "$device_config" ] && [ -e /boot/vmlinuz-$1 ]; then
         # Kernel does not provide template, get sbc template
-        colorecho "$YELLOW" "Downloading extlinux template for ${device_config} ..."
+        colorecho "$GREEN" "  ->  Downloading extlinux template for ${device_config}"
         curl -LRO https://github.com/kwankiu/archlinux-installer-rock5/releases/download/kernel/${device_config}.extlinux.template
         sudo mv ${device_config}.extlinux.template /boot/extlinux/extlinux.conf
     else
-        echo "No available template, skipping ..."
-        colorecho "$YELLOW" "Warning: You may need to update extlinux.conf before booting into the new kernel."
+        colorecho "$BLUE" "INFO  $NC | No available template, skipping ..."
+        colorecho "$YELLOW" "WARNING  $NC | You may need to update extlinux.conf before booting into the new kernel"
         exit 0
     fi        
-        
-    colorecho "$YELLOW" "Generating extlinux.conf from template ..."
+
+    colorecho "$BLUE" "INFO  $NC | Getting rootfs UUID ..."
     # Get rootfs partition from the current mount point "/"
     rootfs_partition=$(mount | grep "on / " | awk '{print $1}')
 
     # Find the UUIDs of the root partition
     root_uuid=$(sudo blkid $rootfs_partition | awk '{print $2}' | tr -d '"')
-    echo "Root partition UUID: $root_uuid"
+    colorecho "$DEBUG" "Root partition UUID: $root_uuid"
 
-    colorecho "$GREEN" "Updating extlinux.conf ..."
+    colorecho "$BLUE" "INFO  $NC | Updating extlinux.conf ..."
 
     # Change pkgbase for extlinux.conf
     if sudo test ! -e "/boot/dtbs/$1"; then 
@@ -1090,11 +1097,10 @@ update_kernel_extlinux() {
 
     # Check if /boot is mounted as a partition or directory
     if mountpoint -q /boot; then
-        colorecho "$GREEN" "/boot is mounted as a partition"
-        colorecho "$GREEN" "Done"
+        colorecho "$DEBUG" "INFO  $NC | /boot is mounted as a partition"
     else
-        colorecho "$GREEN" "/boot is mounted as a directory"
-        colorecho "$GREEN" "Updating paths for extlinux.conf ..."
+        colorecho "$DEBUG" "INFO  $NC | /boot is mounted as a directory"
+        colorecho "$BLUE" "INFO  $NC | Updating paths for extlinux.conf ..."
         sudo sed -i "s| /vmlinuz| /boot/vmlinuz|" /boot/extlinux/extlinux.conf
         sudo sed -i "s| /initramfs| /boot/initramfs|" /boot/extlinux/extlinux.conf
         sudo sed -i "s| /initrd| /boot/initrd|" /boot/extlinux/extlinux.conf
@@ -1351,7 +1357,7 @@ downgrade_packages() {
     
 
     dgpkgfb=$(echo $dgpkg | cut -b 1)
-    which_url="${alaa_url}packages/${dgpkgfb}/${dgpkg}/"
+    which_url="${alaa_url}/packages/${dgpkgfb}/${dgpkg}/"
     colorecho "$GREEN" "Fetching $which_url ..."
     #latest_image=$(curl -s "$which_url" | grep -o '*-aarch64.pkg.tar.xz' | head -n 1)
     dgpkg_list=$(curl -s "$which_url" | grep -v '.sig' | grep -o 'href="[^"]*"' | sed 's/href="//;s/"$//' | grep -o ${dgpkg}.*-aarch64.pkg.tar.xz)
@@ -1362,7 +1368,8 @@ downgrade_packages() {
     select_option "${dgpkg_list[@]}"
     choice=$?
 
-    install_pkg_from_url ${which_url}${dgpkg_list[choice]}
+    download_pkg_from_url "${which_url}${dgpkg_list[choice]}"
+    install_local_pkg "${which_url}${dgpkg_list[choice]}"
 }
 
 add_repo() {
