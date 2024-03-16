@@ -9,7 +9,10 @@ pkgbuilds:
 #    subtree: mesa-panfrost-git
 #    makedeps:
 #      - valgrind
-  gitweb-dlagent: GH/7Ji-PKGBUILDs/
+  linux-aarch64-rk3588-collabora-git:
+    url: https://github.com/acu/acu.git
+    branch: pkgbuilds
+    subtree: linux-aarch64-rk3588-collabora-git
   linux-aarch64-rockchip-bsp6.1-joshua-panthor-git:
     url: https://github.com/hbiyik/agrrepo.git
     subtree: kernel/rockchip/linux-aarch64-rockchip-bsp6.1-joshua-panthor-git
