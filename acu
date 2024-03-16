@@ -372,7 +372,6 @@ install_ghrel_packages() {
         dgpkg=$1
     fi
     
-    ghrel_url=("$adrepo_url")
     dgpkg_list=()
 
     for which_url in "${ghrel_url[@]}"; do
@@ -524,7 +523,7 @@ create_repo_yaml() {
     echo " " | tee -a "$repositories_file" >/dev/null
 
     echo "#- repo_name: example" | tee -a "$repositories_file" >/dev/null
-    echo "#  repo_type: git #available types are agr, ghapi-orgs, ghapi-releases, and git." | tee -a "$repositories_file" >/dev/null
+    echo "#  repo_type: git #available types are agr, ghorg, ghrel, and git." | tee -a "$repositories_file" >/dev/null
     echo "#  repo_url: https://example.com" | tee -a "$repositories_file" >/dev/null
     echo " " | tee -a "$repositories_file" >/dev/null
 }
@@ -560,9 +559,9 @@ add_repository() {
 
     # Validate and auto-detect repository type based on URL format
     if [[ "$repo_url" == "https://api.github.com/orgs"* ]]; then
-        repo_type="ghapi-orgs"
+        repo_type="ghorg"
     elif [[ "$repo_url" == "https://api.github.com/repos"* ]]; then
-        repo_type="ghapi-releases"
+        repo_type="ghrel"
     elif [[ "$repo_url" == "http://"*"/"*"/"* || "$repo_url" == "https://"*"/"*"/"* ]]; then
         repo_type="agr"
         if [ -n "$git_branch" ]; then
@@ -698,7 +697,7 @@ fetch_repositories() {
                     fi
                 fi
                 ;;
-            ghapi-orgs)
+            ghorg | ghapi-orgs)
                 colorecho "$BLUE" "INFO $NC | Looking up remote: ${repo_urls[i]}"
                 get_ghapi_orgs ${repo_urls[i]}
                 for pkg in "${ghapi_pkg_results[@]}"; do
@@ -707,9 +706,9 @@ fetch_repositories() {
                 colorecho "$BLUE" "      INFO$NC|"
                 colorecho "$BLUE" "      INFO$NC|     found ${#ghapi_pkg_results[@]} packages"
                 ;;
-            ghapi-releases)
+            ghrel | ghapi-releases)
                 colorecho "$BLUE" "INFO $NC | Looking up remote: ${repo_urls[i]}"
-                adrepo_url=${repo_urls[i]}
+                ghrel_url+=("${repo_urls[i]}")
                 ghapi_pkg_results=($(echo -e "n" | install_ghrel_packages .pkg.tar. | grep .pkg.tar.* | sed 's/\.pkg\..*//'))
                 for pkg in "${ghapi_pkg_results[@]}"; do
                     colorecho "$BLUE" "      PKG$NC |     $pkg"
@@ -727,7 +726,7 @@ fetch_repositories() {
                 ;;
             *)
                 colorecho "$BLUE" "INFO $NC | Looking up remote: ${repo_urls[i]}"
-                colorecho "$RED" "      INFO$NC |     Error: invalid repository type. Valid types are: agr, ghapi-orgs, ghapi-releases, git."
+                colorecho "$RED" "      INFO$NC |     Error: invalid repository type. Valid types are: agr, ghorg, ghrel, git."
                 return
                 ;;
         esac
@@ -1371,8 +1370,8 @@ install_selected_pkg() {
                     else
                         agr install ${selection[i]} --noconfirm
                     fi
-                elif [ "$use_pm" = "adrepo" ] || ([ -z "$use_pm" ] && pkg_tar=($(echo -e "n" | install_ghrel_packages "${selection[i]}" | grep '.*pkg.*'))); then
-                    colorecho "$GREEN" "Installing ${selection[i]} from adrepo ..."
+                elif [ "$use_pm" = "ghrel" ] || ([ -z "$use_pm" ] && pkg_tar=($(echo -e "n" | install_ghrel_packages "${selection[i]}" | grep '.*pkg.*'))); then
+                    colorecho "$GREEN" "Installing ${selection[i]} from github release ..."
                     install_ghrel_packages "${selection[i]}"
                 elif aurrepo=$(git ls-remote "https://aur.archlinux.org/${selection[i]}") && [ -n "$aurrepo" ] ; then
                     colorecho "$GREEN"  "Compling & Installing ${selection[i]} from AUR ..."
