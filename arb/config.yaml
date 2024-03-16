@@ -4,10 +4,12 @@ basepkgs: [base-devel, distcc, ccache]
 home_binds: [.cache/ccache, .config/ccache]
 pkgbuilds:
 #  mesa-panfork-git: GH/7Ji-PKGBUILDs/
-  mesa-panfrost-git:
+#  mesa-panfrost-git:
+#    url: https://github.com/hbiyik/agrrepo.git
+#    subtree: mesa-panfrost-git
+#    makedeps:
+#      - valgrind
+  gitweb-dlagent: GH/7Ji-PKGBUILDs/
+  linux-aarch64-rockchip-bsp6.1-joshua-panthor-git:
     url: https://github.com/hbiyik/agrrepo.git
-    subtree: mesa-panfrost-git
-    makedeps:
-      - valgrind
-#  mali-valhall-g610-firmware: GH/7Ji-PKGBUILDs/
-#  gitweb-dlagent: GH/7Ji-PKGBUILDs/
+    subtree: kernel/rockchip/linux-aarch64-rockchip-bsp6.1-joshua-panthor-git
