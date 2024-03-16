@@ -661,11 +661,16 @@ remove_repository() {
 # Function to fetch packages of a repositories
 fetch_repositories() {
     load_repositories
-    echo ":: Fetching package repositories..."
+    ghrel_url=() # initialize empty url list
+    if [ "$1" != "-q" ]; then
+        echo ":: Fetching package repositories..."
+    fi
 
     for ((i = 0; i < ${#repo_names[@]}; i++)); do
-        echo -n "${repo_names[i]}"
-        printf "\t\t [ ########################## ] \t"
+        if [ "$1" != "-q" ]; then
+            echo -n "${repo_names[i]}"
+            printf "\t\t [ ########################## ] \t"
+        fi
         case ${repo_types[i]} in
             agr)
                 if ! command -v agr &> /dev/null; then
@@ -692,42 +697,63 @@ fetch_repositories() {
                     fi
                     if [ -n "$debug_log" ]; then
                         agr -d 2>&1
-                    else
+                    elif [ "$1" == "list" ]; then
                         agr 2>&1
+                    else
+                        agr
                     fi
                 fi
                 ;;
             ghorg | ghapi-orgs)
-                colorecho "$BLUE" "INFO $NC | Looking up remote: ${repo_urls[i]}"
+                if [ "$1" != "-q" ]; then
+                    colorecho "$BLUE" "INFO $NC | Looking up remote: ${repo_urls[i]}"
+                fi
                 get_ghapi_orgs ${repo_urls[i]}
                 for pkg in "${ghapi_pkg_results[@]}"; do
-                    colorecho "$BLUE" "      PKG$NC |     $pkg"
+                    if [ "$1" == "list" ]; then
+                        colorecho "$BLUE" "      PKG$NC |     $pkg"
+                    fi
                 done
-                colorecho "$BLUE" "      INFO$NC|"
-                colorecho "$BLUE" "      INFO$NC|     found ${#ghapi_pkg_results[@]} packages"
+                if [ "$1" == "list" ]; then
+                    colorecho "$BLUE" "      INFO$NC|"
+                    colorecho "$BLUE" "      INFO$NC|     found ${#ghapi_pkg_results[@]} packages"
+                fi
                 ;;
             ghrel | ghapi-releases)
-                colorecho "$BLUE" "INFO $NC | Looking up remote: ${repo_urls[i]}"
+                if [ "$1" != "-q" ]; then
+                    colorecho "$BLUE" "INFO $NC | Looking up remote: ${repo_urls[i]}"
+                fi
                 ghrel_url+=("${repo_urls[i]}")
                 ghapi_pkg_results=($(echo -e "n" | install_ghrel_packages .pkg.tar. | grep .pkg.tar.* | sed 's/\.pkg\..*//'))
                 for pkg in "${ghapi_pkg_results[@]}"; do
-                    colorecho "$BLUE" "      PKG$NC |     $pkg"
+                    if [ "$1" == "list" ]; then
+                        colorecho "$BLUE" "      PKG$NC |     $pkg"
+                    fi
                 done
-                colorecho "$BLUE" "      INFO$NC|"
-                colorecho "$BLUE" "      INFO$NC|     found ${#ghapi_pkg_results[@]} packages"
+                if [ "$1" == "list" ]; then
+                    colorecho "$BLUE" "      INFO$NC|"
+                    colorecho "$BLUE" "      INFO$NC|     found ${#ghapi_pkg_results[@]} packages"
+                fi
                 ;;
             git)
-                colorecho "$BLUE" "INFO $NC | Looking up remote: ${repo_urls[i]}"
+                if [ "$1" != "-q" ]; then
+                    colorecho "$BLUE" "INFO $NC | Looking up remote: ${repo_urls[i]}"
+                fi
                 if curl -s --head ${repo_urls[i]} &> /dev/null; then
-                    colorecho "$GREEN" "      INFO$NC |     Successfully fetched host. Packages list fetching unsupported, skipping ..."
+                    if [ "$1" == "list" ]; then
+                        colorecho "$GREEN" "      INFO$NC |     Successfully fetched host (Packages list fetching unsupported)"
+                    fi
                 else
-                    colorecho "$RED" "      INFO$NC |     Error: failed to resolve host."
+                    colorecho "$RED" "      ERROR$NC |     Failed to resolve host."
                 fi
                 ;;
             *)
-                colorecho "$BLUE" "INFO $NC | Looking up remote: ${repo_urls[i]}"
-                colorecho "$RED" "      INFO$NC |     Error: invalid repository type. Valid types are: agr, ghorg, ghrel, git."
-                return
+                if [ "$1" != "-q" ]; then
+                    colorecho "$BLUE" "INFO $NC | Looking up remote: ${repo_urls[i]}"
+                    colorecho "$RED" "      ERROR$NC |     Invalid repository type. Valid types are: agr, ghorg, ghrel, git."
+                else
+                    colorecho "$DEBUG" "$RED      ERROR$NC |     Invalid repository type. Valid types are: agr, ghorg, ghrel, git."
+                fi
                 ;;
         esac
 
@@ -1277,7 +1303,7 @@ install_pkg() {
                     else
                         agr install ${selection[i]} --noconfirm
                     fi
-                elif [ "$use_pm" = "ghrel" ] || ([ -z "$use_pm" ] && pkg_tar=($(echo -e "n" | install_ghrel_packages "${selection[i]}" | grep '.*pkg.*'))); then
+                elif [ "$use_pm" = "ghrel" ] || ([ -z "$use_pm" ] && fetch_repositories -q && pkg_tar=($(echo -e "n" | install_ghrel_packages "${selection[i]}" | grep '.*pkg.*'))); then
                     colorecho "$GREEN" "GHREL $NC | Installing ${selection[i]}"  
                     install_ghrel_packages "${selection[i]}"
                 elif aurrepo=$(git ls-remote "https://aur.archlinux.org/${selection[i]}") && [ -n "$aurrepo" ] ; then
@@ -2375,7 +2401,8 @@ elif [ "$1" = "downgrade" ] || [ "$1" = "-D" ]; then
 
 elif [ "$1" = "rem" ] || [ "$1" = "remote" ]; then
     if [ -z "$2" ] || [ "$2" = "fetch" ]; then
-        fetch_repositories
+        # fetch repositories and list all packages
+        fetch_repositories list
     elif [ "$2" = "list" ] || [ "$2" = "show" ]; then
         list_repositories
     elif [ "$2" = "set" ] || [ "$2" = "add" ]; then
