@@ -700,7 +700,10 @@ fetch_repositories() {
                     elif [ "$1" == "list" ]; then
                         agr 2>&1
                     else
-                        agr
+                        if [ "$1" != "-q" ]; then
+                            colorecho "$BLUE" "INFO $NC | Looking up remote: ${repo_urls[i]}"
+                        fi
+                        agr  &> /dev/null
                     fi
                 fi
                 ;;
@@ -2271,7 +2274,7 @@ elif [ "$1" = "update" ]; then
     # Update ACU repositories list
     if [ -n "$repositories_file" ] && [ -n "$repositories_url" ]; then
         echo ":: Updating ACU repositories list ..."
-        response_code=$(curl --write-out '%{response_code}' -L "$repositories_url" -o tmpdownload.yaml)
+        response_code=$(curl -s --write-out '%{response_code}' -L "$repositories_url" -o tmpdownload.yaml)
         colorecho "$DEBUG" "CURL Response code: $response_code"
         if [ "$response_code" = 200 ]; then
             cp -r tmpdownload.yaml $repositories_file
@@ -2283,7 +2286,7 @@ elif [ "$1" = "update" ]; then
     # Update ACU tags list
     if [ -n "$tags_file" ] && [ -n "$tags_url" ]; then
         echo ":: Updating ACU tags list ..."
-        response_code=$(curl --write-out '%{response_code}' -L "$tags_url" -o tmpdownload.yaml)
+        response_code=$(curl -s --write-out '%{response_code}' -L "$tags_url" -o tmpdownload.yaml)
         colorecho "$DEBUG" "CURL Response code: $response_code"
         if [ "$response_code" = 200 ]; then
             cp -r tmpdownload.yaml $tags_file
@@ -2295,7 +2298,7 @@ elif [ "$1" = "update" ]; then
     # Update ACU kernel list
     if [ -n "$kernel_file" ] && [ -n "$kernel_url" ]; then
         echo ":: Updating ACU kernel list ..."
-        response_code=$(curl --write-out '%{response_code}' -L "$kernel_url" -o tmpdownload.yaml)
+        response_code=$(curl -s --write-out '%{response_code}' -L "$kernel_url" -o tmpdownload.yaml)
         colorecho "$DEBUG" "CURL Response code: $response_code"
         if [ "$response_code" = 200 ]; then
             cp -r tmpdownload.yaml $kernel_file
@@ -2307,7 +2310,7 @@ elif [ "$1" = "update" ]; then
     # Update ACU bootloader list
     #if [ -n "$bootloader_file" ] && [ -n "$bootloader_url" ]; then
     #    echo ":: Updating ACU bootloader list ..."
-    #    response_code=$(curl --write-out '%{response_code}' -L "$bootloader_url" -o tmpdownload.yaml)
+    #    response_code=$(curl -s --write-out '%{response_code}' -L "$bootloader_url" -o tmpdownload.yaml)
     #    colorecho "$DEBUG" "CURL Response code: $response_code"
     #    if [ "$response_code" = 200 ]; then
     #        cp -r tmpdownload.yaml $bootloader_file
@@ -2319,7 +2322,7 @@ elif [ "$1" = "update" ]; then
     # Update ACU apps list
     if [ -n "$apps_file" ] && [ -n "$apps_url" ]; then
         echo ":: Updating ACU apps list ..."
-        response_code=$(curl --write-out '%{response_code}' -L "$apps_url" -o tmpdownload.yaml)
+        response_code=$(curl -s --write-out '%{response_code}' -L "$apps_url" -o tmpdownload.yaml)
         colorecho "$DEBUG" "CURL Response code: $response_code"
         if [ "$response_code" = 200 ]; then
             cp -r tmpdownload.yaml $apps_file
