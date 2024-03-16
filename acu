@@ -1055,9 +1055,9 @@ update_kernel_extlinux() {
         exit 1
     fi
 
-    if sudo test -e  "/boot/extlinux/extlinux.arch.template"; then 
-        colorecho "$YELLOW" "Using extlinux.arch.template ..."
-        sudo mv /boot/extlinux/extlinux.arch.template /boot/extlinux/extlinux.conf
+    if found_file=$(sudo ls -1 /boot/extlinux/extlinux.*.template 2>/dev/null); then
+        colorecho "$BLUE" "INFO  $NC | Using package provided template: $found_file"
+        sudo mv "$found_file" /boot/extlinux/extlinux.conf
     elif [ -n "$device_config" ] && [ -e /boot/vmlinuz-$1 ]; then
         # Kernel does not provide template, get sbc template
         colorecho "$GREEN" "  ->  Downloading extlinux template for ${device_config}"
@@ -1273,9 +1273,14 @@ install_pkg() {
         colorecho "$BLUE" "INFO $NC | Looking for package: ${selection[i]}"
                 # Handle Kernel Installation
                 if [[ "${selection[i]}" == "linux-"* ]] || [[ "${selection[i]}" == *"://linux-"* ]] || [[ "${selection[i]}" == *"://"*"/linux-"* ]]; then
+                    # Make sure mkinitcpio.old not exist
                     sudo rm -rf /etc/mkinitcpio.old
+                    # Backup mkinitcpio.old
                     sudo cp -r /etc/mkinitcpio.d /etc/mkinitcpio.old
+                    # Remove current mkinitcpio
                     sudo rm -rf /etc/mkinitcpio.d/*
+                    # Remove all existing templates
+                    sudo rm -rf /boot/extlinux/extlinux.*.template
                 fi
 
                 # Handle URLs
