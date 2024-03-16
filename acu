@@ -1237,7 +1237,7 @@ install_pkg() {
     # TODO: if install does not fetch cached list of packages on each execution, it should automatically update every 4 hours
     # Handle each packages installation
     for ((i=0; i<${#selection[@]}; i++)); do
-        colorecho "$BLUE" "INFO $NC | Looking up package: ${selection[i]}"
+        colorecho "$BLUE" "INFO $NC | Looking for package: ${selection[i]}"
                 # Handle Kernel Installation
                 if [[ "${selection[i]}" == "linux-"* ]] || [[ "${selection[i]}" == *"://linux-"* ]] || [[ "${selection[i]}" == *"://"*"/linux-"* ]]; then
                     sudo rm -rf /etc/mkinitcpio.old
