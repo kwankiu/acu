@@ -1,11 +1,13 @@
 # Format of this file is documented at https://github.com/7Ji/arch_repo_builder#config
 dephash_strategy: strict
-basepkgs: [base-devel, distcc, ccache, valgrind]
+basepkgs: [base-devel, distcc, ccache]
 home_binds: [.cache/ccache, .config/ccache]
 pkgbuilds:
 #  mesa-panfork-git: GH/7Ji-PKGBUILDs/
   mesa-panfrost-git:
     url: https://github.com/hbiyik/agrrepo.git
     subtree: mesa-panfrost-git
+    makedeps:
+      - valgrind
 #  mali-valhall-g610-firmware: GH/7Ji-PKGBUILDs/
 #  gitweb-dlagent: GH/7Ji-PKGBUILDs/
