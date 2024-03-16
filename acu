@@ -691,9 +691,9 @@ fetch_repositories() {
                     if [[ "${repo_urls[i]}" == *"://"*"/"*"/"*":"* ]]; then
                         local agr_url="${repo_urls[i]%:*}"
                         local agr_branch="${repo_urls[i]##*:}"  # Remove everything up to the last ":"
-                        agr rem set "${repo_names[i]}" "$agr_url" --branch "$agr_branch"
+                        agr rem set "${repo_names[i]}" "$agr_url" --branch "$agr_branch" &> /dev/null
                     else
-                        agr rem set "${repo_names[i]}" "${repo_urls[i]}"
+                        agr rem set "${repo_names[i]}" "${repo_urls[i]}" &> /dev/null
                     fi
                     if [ -n "$debug_log" ]; then
                         agr -d 2>&1
