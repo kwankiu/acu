@@ -1,0 +1,6 @@
+# Ignore macOS DS_Store
+.DS_Store
+
+# Ignore ARB outputs
+arb/*
+!arb/config.yaml
