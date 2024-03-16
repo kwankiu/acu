@@ -5,8 +5,10 @@ pkgname=(
   "${pkgbase}"
   "${pkgbase}-headers"
 )
-pkgver=6.8rc7.r1251099.cff511f9
-pkgrel=1
+_pkgver=6.8rc7.r1251099.cff511f9
+_buildver=1
+pkgver="${_pkgver}"
+pkgrel="${_buildver}"
 arch=('any')
 url="https://gitlab.collabora.com/hardware-enablement/rockchip-3588/linux.git"
 license=('GPL2')

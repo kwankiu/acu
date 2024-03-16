@@ -4,8 +4,10 @@
 
 pkgbase=linux-aarch64-rockchip-bsp6.1-joshua-panthor-git
 pkgname=("${pkgbase}"{,-headers})
-pkgver=6.1.43.r1266133.ga209c7aba62f
-pkgrel=1
+_pkgver=6.1.43.r1266133.ga209c7aba62f
+_buildver=1
+pkgver="${_pkgver}"
+pkgrel="${_buildver}"
 arch=('aarch64')
 license=('GPL2')
 _url="https://github.com/hbiyik"
