@@ -3,16 +3,23 @@ dephash_strategy: strict
 basepkgs: [base-devel, distcc, ccache]
 home_binds: [.cache/ccache, .config/ccache]
 pkgbuilds:
-#  mesa-panfork-git: GH/7Ji-PKGBUILDs/
-#  mesa-panfrost-git:
-#    url: https://github.com/hbiyik/agrrepo.git
-#    subtree: mesa-panfrost-git
-#    makedeps:
-#      - valgrind
+  # Mainline Mesa for Panfrost
+  mesa-panfrost-git:
+    url: https://github.com/acu/acu.git
+    branch: pkgbuilds
+    subtree: mesa-panfrost-git
+  # Joshua Rockchip 6.1 bin package
+  linux-aarch64-rockchip-bsp6.1-joshua-bin:
+    url: https://github.com/acu/acu.git
+    branch: pkgbuilds
+    subtree: linux-aarch64-rockchip-bsp6.1-joshua-bin
+  # Joshua Rockchip 6.1 with Panthor backport
+  linux-aarch64-rockchip-bsp6.1-joshua-panthor-git:
+    url: https://github.com/acu/acu.git
+    branch: pkgbuilds
+    subtree: linux-aarch64-rockchip-bsp6.1-joshua-panthor-git  
+  # Collabora mainline kernel for RK3588
   linux-aarch64-rk3588-collabora-git:
     url: https://github.com/acu/acu.git
     branch: pkgbuilds
     subtree: linux-aarch64-rk3588-collabora-git
-  linux-aarch64-rockchip-bsp6.1-joshua-panthor-git:
-    url: https://github.com/hbiyik/agrrepo.git
-    subtree: kernel/rockchip/linux-aarch64-rockchip-bsp6.1-joshua-panthor-git
