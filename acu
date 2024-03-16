@@ -665,7 +665,7 @@ fetch_repositories() {
     if [ "$1" != "-q" ]; then
         echo ":: Fetching package repositories..."
     fi
-
+    local i # declare as local variable
     for ((i = 0; i < ${#repo_names[@]}; i++)); do
         if [ "$1" != "-q" ]; then
             echo -n "${repo_names[i]}"
@@ -759,7 +759,6 @@ fetch_repositories() {
                 fi
                 ;;
         esac
-
     done
 }
 
@@ -1306,7 +1305,7 @@ install_pkg() {
                     else
                         agr install ${selection[i]} --noconfirm
                     fi
-                elif [ "$use_pm" = "ghrel" ] || ([ -z "$use_pm" ] && fetch_repositories -q && pkg_tar=($(echo -e "n" | install_ghrel_packages "${selection[i]}" | grep '.*pkg.*'))); then
+                elif [ "$use_pm" = "ghrel" ] || [ -z "$use_pm" ] && fetch_repositories -q && echo -e "n" | install_ghrel_packages "${selection[i]}" | grep -q '.*pkg.*'; then
                     colorecho "$GREEN" "GHREL $NC | Installing ${selection[i]}"  
                     install_ghrel_packages "${selection[i]}"
                 elif aurrepo=$(git ls-remote "https://aur.archlinux.org/${selection[i]}") && [ -n "$aurrepo" ] ; then
