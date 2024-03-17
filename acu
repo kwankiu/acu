@@ -221,7 +221,7 @@ update_util() {
                 mv "$config_file" "$config_dir/config.old"
             fi
         else
-            colorecho "$RED" "Error: failed to install / update $utilname. Check your internet or user permissions."
+            colorecho "$RED" "ERROR $NC | failed to install / update $utilname. Check your internet or user permissions."
             exit 1
         fi
         args=("$@")
@@ -263,7 +263,7 @@ add_alias() {
 install_from_source() {
     
     if [ "$(id -u)" -eq 0 ]; then
-        colorecho "$RED" "Error: acu is running in root or sudo, the following command can not be executed."
+        colorecho "$RED" "ERROR $NC | acu is running in root or sudo, the following command can not be executed."
         exit 1
     fi
     # Install required package    
@@ -347,7 +347,7 @@ install_local_pkg() {
 get_ghapi_orgs() {
     local selection
     if [ -z "$1" ]; then
-        colorecho "$RED" "Error: No url specified."
+        colorecho "$RED" "ERROR $NC | No url specified."
         exit 1
     else
         apiurl=$1
@@ -371,7 +371,7 @@ get_ghapi_orgs() {
 install_ghrel_packages() {
     local selection
     if [ -z "$1" ]; then
-        colorecho "$RED" "Error: No package specified."
+        colorecho "$RED" "ERROR $NC | No package specified."
         exit 1
     else
         dgpkg=$1
@@ -2225,11 +2225,11 @@ for arg in "$@"; do
         ;;      
         --device=*)
             device_config="${arg#*=}"
-            colorecho "$DEBUG" "use target device : $device_config"
+            colorecho "$DEBUG" "INFO $NC | use target device : $device_config"
         ;;
         --branch=*)
             git_branch="${arg#*=}"
-            colorecho "$DEBUG" "clone from branch : $git_branch"
+            colorecho "$DEBUG" "INFO $NC | clone from branch : $git_branch"
         ;;
         --usepm=*)
             use_pm="${arg#*=}"
@@ -2240,7 +2240,7 @@ for arg in "$@"; do
                     # Add more excluded arguments as needed (these args are handled before or after this loop)
                     ;;
                 *)
-                    colorecho "$RED" "Invalid command or argument."
+                    colorecho "$RED" "ERROR $NC | Invalid command or argument."
                     exit 1
                     ;;
             esac
@@ -2290,7 +2290,7 @@ elif [ "$1" = "update" ]; then
         if [ "$response_code" = 200 ]; then
             cp -r tmpdownload.yaml $repositories_file
         else
-            colorecho "$RED" "Error: failed to update repositories list."
+            colorecho "$RED" "ERROR $NC | failed to update repositories list."
         fi
         rm -rf tmpdownload.yaml
     fi
@@ -2302,7 +2302,7 @@ elif [ "$1" = "update" ]; then
         if [ "$response_code" = 200 ]; then
             cp -r tmpdownload.yaml $tags_file
         else
-            colorecho "$RED" "Error: failed to update tags list."
+            colorecho "$RED" "ERROR $NC | failed to update tags list."
         fi
         rm -rf tmpdownload.yaml
     fi
@@ -2314,7 +2314,7 @@ elif [ "$1" = "update" ]; then
         if [ "$response_code" = 200 ]; then
             cp -r tmpdownload.yaml $kernel_file
         else
-            colorecho "$RED" "Error: failed to update kernel list."
+            colorecho "$RED" "ERROR $NC | failed to update kernel list."
         fi
         rm -rf tmpdownload.yaml
     fi
@@ -2326,7 +2326,7 @@ elif [ "$1" = "update" ]; then
     #    if [ "$response_code" = 200 ]; then
     #        cp -r tmpdownload.yaml $bootloader_file
     #    else
-    #        colorecho "$RED" "Error: failed to update bootloader list."
+    #        colorecho "$RED" "ERROR $NC | failed to update bootloader list."
     #    fi
     #    rm -rf tmpdownload.yaml
     #fi
@@ -2338,7 +2338,7 @@ elif [ "$1" = "update" ]; then
         if [ "$response_code" = 200 ]; then
             cp -r tmpdownload.yaml $apps_file
         else
-            colorecho "$RED" "Error: failed to update apps list."
+            colorecho "$RED" "ERROR $NC | failed to update apps list."
         fi
         rm -rf tmpdownload.yaml
     fi    
