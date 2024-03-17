@@ -478,12 +478,18 @@ pre_parser() {
 # Limitation: this is not a full YAML parser, it is only designed to properly handle upto two sub-tree (subhead)
 # Limitation: an unnecessary space at line ending can potentially cause issues
 load_yaml() {
+
     local target_file=$1
     local suffix=$2
+    local output_format=$3
     local current_head=""
     local current_subhead=""
     local last_indent=""
+
+    # Pre-Parse the file or url and generate the formatted YAML output
     target_file="$(pre_parser "$target_file")"
+
+    # Parse the data into variables format
     if [ -f "$target_file" ] || [[ "$target_file" == *"://"* ]] ; then
         while IFS= read -r line; do
             # Ignore comments and empty lines
@@ -497,21 +503,55 @@ load_yaml() {
                 elif [[ "$line" == *":"* ]]; then
                     if [ -z "$suffix" ]; then
                         # Use current head as suffix
-                        current_value="${current_head}_${line//: /=\"}\""
+                        if [ "$output_format" = "list" ]; then
+                            current_value="${current_head}_${line//: /+=(\"}\")"
+                        else
+                            current_value="${current_head}_${line//: /=\"}\""
+                        fi
                     elif [ "$suffix" != " " ]; then
                         # Use user specified suffix
-                        current_value="${suffix}_${line//: /=\"}\""
+                        if [ "$output_format" = "list" ]; then
+                            current_value="${suffix}_${line//: /+=(\"}\")"
+                        else
+                            current_value="${suffix}_${line//: /=\"}\""
+                        fi
                     else
                         # Set suffix to a space to set without suffix
-                        current_value="${line//: /=\"}\""
+                        if [ "$output_format" = "list" ]; then
+                            current_value="${line//: /+=(\"}\")"
+                        else
+                            current_value="${line//: /=\"}\""
+                        fi
                     fi
-                    if [[ "$current_value" != *":\"" ]]; then
+                    if [[ "$current_value" != *":\"" ]] && [[ "$current_value" != *":\")" ]]; then
                         echo "$current_value"
                     else
                         current_subhead="${line/:/}"
                     fi
                 elif [ "$indentation" -gt "$last_indent" ] || [ "$indentation" == "$last_indent" ]; then
-                    current_value="${current_head}_${current_subhead}=\"${line}\""
+
+                    if [ -z "$suffix" ]; then
+                        # Use current head as suffix
+                        if [ "$output_format" = "list" ]; then
+                            current_value="${current_head}_${current_subhead}+=(\"${line}\")"
+                        else
+                            current_value="${current_head}_${current_subhead}=\"${line}\""
+                        fi
+                    elif [ "$suffix" != " " ]; then
+                        # Use user specified suffix
+                        if [ "$output_format" = "list" ]; then
+                            current_value="${suffix}_${current_subhead}+=(\"${line}\")"
+                        else
+                            current_value="${suffix}_${current_subhead}=\"${line}\""
+                        fi
+                    else
+                        # Set suffix to a space to set without suffix
+                        if [ "$output_format" = "list" ]; then
+                            current_value="${current_subhead}+=(\"${line}\")"
+                        else
+                            current_value="${current_subhead}=\"${line}\""
+                        fi
+                    fi
                     echo "$current_value"
                 else
                     colorecho "$DEBUG" "Indent: $indentation, Unhandled Line: $line"
@@ -520,6 +560,16 @@ load_yaml() {
             fi
         done <<< "$target_file"
     fi
+}
+
+# ACU File Post-Parser
+# Handle list output format
+# Limitation: output format as list can not handle a situation where there are multiple item but only one subhead on each item
+load_yaml_list() {
+    local target_file=$1
+    local suffix=$2
+    local content=$(load_yaml "$target_file" "$suffix" list)
+    echo "$content"
 }
 
 # Generate repo.yaml header
@@ -2492,6 +2542,15 @@ elif [ "$1" = "alias" ]; then
         sudo rm -rf /usr/bin/$3
         colorecho "$GREEN" "INFO $NC | Alias command $3 has been removed"
     fi
+
+### For developer and debugging ###
+elif [ "$2" = "parse" ] && [ -n "$debug_log" ]; then
+    clear
+    colorecho "$BLUE" "ACU $NC | Parsed output of $3"
+    colorecho "$BLUE" "ACU $NC | $4"
+    load_yaml_list "$3" "$4"
+    #load_yaml "$3" " "
+
 ### Main Menu ###
 elif [ "$1" != "-v" ] && [ "$1" != "--version" ]; then
     check_util_updates
