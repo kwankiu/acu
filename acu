@@ -2060,7 +2060,7 @@ wifi_country() {
 # Load user configurations from YAML file
 load_config() {
     if [ -f "$config_file" ] || [[ "$config_file" == *"://"* ]] ; then
-        eval $(load_yaml "config/config.yaml" " ")
+        eval $(load_yaml "$config_file" " ")
     elif [ ! "$(id -u)" -eq 0 ]; then
         # Download default configurations file
         local config_dir=$(dirname "$config_file")
@@ -2425,17 +2425,18 @@ elif [ "$1" = "rem" ] || [ "$1" = "remote" ]; then
         elif [ "$3" = "default" ]; then
             if [ -f "$repositories_file" ]; then
                 colorecho "$RED" "Load default repositories file? (This will replace your existing repositories configuration) [y/N]:" 
-                read -r rmrepoconfirm
-                if [ "$rmrepoconfirm" == "y" ] || [ "$rmrepoconfirm" == "Y" ]; then
+                read -r resetrepoyaml
+            else
+                resetrepoyaml="y"
+            fi
+            if [[ "$resetrepoyaml" == [Yy]* ]]; then
                     sudo rm -rf $HOME/.acu/config/repo.yaml
                     acu rem set acu
                     acu rem set adrepo https://api.github.com/repos/kwankiu/archlinux-installer-rock5/releases/tags/kernel
                     acu rem set aur https://aur.archlinux.org
-                else
-                    echo "No action will be performed."
-                fi
+            else
+                echo "No action will be performed."
             fi
-
         else
             add_repository "$3" "$4"
         fi
