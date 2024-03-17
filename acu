@@ -2424,7 +2424,7 @@ elif [ "$1" = "rem" ] || [ "$1" = "remote" ]; then
             add_repo "$3" "$4" "$5"
         elif [ "$3" = "default" ]; then
             if [ -f "$repositories_file" ]; then
-                colorecho "$RED" "Load default repositories file? (This will replace your existing repositories configuration) [y/N]:" 
+                colorecho "$RED" "INFO $NC | Load default repositories file? (This will replace your existing repositories configuration) [y/N]:" 
                 read -r resetrepoyaml
             else
                 resetrepoyaml="y"
@@ -2442,8 +2442,8 @@ elif [ "$1" = "rem" ] || [ "$1" = "remote" ]; then
         fi
     elif [ "$2" = "del" ] || [ "$2" = "remove" ]; then
         if [ "$3" = "pacman" ]; then
-            colorecho "$GREEN" "Auto removing a pacman repo is not yet supported. But you can edit pacman.conf manually, hold on, I will bring you there."
-            colorecho "$GREEN" "When you finish, press Ctrl+O to save then press Ctrl+X to exit the editor."
+            colorecho "$GREEN" "INFO $NC | Auto removing a pacman repo is not yet supported. But you can edit pacman.conf manually, hold on, I will bring you there."
+            colorecho "$GREEN" "INFO $NC | When you finish, press Ctrl+O to save then press Ctrl+X to exit the editor."
             sleep 2
             sudo nano /etc/pacman.conf
         else
@@ -2490,7 +2490,7 @@ elif [ "$1" = "alias" ]; then
         add_alias "${@:3}"
     elif [ "$2" = "remove" ] || [ "$2" = "del" ]; then
         sudo rm -rf /usr/bin/$3
-        colorecho "$GREEN" "Alias command $3 has been removed."
+        colorecho "$GREEN" "INFO $NC | Alias command $3 has been removed"
     fi
 ### Main Menu ###
 elif [ "$1" != "-v" ] && [ "$1" != "--version" ]; then
