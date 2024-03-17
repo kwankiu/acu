@@ -576,7 +576,7 @@ add_repository() {
     elif [[ "$repo_url" == "http://"* || "$repo_url" == "https://"* ]]; then
         repo_type="git"
     else
-        echo "Invalid repository URL format."
+        colorecho "$RED" "ERROR $NC | Invalid repository URL format."
         return
     fi
 
@@ -586,7 +586,7 @@ add_repository() {
     echo "  repo_url: $repo_url" | tee -a "$repositories_file" >/dev/null
     echo " " | tee -a "$repositories_file" >/dev/null
 
-    echo "Repository added successfully."
+    colorecho "$GREEN" "INFO $NC | Repository added successfully."
 }
 
 # Function to load repositories into arrays
@@ -621,7 +621,7 @@ list_repositories() {
     load_repositories
 
     # Print repositories
-    echo "List of Repositories:"
+    colorecho "$GREEN" "INFO $NC | List of Repositories:"
     for ((i = 0; i < ${#repo_names[@]}; i++)); do
         echo "  Name: ${repo_names[i]}"
         echo "  Type: ${repo_types[i]}"
@@ -634,21 +634,21 @@ remove_repository() {
     load_repositories
     local toremove=$1
 
-    colorecho "$RED" "Are you sure to remove repository $toremove ? [y/N]:" 
+    colorecho "$RED" "REPO $NC | Are you sure to remove repository $toremove ? [y/N]:" 
     read -r delrepoconfirm
     case "$delrepoconfirm" in
         [yY])
-            echo "Removing repository $toremove ..."
+            colorecho "$BLUE" "INFO $NC | Removing repository $toremove ..."
             sudo rm -rf $repositories_file
             ;;
         *)
-            echo "Repository will not be removed."
+            colorecho "$BLUE" "INFO $NC | Repository will not be removed."
             exit 1
             ;;
     esac
 
     # Print repositories
-    echo "Generating new repository configuration ..."
+    colorecho "$BLUE" "INFO $NC | Generating new repository configuration ..."
     create_repo_yaml
     for ((i = 0; i < ${#repo_names[@]}; i++)); do
         # Append new repository item to YAML file
@@ -656,10 +656,10 @@ remove_repository() {
             acu rem set ${repo_names[i]} ${repo_urls[i]}
         else
             if [ "${repo_types[i]}" == "agr" ]; then
-                echo "Removing ${repo_names[i]} from agr ..."
+                colorecho "$BLUE" "INFO $NC | Removing ${repo_names[i]} from agr ..."
                 agr rem del ${repo_names[i]}
             fi
-            echo "removed ${repo_names[i]} successfully."
+            colorecho "$GREEN" "INFO $NC | removed ${repo_names[i]} successfully."
         fi
     done
 }
@@ -2424,7 +2424,7 @@ elif [ "$1" = "rem" ] || [ "$1" = "remote" ]; then
             add_repo "$3" "$4" "$5"
         elif [ "$3" = "default" ]; then
             if [ -f "$repositories_file" ]; then
-                colorecho "$RED" "INFO $NC | Load default repositories file? (This will replace your existing repositories configuration) [y/N]:" 
+                colorecho "$RED" "REPO $NC | Load default repositories file? (This will replace your existing repositories configuration) [y/N]:" 
                 read -r resetrepoyaml
             else
                 resetrepoyaml="y"
