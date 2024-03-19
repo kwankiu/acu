@@ -514,6 +514,7 @@ load_yaml() {
     local head_list=()
     local occurrence
     local found_exist
+    local i
 
     # Pre-Parse the file or url and generate the formatted YAML output
     target_file="$(pre_parser "$target_file")"
@@ -1398,7 +1399,7 @@ install_pkg() {
                     use_pm="git" # TO BE REPLACED
                 fi
 
-                # Find and Install the package                    
+                # Find and Install the package        
                 if [ -z "$skip_apps" ] && ([ -z "$use_pm" ] && apps_list "${selection[i]}" &> /dev/null); then
                     colorecho "$GREEN" "APPS $NC | Installing ${selection[i]}"
                     echo "LOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOLOL COMING SOON"
