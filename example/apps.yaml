@@ -48,6 +48,7 @@ apps:
 #          # This is mostly used for post install, which is optional
 ########################################################################
   # Web
+
       - package_name: chromium
         app_name: Chromium
         category: Web
@@ -58,6 +59,7 @@ apps:
         packages:
           - chromium
         commands: null
+
       - package_name: chromium
         app_name: Chromium
         category: Web
@@ -74,6 +76,7 @@ apps:
               sudo mkdir -p "/etc/chromium-browser"
           fi
           echo -e "# Default settings for chromium-browser. This file is sourced by /bin/sh from\n# /usr/bin/chromium-browser\n\n# Options to pass to chromium-browser\nLD_LIBRARY_PATH=/usr/lib/mali-valhall-g610/x11-wayland-gbm\nCHROMIUM_FLAGS=\"--use-gl=egl\"" | sudo tee /etc/chromium-browser/default >/dev/null
+
       - package_name: ungoogled-chromium
         app_name: Ungoogled Chromium
         category: Web
@@ -82,6 +85,7 @@ apps:
         packages:
           - ungoogled-chromium
         commands: null
+
       - package_name: firefox
         app_name: Firefox
         category: Web
@@ -90,6 +94,7 @@ apps:
         packages:
           - firefox
         commands: null
+
       - package_name: openssh
         app_name: OpenSSH
         category: Web
@@ -98,6 +103,7 @@ apps:
         packages:
           - openssh
         commands: null
+
       - package_name: nodejs
         app_name: NodeJS
         category: Web
@@ -109,6 +115,7 @@ apps:
           export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
           source ~/.bashrc
+
       - package_name: neofetch
         app_name: NVM
         category: Web
@@ -117,6 +124,7 @@ apps:
         packages:
           - neofetch
         commands: null
+
       - package_name: wget
         app_name: Wget
         category: Web
@@ -124,9 +132,11 @@ apps:
         compatible: null
         packages:
           - wget
+        commands: null
+
 ########################################################################
   # Communication
-        commands: null
+
       - package_name: telegram-desktop
         app_name: Telegram Desktop
         category: Communication
@@ -135,6 +145,7 @@ apps:
         packages:
           - telegram-desktop
         commands: null
+
       - package_name: teams
         app_name: Microsoft Teams
         category: Communication
@@ -143,6 +154,7 @@ apps:
         packages:
           - teams-for-linux
         commands: null
+
       - package_name: discord
         app_name: Discord (Armcord)
         category: Communication
@@ -151,6 +163,7 @@ apps:
         packages:
           - armcord-bin
         commands: null
+
       - package_name: signal
         app_name: Signal
         category: Communication
@@ -159,9 +172,11 @@ apps:
         packages:
           - fpm
           - signal-desktop-arm
+        commands: null
+
 ########################################################################
   # Suites
-        commands: null
+
       - package_name: libreoffice
         app_name: LibreOffice
         category: Suites
@@ -170,6 +185,7 @@ apps:
         packages:
           - libreoffice
         commands: null
+
       - package_name: wps-office-cn
         app_name: WPS Office (CN)
         category: Suites
@@ -178,6 +194,7 @@ apps:
         packages:
           - wps-office-cn
         commands: null
+
       - package_name: abiword
         app_name: AbiWord
         category: Suites
@@ -186,6 +203,7 @@ apps:
         packages:
           - abiword
         commands: null
+
       - package_name: gnumeric
         app_name: Gnumeric
         category: Suites
@@ -194,6 +212,7 @@ apps:
         packages:
           - gnumeric
         commands: null
+
       - package_name: gnucash
         app_name: GNUcash
         category: Suites
@@ -202,6 +221,7 @@ apps:
         packages:
           - gnucash
         commands: null
+
       - package_name: glabels
         app_name: Glabels
         category: Suites
@@ -210,6 +230,7 @@ apps:
         packages:
           - glabels
         commands: null
+
       - package_name: glom
         app_name: Glom
         category: Suites
@@ -218,6 +239,7 @@ apps:
         packages:
           - glom
         commands: null
+
       - package_name: dia
         app_name: Dia
         category: Suites
@@ -225,9 +247,11 @@ apps:
         compatible: null
         packages:
           - dia
+        commands: null
+
 ########################################################################
   # Multimedia
-        commands: null
+
       - package_name: kodi
         app_name: Kodi
         category: Multimedia
@@ -238,6 +262,7 @@ apps:
         packages:
           - kodi
         commands: null
+
       - package_name: kodi
         app_name: Kodi
         category: Multimedia
@@ -247,6 +272,7 @@ apps:
         packages:
           - kodi-mpp-git
         commands: null
+
       - package_name: vlc
         app_name: VLC
         category: Multimedia
@@ -255,6 +281,7 @@ apps:
         packages:
           - vlc
         commands: null
+
       - package_name: lollypop
         app_name: Lollypop
         category: Multimedia
@@ -263,6 +290,7 @@ apps:
         packages:
           - lollypop
         commands: null
+
       - package_name: rhythmbox
         app_name: Rhythmbox
         category: Multimedia
@@ -271,6 +299,7 @@ apps:
         packages:
           - rhythmbox
         commands: null
+
       - package_name: gimp
         app_name: GIMP
         category: Multimedia
@@ -279,6 +308,7 @@ apps:
         packages:
           - gimp
         commands: null
+
       - package_name: inkscape
         app_name: Inkscape
         category: Multimedia
@@ -287,6 +317,7 @@ apps:
         packages:
           - inkscape
         commands: null
+
       - package_name: krita
         app_name: Krita
         category: Multimedia
@@ -295,6 +326,7 @@ apps:
         packages:
           - krita
         commands: null
+
       - package_name: audacity
         app_name: Audacity
         category: Multimedia
@@ -303,6 +335,7 @@ apps:
         packages:
           - audacity
         commands: null
+
       - package_name: ardour
         app_name: Ardour
         category: Multimedia
@@ -311,6 +344,7 @@ apps:
         packages:
           - ardour
         commands: null
+
       - package_name: blender
         app_name: Blender
         category: Multimedia
@@ -318,9 +352,11 @@ apps:
         compatible: null
         packages:
           - blender
+        commands: null
+
 ########################################################################
   # Gaming
-        commands: null
+
       - package_name: minecraft
         app_name: Minecraft
         category: Gaming
@@ -328,9 +364,11 @@ apps:
         compatible: null
         packages:
           - minecraft
+        commands: null
+
 ########################################################################
   # Virtualization
-        commands: null
+
       - package_name: virt-manager
         app_name: Virt Manager
         category: Virtualization
@@ -339,6 +377,7 @@ apps:
         packages:
           - virt-manager
         commands: null
+
       - package_name: qemu-full
         app_name: QEMU
         category: Virtualization
@@ -347,6 +386,7 @@ apps:
         packages:
           - qemu-full
         commands: null
+
       - package_name: box64
         app_name: Box64
         category: Virtualization
@@ -355,6 +395,7 @@ apps:
         packages:
           - box64
         commands: null
+
       - package_name: malior-droid
         app_name: Malior Droid
         category: Virtualization
@@ -375,6 +416,7 @@ apps:
           sudo mount -t binder binder /dev/binderfs
           malior install malior-droid
           malior-droid update
+
       - package_name: redroid-rk3588
         app_name: ReDroid
         category: Virtualization
@@ -383,9 +425,11 @@ apps:
           - rockchip
         packages:
           - redroid
+        commands: null
+
 ########################################################################
   # Development
-        commands: null
+
       - package_name: code
         app_name: Visual Studio Code
         category: Development
@@ -394,6 +438,7 @@ apps:
         packages:
           - visual-studio-code-bin
         commands: null
+
       - package_name: sublime-text-4
         app_name: Sublime Text 4
         category: Development
@@ -402,6 +447,7 @@ apps:
         packages:
           - sublime-text-4
         commands: null
+
       - package_name: gedit
         app_name: Gedit
         category: Development
@@ -410,6 +456,7 @@ apps:
         packages:
           - gedit
         commands: null
+
       - package_name: vim
         app_name: Vim
         category: Development
@@ -418,6 +465,7 @@ apps:
         packages:
           - vim
         commands: null
+
       - package_name: git
         app_name: Git
         category: Development
@@ -426,6 +474,7 @@ apps:
         packages:
           - git
         commands: null
+
       - package_name: github-desktop-bin
         app_name: GitHub Desktop
         category: Development
@@ -434,6 +483,7 @@ apps:
         packages:
           - github-desktop-bin
         commands: null
+
       - package_name: python-pipx
         app_name: Python PIP
         category: Development
@@ -442,6 +492,7 @@ apps:
         packages:
           - python-pipx
         commands: null
+
       - package_name: python2
         app_name: Python 2
         category: Development
@@ -449,9 +500,11 @@ apps:
         compatible: null
         packages:
           - python2
+        commands: null
+
 ########################################################################
   # System
-        commands: null
+
       - package_name: neofetch
         app_name: Neofetch
         category: System
@@ -460,6 +513,7 @@ apps:
         packages:
           - neofetch
         commands: null
+
       - package_name: screenfetch
         app_name: Screenfetch
         category: System
@@ -468,6 +522,7 @@ apps:
         packages:
           - screenfetch
         commands: null
+
       - package_name: s-tui
         app_name: S-TUI
         category: System
@@ -476,6 +531,7 @@ apps:
         packages:
           - s-tui
         commands: null
+
       - package_name: htop
         app_name: Htop
         category: System
@@ -484,6 +540,7 @@ apps:
         packages:
           - htop
         commands: null
+
       - package_name: stress
         app_name: Stress
         category: System
@@ -492,6 +549,7 @@ apps:
         packages:
           - stress
         commands: null
+
       - package_name: glmark2
         app_name: GL Mark 2
         category: System
@@ -500,6 +558,7 @@ apps:
         packages:
           - glmark2
         commands: null
+
       - package_name: geekbench
         app_name: Geekbench 5
         category: System
@@ -508,6 +567,7 @@ apps:
         packages:
           - geekbench
         commands: null
+
       - package_name: malior
         app_name: Malior
         category: System
@@ -518,8 +578,10 @@ apps:
         commands: |
           bash <(curl -fsSL https://github.com/ChisBread/malior/raw/main/install.sh)
           malior update
+
 ########################################################################
   # Others
+
       - package_name: intel-ax210-fw
         app_name: Intel AX210 Firmware
         category: Others
@@ -533,6 +595,7 @@ apps:
           # bt
           sudo curl -o /lib/firmware/intel/ibt-0041-0041.sfi https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/intel/ibt-0041-0041.sfi
           sudo curl -o /lib/firmware/intel/ibt-0041-0041.ddc https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/intel/ibt-0041-0041.ddc          
+
       - package_name: yay-bin
         app_name: Yay
         category: Others
@@ -541,6 +604,7 @@ apps:
         packages:
           - yay-bin
         commands: null
+
       - package_name: agr
         app_name: AGR
         category: Others
@@ -551,6 +615,7 @@ apps:
         commands: |
             python -m pip install https://github.com/hbiyik/agr/archive/master.zip --break-system-packages --force-reinstall
             sudo ln -s ~/.local/bin/agr /usr/local/bin/agr
+
       - package_name: gnome-terminal
         app_name: GNOME Terminal
         category: Others
@@ -559,6 +624,7 @@ apps:
         packages:
           - gnome-terminal
         commands: null
+
       - package_name: konsole
         app_name: Konsole
         category: Others
@@ -567,6 +633,7 @@ apps:
         packages:
           - konsole
         commands: null
+
       - package_name: xterm
         app_name: Xterm
         category: Others
@@ -575,4 +642,5 @@ apps:
         packages:
           - xterm
         commands: null
+
 ######################################################################## 
