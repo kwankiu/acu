@@ -236,17 +236,6 @@ apps:
       - package_name: kodi
         app_name: Kodi
         category: Multimedia
-        description: Media player and entertainment hub
-        compatible:
-          - generic-aarch64
-          - rpi
-        packages:
-          - kodi
-        commands: null
-
-      - package_name: kodi
-        app_name: Kodi
-        category: Multimedia
         description: Media player and entertainment hub (with MPP support)
         compatible:
           - rockchip
