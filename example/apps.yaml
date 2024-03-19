@@ -65,7 +65,12 @@ apps:
               # Create the directory /etc/chromium-browser
               sudo mkdir -p "/etc/chromium-browser"
           fi
-          echo -e "# Default settings for chromium-browser. This file is sourced by /bin/sh from\n# /usr/bin/chromium-browser\n\n# Options to pass to chromium-browser\nLD_LIBRARY_PATH=/usr/lib/mali-valhall-g610/x11-wayland-gbm\nCHROMIUM_FLAGS=\\"--use-gl=egl\\"" | sudo tee /etc/chromium-browser/default >/dev/null
+          echo "# Default settings for chromium-browser. This file is sourced by /bin/sh from" | sudo tee /etc/chromium-browser/default >/dev/null
+          echo "# /usr/bin/chromium-browser" | sudo tee -a /etc/chromium-browser/default >/dev/null
+          echo "" | sudo tee -a /etc/chromium-browser/default >/dev/null
+          echo "# Options to pass to chromium-browser" | sudo tee -a /etc/chromium-browser/default >/dev/null
+          echo "LD_LIBRARY_PATH=/usr/lib/mali-valhall-g610/x11-wayland-gbm" | sudo tee -a /etc/chromium-browser/default >/dev/null
+          echo "CHROMIUM_FLAGS=\\"--use-gl=egl\\"" | sudo tee -a /etc/chromium-browser/default >/dev/null
 
       - package_name: ungoogled-chromium
         app_name: Ungoogled Chromium
