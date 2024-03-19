@@ -485,6 +485,8 @@ load_yaml() {
     local current_head=""
     local current_subhead=""
     local last_indent=""
+    local head_list=()
+    local occurrence=0
 
     # Pre-Parse the file or url and generate the formatted YAML output
     target_file="$(pre_parser "$target_file")"
@@ -503,25 +505,18 @@ load_yaml() {
                 elif [[ "$line" == *":"* ]]; then
                     if [ -z "$suffix" ]; then
                         # Use current head as suffix
-                        if [ "$output_format" = "list" ]; then
-                            current_value="${current_head}_${line//: /+=(\"}\")"
-                        else
-                            current_value="${current_head}_${line//: /=\"}\""
-                        fi
+                        current_value="${current_head}_"
                     elif [ "$suffix" != " " ]; then
                         # Use user specified suffix
-                        if [ "$output_format" = "list" ]; then
-                            current_value="${suffix}_${line//: /+=(\"}\")"
-                        else
-                            current_value="${suffix}_${line//: /=\"}\""
-                        fi
+                        current_value="${suffix}_"
                     else
-                        # Set suffix to a space to set without suffix
-                        if [ "$output_format" = "list" ]; then
-                            current_value="${line//: /+=(\"}\")"
-                        else
-                            current_value="${line//: /=\"}\""
-                        fi
+                        # Without suffix
+                        current_value=""
+                    fi
+                    if [ "$output_format" = "list" ]; then
+                        current_value="${current_value}${line//: /+=(\"}\")"
+                    else
+                        current_value="${current_value}${line//: /=\"}\""
                     fi
                     if [[ "$current_value" != *":\"" ]] && [[ "$current_value" != *":\")" ]]; then
                         echo "$current_value"
@@ -529,28 +524,20 @@ load_yaml() {
                         current_subhead="${line/:/}"
                     fi
                 elif [ "$indentation" -gt "$last_indent" ] || [ "$indentation" == "$last_indent" ]; then
-
                     if [ -z "$suffix" ]; then
                         # Use current head as suffix
-                        if [ "$output_format" = "list" ]; then
-                            current_value="${current_head}_${current_subhead}+=(\"${line}\")"
-                        else
-                            current_value="${current_head}_${current_subhead}=\"${line}\""
-                        fi
+                        current_value="${current_head}_${current_subhead}"
                     elif [ "$suffix" != " " ]; then
                         # Use user specified suffix
-                        if [ "$output_format" = "list" ]; then
-                            current_value="${suffix}_${current_subhead}+=(\"${line}\")"
-                        else
-                            current_value="${suffix}_${current_subhead}=\"${line}\""
-                        fi
+                        current_value="${suffix}_${current_subhead}"
                     else
-                        # Set suffix to a space to set without suffix
-                        if [ "$output_format" = "list" ]; then
-                            current_value="${current_subhead}+=(\"${line}\")"
-                        else
-                            current_value="${current_subhead}=\"${line}\""
-                        fi
+                        # Without suffix
+                        current_value="${current_subhead}"
+                    fi
+                    if [ "$output_format" = "list" ]; then
+                        current_value="${current_value}+=(\"${line}\")"
+                    else
+                        current_value="${current_value}=\"${line}\""
                     fi
                     echo "$current_value"
                 else
@@ -570,6 +557,8 @@ load_yaml_list() {
     local suffix=$2
     local content=$(load_yaml "$target_file" "$suffix" list)
     echo "$content"
+    # 1. find occurrences of variables
+    # 2. replace the first occurrence from +=( to =(
 }
 
 # Generate repo.yaml header
