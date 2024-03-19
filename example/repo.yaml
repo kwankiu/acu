@@ -1,3 +1,7 @@
+#   __    ___  _  _    ____  ____  ____   __   ____  __  ____  __  ____  __  ____  ____ 
+#  / _\  / __)/ )( \  (  _ \(  __)(  _ \ /  \ / ___)(  )(_  _)/  \(  _ \(  )(  __)/ ___)
+# /    \( (__ ) \/ (   )   / ) _)  ) __/(  O )\___ \ )(   )( (  O ))   / )(  ) _) \___ \
+# \_/\_/ \___)\____/  (__\_)(____)(__)   \__/ (____/(__) (__) \__/(__\_)(__)(____)(____/
 #List of package repositories managed by acu
 repositories:
  
@@ -8,10 +12,6 @@ repositories:
 - repo_name: acu
   repo_type: agr
   repo_url: https://github.com/kwankiu/acu:pkgbuilds
- 
-- repo_name: adrepo
-  repo_type: ghapi-releases
-  repo_url: https://api.github.com/repos/kwankiu/archlinux-installer-rock5/releases/tags/kernel
  
 - repo_name: aur
   repo_type: git

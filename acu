@@ -594,10 +594,13 @@ load_yaml() {
 
 # Generate repo.yaml header
 create_repo_yaml() {
+    echo "#   __    ___  _  _    ____  ____  ____   __   ____  __  ____  __  ____  __  ____  ____  " | tee "$repositories_file" >/dev/null
+    echo "#  / _\  / __)/ )( \  (  _ \(  __)(  _ \ /  \ / ___)(  )(_  _)/  \(  _ \(  )(  __)/ ___) " | tee "$repositories_file" >/dev/null
+    echo "# /    \( (__ ) \/ (   )   / ) _)  ) __/(  O )\___ \ )(   )( (  O ))   / )(  ) _) \___ \ " | tee "$repositories_file" >/dev/null
+    echo "# \_/\_/ \___)\____/  (__\_)(____)(__)   \__/ (____/(__) (__) \__/(__\_)(__)(____)(____/ " | tee "$repositories_file" >/dev/null
     echo "#List of package repositories managed by acu" | tee "$repositories_file" >/dev/null
     echo "repositories:" | tee -a "$repositories_file" >/dev/null
     echo " " | tee -a "$repositories_file" >/dev/null
-
     echo "#- repo_name: example" | tee -a "$repositories_file" >/dev/null
     echo "#  repo_type: git #available types are agr, ghorg, ghrel, and git." | tee -a "$repositories_file" >/dev/null
     echo "#  repo_url: https://example.com" | tee -a "$repositories_file" >/dev/null
