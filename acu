@@ -117,7 +117,11 @@ function select_option {
         local max_width=$(tput cols)
         for opt; do
             cursor_to $(($startrow + $idx))
-            local formatted_opt="$((idx + 1)) \t $opt"
+            if [ "$checkbox_menu" = 1 ]; then
+                local formatted_opt="[${checkbox_menu_checked[idx]}] \t $opt"
+            else
+                local formatted_opt="$((idx + 1)) \t $opt"
+            fi
             local formatted_opt=$(echo "$formatted_opt" | cut -c1-$((max_width - 3)))
             if [ $idx -eq $selected ]; then
                 print_selected "$formatted_opt"
@@ -129,7 +133,7 @@ function select_option {
 
         # User key control
         case `key_input` in
-            enter) break;;
+            enter) checkbox_menu=0; break;;
             up)    ((selected--));
                    if [ $selected -lt 0 ]; then selected=$(($# - 1)); fi;;
             down)  ((selected++));
@@ -1309,25 +1313,44 @@ apps_menu() {
 apps_menu_category() {
     local catinx=$1
     local i
+    local j
+    local selinx
     colorecho "$BLUE" "INFO $NC | Loading ${apps_category_name[catinx]} ..."
     title "Apps - ${apps_category_name[catinx]}"
     echo
     colorecho "$GREEN" "\t Apps \t\t\t Description"
     echo
     options=()
+    selinx=()
+    checkbox_menu_checked=()
     for ((i = 0; i < ${#apps_package_name[@]}; i++)); do
         if [ "${apps_category[i]}" = "${apps_category_name[catinx]}" ]; then
             padded_name=$(printf "%-20s" "${apps_app_name[i]}")
             options+=("$padded_name \t ${apps_description[i]}")
+            selinx+=("$i")
+            local found=0
+            for ((j = 0; j < ${#selection[@]}; j++)); do
+                if [ "${selection[j]}" = "${apps_package_name[i]}" ]; then
+                    found=1
+                    break
+                fi
+            done
+            if [ "$found" = 1 ]; then
+                checkbox_menu_checked+=("X")
+            else
+                checkbox_menu_checked+=(" ")
+            fi
         fi
     done
     options+=("Return to apps categories")
+    checkbox_menu=1
     select_option "${options[@]}"
     choice=$?
-
     if [ "${options[choice]}" = "Return to apps categories" ]; then
         apps_menu
     else
+        local si="${selinx[choice]}"
+        selection+=("${apps_package_name[si]}")
         apps_menu_category $catinx
     fi
 }
