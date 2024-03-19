@@ -528,6 +528,8 @@ load_yaml() {
                 local indentation=$(expr "$line" : '^ *' / 2)
                 # Remove indent spaces
                 line="${line#"${line%%[![:space:]]*}"}"
+                # Handle double quotes
+                line="${line//\"/\\\"}"
                 if [ "$indentation" = 0 ]; then
                     current_head="${line/:/}"
                 elif [[ "$line" == *":"* ]]; then
