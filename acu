@@ -1314,7 +1314,7 @@ apps_menu() {
         selection=()
         apps_menu
     elif [ "${options[choice]}" = "Install selected apps" ]; then
-        acu install "${selection[@]}"
+        install_pkg
     else
         apps_menu_category $choice
     fi
