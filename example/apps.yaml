@@ -52,22 +52,12 @@ apps:
       - package_name: chromium
         app_name: Chromium
         category: Web
-        description: Chromium web browser
-        compatible:
-          - generic-aarch64
-          - rpi
-        packages:
-          - chromium
-        commands: null
-
-      - package_name: chromium
-        app_name: Chromium
-        category: Web
         description: Chromium web browser (with Rockchip MPP support)
         compatible:
           - rockchip
         packages:
           - chromium-mpp
+          - (fallback)chromium
         commands: |
           sudo systemctl enable --now libv4l-rkmpp-setup.service
           # Check if the file /etc/chromium-browser exists
@@ -104,10 +94,10 @@ apps:
           - openssh
         commands: null
 
-      - package_name: nodejs
-        app_name: NodeJS
+      - package_name: nvm
+        app_name: NVM
         category: Web
-        description: NodeJS JavaScript runtime
+        description: NodeJS Version Manager
         compatible: null
         packages: null
         commands: |
@@ -115,15 +105,6 @@ apps:
           export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" # This loads nvm
           source ~/.bashrc
-
-      - package_name: neofetch
-        app_name: NVM
-        category: Web
-        description: Node Version Manager
-        compatible: null
-        packages:
-          - neofetch
-        commands: null
 
       - package_name: wget
         app_name: Wget
