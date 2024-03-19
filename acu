@@ -155,14 +155,6 @@ colorecho() {
 # Title / Heading
 title() {
   clear
-  text="$1"
-  echo "---------------------------------------------------------------------"
-  colorecho "$BLUE" "${text}"
-  echo "---------------------------------------------------------------------"
-}
-
-titlelogo() {
-  clear
   echo "---------------------------------------------------------------------"
   colorecho "$BLUE" "                  ##                     __   ____  _  _    "
   colorecho "$BLUE" "                 ####                   / _\ (  _ \( \/ )   "
@@ -210,7 +202,7 @@ check_util_updates() {
 # Install / Update Utility to PATH
 update_util() {
     if [ "$update_available" = true ] || [ -n "$argupdate" ]; then
-        titlelogo
+        title
         colorecho "$GREEN" "Installing / Updating $utilname ..."
         local response_code=$(sudo curl --write-out '%{response_code}' -o /usr/bin/acu -L "https://raw.githubusercontent.com/kwankiu/acu/$remote_release/acu")
         sudo chmod +x /usr/bin/acu
@@ -600,18 +592,6 @@ load_yaml() {
     fi
 }
 
-# ACU File Post-Parser
-# Handle list output format
-# Limitation: output format as list can not handle a situation where there are multiple item but only one subhead on each item
-load_yaml_list() {
-    local target_file=$1
-    local suffix=$2
-    local content=$(load_yaml "$target_file" "$suffix" list)
-    echo "$content"
-    # 1. find occurrences of variables
-    # 2. replace the first occurrence from +=( to =(
-}
-
 # Generate repo.yaml header
 create_repo_yaml() {
     echo "#List of package repositories managed by acu" | tee "$repositories_file" >/dev/null
@@ -862,7 +842,7 @@ fetch_repositories() {
 # Utility Main Menu
 
 config_options() {
-    titlelogo
+    title
     options=("System Maintenance \t Managing Updates, Bootloader, System, Linux Kernel")
     options+=("Manage Packages \t Upgrade or downgrade packages, Manage packages repositories")
     options+=("Install Apps \t\t Install New Software or Application packages")
@@ -913,7 +893,7 @@ config_options() {
 
 # System Maintenance Main Menu
 system_maintenance() {
-    titlelogo "System Maintenance"
+    title "System Maintenance"
     options=("Flash Bootloader \t Flash Bootloader to eMMC/TF Card/SPI Flash")
     options+=("Copy System \t\t Backup, Restore, or Clone this system with partimage")
     options+=("System Infomation \t Print infomation of this system / device")
@@ -947,7 +927,7 @@ system_maintenance() {
 # System Update
 package_update() {
 
-    titlelogo "Package Updates"
+    title "Package Updates"
 
     if [ "$1" = "--select" ]; then
         local selected_option="${poptions[$2]}"
@@ -1027,7 +1007,7 @@ package_update() {
 flash_uboot() {
 
         if [ -z "$1" ]; then
-            titlelogo "Flash Bootloader"
+            title "Flash Bootloader"
             colorecho "$GREEN" "Select an option to confirm"
             colorecho "$RED" "Warning : The SPI NOR flash will be cleared."
             echo ""
@@ -1211,7 +1191,7 @@ move_system() {
 
 # Manage Packages Main Menu
 manage_packages() {
-    titlelogo "Manage Packages"
+    title "Manage Packages"
     options=("Update Packages \t Check & Perform Selective / Full System Upgrade")
     options+=("Downgrade Packages \t Install / Downgrade any Arch Linux Packages from Archive")
     options+=("Add Pacman Repo \t Add a package repository to archlinux's package manager (pacman).")
@@ -1241,34 +1221,23 @@ manage_packages() {
 # Install Packages
 apps_menu() {
 
-    if [ "$launch_as_installer" = 1 ]; then
-        title "Install Additional Packages"
-    else
-        titlelogo "Install / Update Software"
-    fi
-
-    category=("Web - Surf the Internet" "Communication - Connect with friends, family, teams" "Suites - Office & Productivity Software" "Multimedia - Audio, Video, Graphics Software" "Gaming / Emulation / Virtualization Software" "Development Tools - Editors, IDEs, Build Tools" "Misc - Firmware Driver, other Tools and Software")
-    
-    if [ "$launch_as_installer" = 1 ]; then
-        options=("Finish Installation")
-    else
-        options=("Return to Main Menu")
-    fi
-
-    options+=("$GREEN----------------------------------------------------" "$GREEN Install / Update Software (Press enter to select/deselect): " "$GREEN----------------------------------------------------$GREEN")
-    options+=("${category[@]}$NC")
-    
+    colorecho "$BLUE" "ACU $NC | Loading apps list ..."
+    eval $(load_yaml $apps_file "" list)
+    clear
+    title "Apps - Categories"
+    echo
+    colorecho "$GREEN" "\t Category \t\t Description"
+    echo
+    options=()
+    for ((i = 0; i < ${#apps_category_name[@]}; i++)); do
+        options+=("${apps_category_name[i]} \t${apps_category_description[i]}")
+    done
+    options+=("Return to main menu")
     select_option "${options[@]}"
     choice=$?
 
-    if [ "$choice" = "0" ]; then
-        if [ "$launch_as_installer" = 1 ]; then
-            colorecho "$GREEN" "Finishing installation ..."
-        else
-            config_options
-        fi
-    elif [ "$choice" = "1" ] || [ "$choice" = "2" ] || [ "$choice" = "3" ]; then
-        apps_menu
+    if [ "${options[choice]}" = "Return to main menu" ]; then
+        config_options
     else
         install_pkg_category $choice
     fi
@@ -1331,7 +1300,7 @@ install_pkg_category() {
         done
     fi
 
-    titlelogo "$categorytitle"
+    title "$categorytitle"
 
     select_option "${options[@]}"
     choice=$?
@@ -1436,7 +1405,7 @@ install_pkg() {
 
 # Install Packages from Archive
 downgrade_packages() {
-    titlelogo "Downgrade Packages"
+    title "Downgrade Packages"
 
     if [ -z "$1" ]; then
         read -p "Enter package to downgrade: " dgpkg
@@ -1469,7 +1438,7 @@ downgrade_packages() {
 
 add_repo() {
     if [ -z "$1" ]; then
-        titlelogo "Add Pacman Repo"
+        title "Add Pacman Repo"
         read -p "Enter repo name: " repo_name
         read -p "Enter server URL for $repo_name repo: " server_url
         read -p "Do you want to add a GPG key for $repo_name repo? [Y/n]: " add_gpg_key
@@ -1511,7 +1480,7 @@ add_repo() {
 
 # Performance & Features Main Menu
 performance_features() {
-    titlelogo "Performance & Features"
+    title "Performance & Features"
     options=("SoC Performance Profile \t Available options are performance, ondemand and powersave")
     options+=("PWM Fan Control \t\t (ROCK 5 ONLY) Configure PWM Fan-control service")
     #options+=("Overclocking - Configure rk3588-unlock-opps overlay which increases CPU supply & CPU VDD supply")
@@ -1542,7 +1511,7 @@ performance_features() {
 }
 
 system_info() {
-    titlelogo "System Information"
+    title "System Information"
 
     # Get OS
     sys_os=$(cat /etc/*-release | grep PRETTY_NAME | cut -d'"' -f2)
@@ -1648,9 +1617,9 @@ soc_profile() {
 
     if [ -z "$1" ] || [ "$1" = "status" ]; then
         if [ -z "$1" ]; then
-            titlelogo "SoC Performance Profile"
+            title "SoC Performance Profile"
         else
-            titlelogo "SoC Monitor"
+            title "SoC Monitor"
         fi
         colorecho "$BLUE" "CPU Profile: $(cat /sys/bus/cpu/devices/cpu[046]/cpufreq/scaling_governor)"
         colorecho "$BLUE" "Memory Profile: $(cat /sys/class/devfreq/dmc/governor)"
@@ -1715,7 +1684,7 @@ force_performance_at_boot() {
 
 # Localization Main Menu
 localization() {
-    titlelogo "Localization"
+    title "Localization"
     options=("Locale \t\t Generate Locale Settings")
     options+=("Fonts \t\t\t Install Fonts, TTF, Non-English Characters, Special Characters / Emoji")
     options+=("Time \t\t\t Change Time Zone, Current Date and Time")
@@ -1769,7 +1738,7 @@ manage_user() {
     }
 
     if [ -z "$1" ]; then
-    titlelogo "Manage User"
+    title "Manage User"
     
     # List all user accounts
     real_users=($(getent passwd | awk -F: '$3 >= 1000 && $3 < 65534 {print $1}'))
@@ -1800,7 +1769,7 @@ manage_user() {
             ;;
         1)
             if [ -z "$new_user" ]; then
-                titlelogo "Add New User"
+                title "Add New User"
                 read -p "Enter username for the new user: " new_user
             fi
             if [ -z "$new_pw" ]; then
@@ -1821,7 +1790,7 @@ manage_user() {
             ;;
         99)
             if [ -z "$t_user" ]; then
-                titlelogo "Remove User"
+                title "Remove User"
                 read -p "Enter username to remove: " t_user
             fi            
              # Remove  account
@@ -1838,7 +1807,7 @@ manage_user() {
             fi
 
             if [ -z "$manage_action" ]; then
-                titlelogo "Manage $selected_user"
+                title "Manage $selected_user"
                 colorecho "$GREEN" "User: $selected_user"
                 echo ""
 
@@ -1911,7 +1880,7 @@ locale() {
     generated_locales=$(sudo locale -a)
     
     if [ -z "$1" ]; then
-        titlelogo "Locale"
+        title "Locale"
         
         # List available locales
         colorecho "$GREEN" "Generated Locales:"
@@ -1964,7 +1933,7 @@ locale() {
                     fi
                 done
                 
-                titlelogo "Generate Locale"
+                title "Generate Locale"
                 colorecho "$GREEN" "The following locales will be added:"
 
                 for ((i = 0; i < ${#matches[@]}; i++)); do
@@ -2003,7 +1972,7 @@ locale() {
 
 # Function to manage fonts
 fonts() {
-    titlelogo "Fonts"
+    title "Fonts"
     
     # Prompt to install fonts
     select_options=("Install Noto Fonts (including CJK and Emoji) - Support Asian Characters" "Install TTF Fonts from File" "Return to Localization Menu")
@@ -2035,7 +2004,7 @@ timezone() {
 
     if [ -z "$1" ]; then
 
-        titlelogo "Time Zone"
+        title "Time Zone"
 
         colorecho "$GREEN" "Network Time Zone: $network_timezone"
 
@@ -2098,7 +2067,7 @@ timezone() {
 
 # Function to change keyboard layout
 keyboard() {
-    titlelogo "Keyboard Layout"
+    title "Keyboard Layout"
 
     # Get current keyboard layout
     current_layout=$(localectl status | grep "X11 Layout" | awk '{print $3}')
@@ -2124,7 +2093,7 @@ keyboard() {
 
 # Function to change WiFi country
 wifi_country() {
-    titlelogo "WiFi Country"
+    title "WiFi Country"
 
     # Get available WiFi countries
     wifi_countries=("Return to Localization Menu")
@@ -2474,21 +2443,7 @@ elif [ "$1" = "remove" ] || [ "$1" = "-R" ]; then
     fi
 
 elif [ "$1" = "apps" ] ; then
-    clear
-    colorecho "$BLUE" "ACU $NC | Apps"
-    colorecho "$BLUE" "ACU $NC | Loading apps list ..."
-    eval $(load_yaml $apps_file "" list)
-    clear
-    colorecho "$BLUE" "ACU $NC | Apps - Categories"
-    colorecho "$BLUE" "ACU $NC |"
-    colorecho "$BLUE" "ACU $NC | ${GREEN}Category \t\t Description"
-    colorecho "$BLUE" "ACU $NC |"
-    options=()
-    for ((i = 0; i < ${#apps_category_name[@]}; i++)); do
-        options+=("${apps_category_name[i]} \t${apps_category_description[i]}")
-    done
-    options+=("Return to main menu")
-    select_option "${options[@]}"
+    apps_menu
 
 elif [ "$1" = "install" ] || [ "$1" = "-S" ] ; then
     if [ -z "$2" ]; then
@@ -2605,8 +2560,7 @@ elif [ "$2" = "parse" ] && [ -n "$debug_log" ]; then
     clear
     colorecho "$BLUE" "ACU $NC | Parsed output of $3"
     colorecho "$BLUE" "ACU $NC | $4"
-    load_yaml_list "$3" "$4"
-    #load_yaml "$3" " "
+    load_yaml "$3" "$4" list
 
 ### Main Menu ###
 elif [ "$1" != "-v" ] && [ "$1" != "--version" ]; then
