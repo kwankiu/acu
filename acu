@@ -598,7 +598,7 @@ create_repo_yaml() {
     echo "#  / _\  / __)/ )( \  (  _ \(  __)(  _ \ /  \ / ___)(  )(_  _)/  \(  _ \(  )(  __)/ ___) " | tee "$repositories_file" >/dev/null
     echo "# /    \( (__ ) \/ (   )   / ) _)  ) __/(  O )\___ \ )(   )( (  O ))   / )(  ) _) \___ \ " | tee "$repositories_file" >/dev/null
     echo "# \_/\_/ \___)\____/  (__\_)(____)(__)   \__/ (____/(__) (__) \__/(__\_)(__)(____)(____/ " | tee "$repositories_file" >/dev/null
-    echo "#List of package repositories managed by acu" | tee "$repositories_file" >/dev/null
+    echo "# List of package repositories managed by acu" | tee "$repositories_file" >/dev/null
     echo "repositories:" | tee -a "$repositories_file" >/dev/null
     echo " " | tee -a "$repositories_file" >/dev/null
     echo "#- repo_name: example" | tee -a "$repositories_file" >/dev/null
@@ -664,28 +664,9 @@ add_repository() {
 
 # Function to load repositories into arrays
 load_repositories() {
-    # Initialize arrays for storing repository information
-    repo_names=()
-    repo_types=()
-    repo_urls=()
-
     # Read repositories from YAML file
     if [ -f "$repositories_file" ]; then
-        while IFS= read -r line; do
-            # Ignore lines starting with '#'
-            if [[ $line != "#"* ]]; then
-                if [[ $line == *"repo_name"* ]]; then
-                    repo_name=$(echo "$line" | awk '{print $3}')
-                    repo_names+=("$repo_name")
-                elif [[ $line == *"repo_type"* ]]; then
-                    repo_type=$(echo "$line" | awk '{print $2}')
-                    repo_types+=("$repo_type")
-                elif [[ $line == *"repo_url"* ]]; then
-                    repo_url=$(echo "$line" | awk '{print $2}')
-                    repo_urls+=("$repo_url")
-                fi
-            fi
-        done < "$repositories_file"
+        eval $(load_yaml $repositories_file "" list)
     fi
 }
 
@@ -695,10 +676,10 @@ list_repositories() {
 
     # Print repositories
     colorecho "$GREEN" "INFO $NC | List of Repositories:"
-    for ((i = 0; i < ${#repo_names[@]}; i++)); do
-        echo "  Name: ${repo_names[i]}"
-        echo "  Type: ${repo_types[i]}"
-        echo "  URL: ${repo_urls[i]}"
+    for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
+        echo "  Name: ${repositories_repo_name[i]}"
+        echo "  Type: ${repositories_repo_type[i]}"
+        echo "  URL: ${repositories_repo_url[i]}"
     done
 }
 
@@ -723,16 +704,16 @@ remove_repository() {
     # Print repositories
     colorecho "$BLUE" "INFO $NC | Generating new repository configuration ..."
     create_repo_yaml
-    for ((i = 0; i < ${#repo_names[@]}; i++)); do
+    for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
         # Append new repository item to YAML file
-        if [ "$toremove" != "${repo_names[i]}" ]; then
-            acu rem set ${repo_names[i]} ${repo_urls[i]}
+        if [ "$toremove" != "${repositories_repo_name[i]}" ]; then
+            acu rem set ${repositories_repo_name[i]} ${repositories_repo_url[i]}
         else
-            if [ "${repo_types[i]}" == "agr" ]; then
-                colorecho "$BLUE" "INFO $NC | Removing ${repo_names[i]} from agr ..."
-                agr rem del ${repo_names[i]}
+            if [ "${repositories_repo_type[i]}" == "agr" ]; then
+                colorecho "$BLUE" "INFO $NC | Removing ${repositories_repo_name[i]} from agr ..."
+                agr rem del ${repositories_repo_name[i]}
             fi
-            colorecho "$GREEN" "INFO $NC | removed ${repo_names[i]} successfully."
+            colorecho "$GREEN" "INFO $NC | removed ${repositories_repo_name[i]} successfully."
         fi
     done
 }
@@ -745,12 +726,12 @@ fetch_repositories() {
         echo ":: Fetching package repositories..."
     fi
     local i # declare as local variable
-    for ((i = 0; i < ${#repo_names[@]}; i++)); do
+    for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
         if [ "$1" != "-q" ]; then
-            echo -n "${repo_names[i]}"
+            echo -n "${repositories_repo_name[i]}"
             printf "\t\t [ ########################## ] \t"
         fi
-        case ${repo_types[i]} in
+        case ${repositories_repo_type[i]} in
             agr)
                 if ! command -v agr &> /dev/null; then
                     # Install AGR if not installed
@@ -767,12 +748,12 @@ fetch_repositories() {
                 fi
                 if command -v agr &> /dev/null; then
                 # Extract the branch name using parameter expansion and pattern matching
-                    if [[ "${repo_urls[i]}" == *"://"*"/"*"/"*":"* ]]; then
-                        local agr_url="${repo_urls[i]%:*}"
-                        local agr_branch="${repo_urls[i]##*:}"  # Remove everything up to the last ":"
-                        agr rem set "${repo_names[i]}" "$agr_url" --branch "$agr_branch" &> /dev/null
+                    if [[ "${repositories_repo_url[i]}" == *"://"*"/"*"/"*":"* ]]; then
+                        local agr_url="${repositories_repo_url[i]%:*}"
+                        local agr_branch="${repositories_repo_url[i]##*:}"  # Remove everything up to the last ":"
+                        agr rem set "${repositories_repo_name[i]}" "$agr_url" --branch "$agr_branch" &> /dev/null
                     else
-                        agr rem set "${repo_names[i]}" "${repo_urls[i]}" &> /dev/null
+                        agr rem set "${repositories_repo_name[i]}" "${repositories_repo_url[i]}" &> /dev/null
                     fi
                     if [ -n "$debug_log" ]; then
                         agr -d 2>&1
@@ -780,7 +761,7 @@ fetch_repositories() {
                         agr 2>&1
                     else
                         if [ "$1" != "-q" ]; then
-                            colorecho "$BLUE" "AGR   $NC | Looking up remote: ${repo_urls[i]}"
+                            colorecho "$BLUE" "AGR   $NC | Looking up remote: ${repositories_repo_url[i]}"
                         fi
                         agr  &> /dev/null
                     fi
@@ -788,9 +769,9 @@ fetch_repositories() {
                 ;;
             ghorg | ghapi-orgs)
                 if [ "$1" != "-q" ]; then
-                    colorecho "$BLUE" "GHORG $NC | Looking up remote: ${repo_urls[i]}"
+                    colorecho "$BLUE" "GHORG $NC | Looking up remote: ${repositories_repo_url[i]}"
                 fi
-                get_ghapi_orgs ${repo_urls[i]}
+                get_ghapi_orgs ${repositories_repo_url[i]}
                 for pkg in "${ghapi_pkg_results[@]}"; do
                     if [ "$1" == "list" ]; then
                         colorecho "$BLUE" "      PKG$NC |     $pkg"
@@ -803,9 +784,9 @@ fetch_repositories() {
                 ;;
             ghrel | ghapi-releases)
                 if [ "$1" != "-q" ]; then
-                    colorecho "$BLUE" "GHREL $NC | Looking up remote: ${repo_urls[i]}"
+                    colorecho "$BLUE" "GHREL $NC | Looking up remote: ${repositories_repo_url[i]}"
                 fi
-                ghrel_url+=("${repo_urls[i]}")
+                ghrel_url+=("${repositories_repo_url[i]}")
                 ghapi_pkg_results=($(echo -e "n" | install_ghrel_packages .pkg.tar. | grep .pkg.tar.* | sed 's/\.pkg\..*//'))
                 for pkg in "${ghapi_pkg_results[@]}"; do
                     if [ "$1" == "list" ]; then
@@ -819,9 +800,9 @@ fetch_repositories() {
                 ;;
             git)
                 if [ "$1" != "-q" ]; then
-                    colorecho "$BLUE" "GIT   $NC | Looking up remote: ${repo_urls[i]}"
+                    colorecho "$BLUE" "GIT   $NC | Looking up remote: ${repositories_repo_url[i]}"
                 fi
-                if curl -s --head ${repo_urls[i]} &> /dev/null; then
+                if curl -s --head ${repositories_repo_url[i]} &> /dev/null; then
                     if [ "$1" == "list" ]; then
                         colorecho "$GREEN" "      INFO$NC |     Successfully fetched host (Packages list fetching unsupported)"
                     fi
@@ -831,7 +812,7 @@ fetch_repositories() {
                 ;;
             *)
                 if [ "$1" != "-q" ]; then
-                    colorecho "$BLUE" "UNKNOWN$NC | Looking up remote: ${repo_urls[i]}"
+                    colorecho "$BLUE" "UNKNOWN$NC | Looking up remote: ${repositories_repo_url[i]}"
                     colorecho "$RED" "      ERROR$NC |     Invalid repository type. Valid types are: agr, ghorg, ghrel, git."
                 else
                     colorecho "$DEBUG" "$RED      ERROR$NC |     Invalid repository type. Valid types are: agr, ghorg, ghrel, git."
