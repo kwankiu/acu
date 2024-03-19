@@ -145,11 +145,44 @@ function select_option {
     return $selected
 }
 
-# Echo with colors
+# Echo with colors (and optionally positions)
 colorecho() {
-    color="$1"
-    text="$2"
+    local color="$1"
+    local text="$2"
+    local vposition="$3"
+    local hposition="$4"
+    local LINES=$(tput lines)
+    local COLS=$(tput cols)
+    tput sc # Save cursor position
+    
+    if [ "$vposition" = "top" ]; then
+        vposition=0
+    elif [ "$vposition" = "bottom" ]; then
+        vposition=$((LINES - 2))
+    elif [ "$vposition" = "center" ]; then
+        vposition=$((LINES / 2))
+    fi
+
+    if [ "$hposition" = "left" ]; then
+        hposition=0
+    elif [ "$hposition" = "right" ]; then
+        hposition=$((COLS - 2))
+    elif [ "$hposition" = "center" ]; then
+        text_length=${#text}
+        hposition=$(( (COLS - text_length) / 2 ))
+    fi
+
+    if [ -n "$vposition" ] && [ -n "$hposition" ]; then
+        tput cup $vposition $hposition
+    elif [ -n "$vposition" ]; then
+        tput cup $vposition 0
+    fi
+    
     [ -n "$no_warning" ] && [ "$color" = "$YELLOW" ] || [ "$color" = "$DEBUG" ] && [ -z "$debug_log" ] || echo -e "${color}${text}${NC}"
+    
+    if [ -n "$vposition" ] || [ -n "$hposition" ]; then
+        tput rc # Restore cursor position
+    fi
 }
 
 # Title / Heading
@@ -827,6 +860,7 @@ fetch_repositories() {
 
 config_options() {
     title
+    colorecho "$YELLOW" "WARNING $NC | $utilname is experimental" "bottom" # Experimental warning
     options=("System Maintenance \t Managing Updates, Bootloader, System, Linux Kernel")
     options+=("Manage Packages \t Upgrade or downgrade packages, Manage packages repositories")
     options+=("Install Apps \t\t Install New Software or Application packages")
@@ -2290,9 +2324,6 @@ for arg in "$@"; do
             ;;
     esac
 done
-
-# Experimental warning
-colorecho "$YELLOW" "WARNING $NC | $utilname is experimental"
 
 # non-aarch64 system warning
 if [ "$system_arch" != "aarch64" ] && [ "$system_arch" != "arm64" ] && [ "$system_arch" != "armv8" ]; then
