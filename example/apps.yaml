@@ -596,7 +596,7 @@ apps:
           sudo curl -o /lib/firmware/intel/ibt-0041-0041.sfi https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/intel/ibt-0041-0041.sfi
           sudo curl -o /lib/firmware/intel/ibt-0041-0041.ddc https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/intel/ibt-0041-0041.ddc          
 
-      - package_name: yay-bin
+      - package_name: yay
         app_name: Yay
         category: Others
         description: AUR Package Helper
