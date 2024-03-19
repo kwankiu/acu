@@ -485,8 +485,7 @@ load_yaml() {
     local current_head=""
     local current_subhead=""
     local last_indent=""
-    local head_list=()
-    local occurrence=0
+    local sub_item
 
     # Pre-Parse the file or url and generate the formatted YAML output
     target_file="$(pre_parser "$target_file")"
@@ -518,10 +517,20 @@ load_yaml() {
                     else
                         current_value="${current_value}${line//: /=\"}\""
                     fi
+                    # Add variable closing after handling sub_items
+                    if [ "$sub_item" = 2 ]; then
+                        if [ "$output_format" = "list" ]; then
+                            echo "\")"
+                        else
+                            echo "\""
+                        fi
+                    fi
                     if [[ "$current_value" != *":\"" ]] && [[ "$current_value" != *":\")" ]]; then
                         echo "$current_value"
+                        sub_item=0
                     else
                         current_subhead="${line/:/}"
+                        sub_item=1
                     fi
                 elif [ "$indentation" -gt "$last_indent" ] || [ "$indentation" == "$last_indent" ]; then
                     if [ -z "$suffix" ]; then
@@ -535,17 +544,31 @@ load_yaml() {
                         current_value="${current_subhead}"
                     fi
                     if [ "$output_format" = "list" ]; then
-                        current_value="${current_value}+=(\"${line}\")"
+                        current_value="${current_value}+=(\"${line}"
                     else
-                        current_value="${current_value}=\"${line}\""
+                        current_value="${current_value}=\"${line}"
                     fi
-                    echo "$current_value"
+                    if [ "$sub_item" = 1 ]; then
+                        echo -n "$current_value"
+                        sub_item=2
+                    else
+                        echo -n " $line"
+                    fi
                 else
                     colorecho "$DEBUG" "Indent: $indentation, Unhandled Line: $line"
                 fi
                 last_indent=$indentation
             fi
         done <<< "$target_file"
+        # Fix sub_item that appears on the last line
+        # Add variable closing after handling sub_items
+        if [ "$sub_item" = 2 ]; then
+            if [ "$output_format" = "list" ]; then
+                    echo "\")"
+            else
+                    echo "\""
+            fi
+        fi
     fi
 }
 
