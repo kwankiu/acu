@@ -15,6 +15,8 @@ colorecho() {
     [ -n "$no_warning" ] && [ "$color" = "$YELLOW" ] || [ "$color" = "$DEBUG" ] && [ -z "$debug_log" ] || echo -e "${color}${text}${NC}"
 }
 
+################################################################
+debug_log=1
 # ACU File Pre-Parser
 # source: https://github.com/mrbaseman/pasrse_yaml.git
 # awk : process multi-line text (handle YAML pipe) (added a space for better syntax / readability)
@@ -79,14 +81,23 @@ pre_parser() {
 # ACU File Parser
 # Limitation: this is not a full YAML parser, it is only designed to properly handle upto two sub-tree (subhead)
 # Limitation: an unnecessary space at line ending can potentially cause issues
-debug_log=1
 load_yaml() {
+
     local target_file=$1
     local suffix=$2
+    local output_format=$3
     local current_head=""
     local current_subhead=""
     local last_indent=""
+    local sub_item
+    local head_list=()
+    local occurrence
+    local found_exist
+
+    # Pre-Parse the file or url and generate the formatted YAML output
     target_file="$(pre_parser "$target_file")"
+
+    # Parse the data into variables format
     if [ -f "$target_file" ] || [[ "$target_file" == *"://"* ]] ; then
         while IFS= read -r line; do
             # Ignore comments and empty lines
@@ -100,34 +111,102 @@ load_yaml() {
                 elif [[ "$line" == *":"* ]]; then
                     if [ -z "$suffix" ]; then
                         # Use current head as suffix
-                        current_value="${current_head}_${line//: /=\"}\""
+                        current_value="${current_head}_"
                     elif [ "$suffix" != " " ]; then
                         # Use user specified suffix
-                        current_value="${suffix}_${line//: /=\"}\""
+                        current_value="${suffix}_"
                     else
-                        # Set suffix to a space to set without suffix
-                        current_value="${line//: /=\"}\""
+                        # Without suffix
+                        current_value=""
                     fi
-                    if [[ "$current_value" != *":\"" ]]; then
+                    if [ "$output_format" = "list" ]; then
+                        found_exist=0
+                        current_var=$(awk -F':' '{print $1}' <<< "${current_value}${line}")
+                        for item in "${head_list[@]}"; do
+                            if [ "$item" = "$current_var" ]; then
+                                found_exist=1
+                                break
+                            fi
+                        done
+                        if [ "$found_exist" -eq 0 ]; then
+                            head_list+=("$current_var")
+                            current_value="${current_value}${line//: /=(\"}\")"
+                        else
+                            current_value="${current_value}${line//: /+=(\"}\")"
+                        fi
+                    else
+                        current_value="${current_value}${line//: /=\"}\""
+                    fi
+                    # Add variable closing after handling sub_items
+                    if [ "$sub_item" = 2 ]; then
+                        if [ "$output_format" = "list" ]; then
+                            echo "\")"
+                        else
+                            echo "\""
+                        fi
+                    fi
+                    if [[ "$current_value" != *":\"" ]] && [[ "$current_value" != *":\")" ]]; then
                         echo "$current_value"
+                        sub_item=0
                     else
                         current_subhead="${line/:/}"
+                        sub_item=1
                     fi
                 elif [ "$indentation" -gt "$last_indent" ] || [ "$indentation" == "$last_indent" ]; then
-                    current_value="${current_head}_${current_subhead}=\"${line}\""
-                    echo "$current_value"
+                    if [ -z "$suffix" ]; then
+                        # Use current head as suffix
+                        current_value="${current_head}_${current_subhead}"
+                    elif [ "$suffix" != " " ]; then
+                        # Use user specified suffix
+                        current_value="${suffix}_${current_subhead}"
+                    else
+                        # Without suffix
+                        current_value="${current_subhead}"
+                    fi
+                    if [ "$output_format" = "list" ]; then
+                        found_exist=0
+                        for item in "${head_list[@]}"; do
+                            if [ "$item" = "$current_value" ]; then
+                                found_exist=1
+                                break
+                            fi
+                        done
+                        if [ "$found_exist" -eq 0 ]; then
+                            head_list+=("$current_value")
+                            current_value="${current_value}=(\"${line}"
+                        else
+                            current_value="${current_value}+=(\"${line}"
+                        fi
+                    else
+                        current_value="${current_value}=\"${line}"
+                    fi
+                    if [ "$sub_item" = 1 ]; then
+                        echo -n "$current_value"
+                        sub_item=2
+                    else
+                        echo -n " $line"
+                    fi
                 else
                     colorecho "$DEBUG" "Indent: $indentation, Unhandled Line: $line"
                 fi
                 last_indent=$indentation
             fi
         done <<< "$target_file"
+        # Fix sub_item that appears on the last line
+        # Add variable closing after handling sub_items
+        if [ "$sub_item" = 2 ]; then
+            if [ "$output_format" = "list" ]; then
+                    echo "\")"
+            else
+                    echo "\""
+            fi
+        fi
     fi
 }
 
 set_before=$( set -o posix; set | sed -e '/^_=*/d' )
 #eval $(load_yaml "config/config.yaml" " ")
-#load_yaml "example/apps.yaml"
+#load_yaml "example/apps.yaml" "" list
 #load_yaml "example/apps.yaml"
 #load_yaml "config/config.yaml"
 load_yaml "$@"
