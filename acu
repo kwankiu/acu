@@ -2476,8 +2476,10 @@ elif [ "$1" = "remove" ] || [ "$1" = "-R" ]; then
 elif [ "$1" = "apps" ] ; then
     clear
     colorecho "$BLUE" "ACU $NC | Apps"
-    colorecho "$BLUE" "ACU $NC |"
+    colorecho "$BLUE" "ACU $NC | Loading apps list ..."
     eval $(load_yaml $apps_url "" list)
+    clear
+    colorecho "$BLUE" "ACU $NC | Apps"
 
 elif [ "$1" = "install" ] || [ "$1" = "-S" ] ; then
     if [ -z "$2" ]; then
