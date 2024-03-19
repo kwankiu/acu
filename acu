@@ -1410,7 +1410,7 @@ install_pkg() {
 
                 # TODO: Handle fallbacks
                 if [[ "${selection[i]}" == "(fallback)"* ]]; then
-                    use_pm="git" # TO BE REPLACED
+                    use_pm="fallback" # TO BE REPLACED
                 fi
 
                 # Find and Install the package        
@@ -1418,17 +1418,19 @@ install_pkg() {
                     local index=$(apps_list "${selection[i]}" -i)
                     colorecho "$GREEN" "APPS $NC | Installing ${selection[i]} ($index)"
                     local package="${apps_packages[index]}"
-                    colorecho "$DEBUG" "INFO $NC | Packages: $package"
-                    acu install $package
+                    colorecho "$DEBUG" "APPS $NC | Packages: $package"
+                    if [ "$package" != "null" ]; then
+                        colorecho "$GREEN" "APPS $NC | Resolving packages ..."
+                        acu install $package --skipapps
+                    fi
                     local commands="${apps_commands[index]}"
-                    colorecho "$DEBUG" "INFO $NC | Commands: $commands"
+                    colorecho "$DEBUG" "APPS $NC | Commands: $commands"
                     if [ "$command" != "null" ]; then 
-                        colorecho "$DEBUG" "INFO $NC | Running Package commands ..."
+                        colorecho "$GREEN" "APPS $NC | Running Package commands ..."
                         mkdir -p $HOME/.acu/cache
                         echo -e $commands | tee $HOME/.acu/cache/install.sh >/dev/null
                         bash $HOME/.acu/cache/install.sh
                     fi
-                    skip_apps="" # make sure next package handle this normally
                 elif [ "$use_pm" = "pacman" ] || ([ -z "$use_pm" ] && sudo pacman -Ssy "^${selection[i]}$" &> /dev/null); then
                     colorecho "$GREEN" "PACMAN $NC | Installing ${selection[i]}"  
                     if [ -z "$no_confirm" ]; then
@@ -1457,6 +1459,8 @@ install_pkg() {
                 elif [ "$use_pm" = "git" ]; then
                     colorecho "$GREEN" "MAKEPKG $NC | Compiling & Installing ${selection[i]}"
                     install_from_source "${selection[i]}"
+                elif [ "$use_pm" = "fallback" ]; then
+                    colorecho "$DEBUG" "COMING SOON, SKIPPED"
                 else
                     colorecho "$RED" "ERROR $NC | Package ${selection[i]} not found"
                 fi
@@ -2274,6 +2278,7 @@ for arg in "$@"; do
             echo "  --loadconfig=<path/url> : load an acu config file from path or url. (use with -u to install this config as default config file)"
             echo "  --update=<release> : Install / Update configuration utility to a specified release tag."
             echo "  --usepm=<pm> : Specify a package manager to use when installing packages. <pm> options: pacman, agr, git."
+            echo "  --skipapps : Skip looking up apps list when using the install command"
             echo "  --device=<tag> : Specify target device tag. <device> options are determined by the tags_file set in acu config."
             echo "  --branch=<branch> : Specify a git branch for setting or cloning from remote repository."
             echo "  --noconfirm : Do not ask for confirmation when resolving dependencies and installing packages managed by pacman / makepkg."
@@ -2353,7 +2358,10 @@ for arg in "$@"; do
         ;;
         --noclear)
             no_clear=1
-        ;;      
+        ;;
+        --skipapps)
+            skip_apps=1
+        ;;    
         --device=*)
             device_config="${arg#*=}"
             colorecho "$DEBUG" "INFO $NC | use target device : $device_config"
