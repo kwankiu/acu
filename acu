@@ -1292,7 +1292,8 @@ apps_menu() {
     echo
     options=()
     for ((i = 0; i < ${#apps_category_name[@]}; i++)); do
-        options+=("${apps_category_name[i]} \t${apps_category_description[i]}")
+        padded_name=$(printf "%-16s" "${apps_category_name[i]}")
+        options+=("$padded_name\t ${apps_category_description[i]}")
     done
     options+=("Return to main menu")
     select_option "${options[@]}"
@@ -1311,16 +1312,24 @@ apps_menu_category() {
     colorecho "$BLUE" "INFO $NC | Loading ${apps_category_name[catinx]} ..."
     title "Apps - ${apps_category_name[catinx]}"
     echo
-    colorecho "$GREEN" "\t Apps \t\t Description"
+    colorecho "$GREEN" "\t Apps \t\t\t Description"
     echo
     options=()
     for ((i = 0; i < ${#apps_package_name[@]}; i++)); do
         if [ "${apps_category[i]}" = "${apps_category_name[catinx]}" ]; then
-            options+=("${apps_app_name[i]} \t${apps_description[i]}")
+            padded_name=$(printf "%-20s" "${apps_app_name[i]}")
+            options+=("$padded_name \t ${apps_description[i]}")
         fi
     done
     options+=("Return to apps categories")
     select_option "${options[@]}"
+    choice=$?
+
+    if [ "${options[choice]}" = "Return to apps categories" ]; then
+        apps_menu
+    else
+        apps_menu_category $catinx
+    fi
 }
 
 install_pkg_category() {

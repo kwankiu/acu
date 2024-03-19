@@ -12,23 +12,23 @@ apps:
 #      - category_name: Example
 #        category_description: What is this category about?
       - category_name: Web
-        category_description: \t\t Surf the Internet
+        category_description: Surf the Internet
       - category_name: Communication
-        category_description: \t Connect with friends, family, teams
+        category_description: Connect with friends, family, teams
       - category_name: Suites
-        category_description: \t Office & Productivity Software
+        category_description: Office & Productivity Software
       - category_name: Multimedia
-        category_description: \t Audio, Video & Graphics Software
+        category_description: Audio, Video & Graphics Software
       - category_name: Gaming
-        category_description: \t Games, Game Stores & Emulators
+        category_description: Games, Game Stores & Emulators
       - category_name: Virtualization
-        category_description:  Virtual machines & Containers
+        category_description: Virtual machines & Containers
       - category_name: Development
-        category_description: \t Code Editors, IDEs & Build Tools
+        category_description: Code Editors, IDEs & Build Tools
       - category_name: System
-        category_description: \t Monitoring, Maintenance & Benchmarking
+        category_description: Monitoring, Maintenance & Benchmarking
       - category_name: Others
-        category_description: \t Miscellaneous, Utilities & Others
+        category_description: Miscellaneous, Utilities & Others
 ########################################################################
   # Apps List
   - items:
