@@ -1301,8 +1301,26 @@ apps_menu() {
     if [ "${options[choice]}" = "Return to main menu" ]; then
         config_options
     else
-        install_pkg_category $choice
+        apps_menu_category $choice
     fi
+}
+
+apps_menu_category() {
+    local catinx=$1
+    local i
+    colorecho "$BLUE" "INFO $NC | Loading ${apps_category_name[catinx]} ..."
+    title "Apps - ${apps_category_name[catinx]}"
+    echo
+    colorecho "$GREEN" "\t Apps \t\t Description"
+    echo
+    options=()
+    for ((i = 0; i < ${#apps_package_name[@]}; i++)); do
+        if [ "${apps_category[i]}" = "${apps_category_name[catinx]}" ]; then
+            options+=("${apps_app_name[i]} \t${apps_description[i]}")
+        fi
+    done
+    options+=("Return to apps categories")
+    select_option "${options[@]}"
 }
 
 install_pkg_category() {
