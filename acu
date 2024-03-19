@@ -1238,10 +1238,13 @@ manage_packages() {
 
 # Install Packages
 apps_menu() {
+    
+    # Load apps.yaml if not already loaded
+    if [ -z "$apps_category_name" ]; then
+        colorecho "$BLUE" "ACU $NC | Loading apps list ..."
+        eval $(load_yaml $apps_file "" list)
+    fi
 
-    colorecho "$BLUE" "ACU $NC | Loading apps list ..."
-    eval $(load_yaml $apps_file "" list)
-    clear
     title "Apps - Categories"
     echo
     colorecho "$GREEN" "\t Category \t\t Description"
@@ -1259,7 +1262,6 @@ apps_menu() {
     else
         install_pkg_category $choice
     fi
-
 }
 
 install_pkg_category() {
