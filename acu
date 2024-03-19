@@ -1422,6 +1422,12 @@ install_pkg() {
                     acu install $package
                     local commands="${apps_commands[index]}"
                     colorecho "$DEBUG" "INFO $NC | Commands: $commands"
+                    if [ "$command" != "null" ]; then 
+                        colorecho "$DEBUG" "INFO $NC | Running Package commands ..."
+                        mkdir -p $HOME/.acu/cache
+                        echo -e $commands | tee $HOME/.acu/cache/install.sh >/dev/null
+                        bash $HOME/.acu/cache/install.sh
+                    fi
                     skip_apps="" # make sure next package handle this normally
                 elif [ "$use_pm" = "pacman" ] || ([ -z "$use_pm" ] && sudo pacman -Ssy "^${selection[i]}$" &> /dev/null); then
                     colorecho "$GREEN" "PACMAN $NC | Installing ${selection[i]}"  
