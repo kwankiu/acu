@@ -486,6 +486,9 @@ load_yaml() {
     local current_subhead=""
     local last_indent=""
     local sub_item
+    local head_list=()
+    local occurrence
+    local found_exist
 
     # Pre-Parse the file or url and generate the formatted YAML output
     target_file="$(pre_parser "$target_file")"
@@ -513,7 +516,20 @@ load_yaml() {
                         current_value=""
                     fi
                     if [ "$output_format" = "list" ]; then
-                        current_value="${current_value}${line//: /+=(\"}\")"
+                        found_exist=0
+                        current_var=$(awk -F':' '{print $1}' <<< "${current_value}${line}")
+                        for item in "${head_list[@]}"; do
+                            if [ "$item" = "$current_var" ]; then
+                                found_exist=1
+                                break
+                            fi
+                        done
+                        if [ "$found_exist" -eq 0 ]; then
+                            head_list+=("$current_var")
+                            current_value="${current_value}${line//: /=(\"}\")"
+                        else
+                            current_value="${current_value}${line//: /+=(\"}\")"
+                        fi
                     else
                         current_value="${current_value}${line//: /=\"}\""
                     fi
@@ -544,7 +560,19 @@ load_yaml() {
                         current_value="${current_subhead}"
                     fi
                     if [ "$output_format" = "list" ]; then
-                        current_value="${current_value}+=(\"${line}"
+                        found_exist=0
+                        for item in "${head_list[@]}"; do
+                            if [ "$item" = "$current_value" ]; then
+                                found_exist=1
+                                break
+                            fi
+                        done
+                        if [ "$found_exist" -eq 0 ]; then
+                            head_list+=("$current_value")
+                            current_value="${current_value}=(\"${line}"
+                        else
+                            current_value="${current_value}+=(\"${line}"
+                        fi
                     else
                         current_value="${current_value}=\"${line}"
                     fi
@@ -2444,6 +2472,12 @@ elif [ "$1" = "remove" ] || [ "$1" = "-R" ]; then
     else
         sudo pacman -R "${pkgtoremove[@]}" --noconfirm
     fi
+
+elif [ "$1" = "apps" ] ; then
+    clear
+    colorecho "$BLUE" "ACU $NC | Apps"
+    colorecho "$BLUE" "ACU $NC |"
+    eval $(load_yaml $apps_url "" list)
 
 elif [ "$1" = "install" ] || [ "$1" = "-S" ] ; then
     if [ -z "$2" ]; then
