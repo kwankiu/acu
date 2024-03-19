@@ -1467,13 +1467,13 @@ install_pkg() {
                     else
                         agr install ${selection[i]} --noconfirm
                     fi
-                elif [ "$use_pm" = "ghrel" ] || [ -z "$use_pm" ] && fetch_repositories -q && echo -e "n" | install_ghrel_packages "${selection[i]}" | grep -q '.*pkg.*'; then
-                    colorecho "$GREEN" "GHREL $NC | Installing ${selection[i]}"  
-                    install_ghrel_packages "${selection[i]}"
                 elif aurrepo=$(git ls-remote "https://aur.archlinux.org/${selection[i]}") && [ -n "$aurrepo" ] ; then
                     # THIS NEEDS TO BE UPDATED
                     colorecho "$GREEN" "AUR $NC | Compiling & Installing ${selection[i]}"  
                     install_from_source "aur://${selection[i]}"
+                elif [ "$use_pm" = "ghrel" ] || [ -z "$use_pm" ] && fetch_repositories -q && echo -e "n" | install_ghrel_packages "${selection[i]}" | grep -q '.*pkg.*'; then
+                    colorecho "$GREEN" "GHREL $NC | Installing ${selection[i]}"  
+                    install_ghrel_packages "${selection[i]}"
                 elif [ "$use_pm" = "git" ]; then
                     colorecho "$GREEN" "MAKEPKG $NC | Compiling & Installing ${selection[i]}"
                     install_from_source "${selection[i]}"
