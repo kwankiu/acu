@@ -1299,12 +1299,22 @@ apps_menu() {
         padded_name=$(printf "%-16s" "${apps_category_name[i]}")
         options+=("$padded_name\t ${apps_category_description[i]}")
     done
+    if [ ${#selection[@]} -gt 0 ]; then
+        options+=("Install selected apps")
+        options+=("Clear all selected")
+        print_selected_pkg
+    fi
     options+=("Return to main menu")
     select_option "${options[@]}"
     choice=$?
 
     if [ "${options[choice]}" = "Return to main menu" ]; then
         config_options
+    elif [ "${options[choice]}" = "Clear all selected" ]; then
+        selection=()
+        apps_menu
+    elif [ "${options[choice]}" = "Install selected apps" ]; then
+        acu install "${selection[@]}"
     else
         apps_menu_category $choice
     fi
@@ -1315,6 +1325,7 @@ apps_menu_category() {
     local i
     local j
     local selinx
+    local found
     colorecho "$BLUE" "INFO $NC | Loading ${apps_category_name[catinx]} ..."
     title "Apps - ${apps_category_name[catinx]}"
     echo
@@ -1328,7 +1339,7 @@ apps_menu_category() {
             padded_name=$(printf "%-20s" "${apps_app_name[i]}")
             options+=("$padded_name \t ${apps_description[i]}")
             selinx+=("$i")
-            local found=0
+            found=0
             for ((j = 0; j < ${#selection[@]}; j++)); do
                 if [ "${selection[j]}" = "${apps_package_name[i]}" ]; then
                     found=1
@@ -1343,6 +1354,9 @@ apps_menu_category() {
         fi
     done
     options+=("Return to apps categories")
+    if [ ${#selection[@]} -gt 0 ]; then
+        print_selected_pkg
+    fi
     checkbox_menu=1
     select_option "${options[@]}"
     choice=$?
@@ -1350,91 +1364,28 @@ apps_menu_category() {
         apps_menu
     else
         local si="${selinx[choice]}"
-        selection+=("${apps_package_name[si]}")
+        found=0
+        for ((j = 0; j < ${#selection[@]}; j++)); do
+            if [ "${selection[j]}" = "${apps_package_name[si]}" ]; then
+                found=1
+                break
+            fi
+        done
+        if [ "$found" = 1 ]; then
+            selection=("${selection[@]/${apps_package_name[si]}}") # this is not reliable as it replace text instead of pop out
+        else
+            selection+=("${apps_package_name[si]}")
+        fi
         apps_menu_category $catinx
     fi
 }
 
-install_pkg_category() {
-
-    if [ "$1" = "--select" ]; then
-        local selected_option="${poptions[$2]}"
-
-        if [[ " ${selection[*]} " == *" $selected_option "* ]]; then
-            options[$2]="[ ] ${selected_option}"
-            echo "current list: ${selection[@]}"
-            echo "try to remove ${selected_option%% *}"
-        else
-            options[$2]="[x] ${selected_option}"
-            selection+=("${selected_option%% *}")
-        fi
-    else
-        selection=()
-        options=("Return to Category" "Install Selected Packages")
-        options+=("$GREEN Deselect All $NC")
-        poptions=("${options[@]}")
-
-        case $1 in
-            4)
-                categorytitle="$utilname - Install Web"
-                update_list=("firefox" "chromium" "ungoogled-chromium" "openssh" "nodejs" "nvm" "wget")
-                ;;
-            5)
-                categorytitle="$utilname - Install Communication"
-                update_list=("telegram-desktop" "teams" "discord" "silos")
-                ;;
-            6)
-                categorytitle="$utilname - Install Suites"
-                update_list=("libreoffice" "wps-office-cn" "abiword" "gnumeric" "gnucash" "glabels" "glom" "dia")
-                ;;
-            7)
-                categorytitle="$utilname - Install Multimedia"
-                update_list=("kodi" "vlc" "lollypop" "rhythmbox" "gimp" "inkscape" "krita" "audacity" "ardour" "blender")
-                ;;
-            8)
-                categorytitle="$utilname - Install Gaming / Emulation / Virtualization"
-                update_list=("box64" "box86" "steam" "malior" "malior-droid" "wine64" "qemu-full")
-                ;;
-            9)
-                categorytitle="$utilname - Install Development Tools"
-                update_list=("code" "sublime-text-4" "gedit" "vim" "gnome-console" "konsole" "xterm" "git" "python-pipx" "python2") 
-                ;;
-            10)
-                categorytitle="$utilname - Install Misc"
-                update_list=("intel-ax210-fw" "yay" "neofetch" "screenfetch" "s-tui" "stress")
-                ;;
-        esac
- 
-        for ((i=0; i<${#update_list[@]}; i++)); do
-            options+=("[ ] ${update_list[i]}")
-            poptions+=("${update_list[i]}")
-        done
-    fi
-
-    title "$categorytitle"
-
-    select_option "${options[@]}"
-    choice=$?
-
-    if [ "$choice" = "0" ]; then
-        apps_menu
-    elif [ "$choice" = "1" ]; then
-        #print_selected_pkg && exit 0
-        install_pkg
-        apps_menu
-    elif [ "$choice" = "2" ]; then
-        install_pkg_category
-    else
-        install_pkg_category --select $choice
-    fi
-
-}
-
 print_selected_pkg() {
-    colorecho "$GREEN" "Selected Packages :"
+    local selected
     for ((i=0; i<${#selection[@]}; i++)); do
-        echo "${selection[i]}"
+        selected="${selected} ${selection[i]}"
     done
+    colorecho "$GREEN" "Selected packages: ${selected}" "bottom"
 }
 
 install_pkg() {
