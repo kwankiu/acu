@@ -1372,7 +1372,14 @@ apps_menu_category() {
             fi
         done
         if [ "$found" = 1 ]; then
-            selection=("${selection[@]/${apps_package_name[si]}}") # this is not reliable as it replace text instead of pop out
+            target="${apps_package_name[si]}" # Define the target item to remove
+            new_selection=()
+            for item in "${selection[@]}"; do
+                if [[ "$item" != "$target" ]]; then
+                    new_selection+=("$item")
+                fi
+            done
+            selection=("${new_selection[@]}")
         else
             selection+=("${apps_package_name[si]}")
         fi
