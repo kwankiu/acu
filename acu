@@ -2477,9 +2477,18 @@ elif [ "$1" = "apps" ] ; then
     clear
     colorecho "$BLUE" "ACU $NC | Apps"
     colorecho "$BLUE" "ACU $NC | Loading apps list ..."
-    eval $(load_yaml $apps_url "" list)
+    eval $(load_yaml $apps_file "" list)
     clear
-    colorecho "$BLUE" "ACU $NC | Apps"
+    colorecho "$BLUE" "ACU $NC | Apps - Categories"
+    colorecho "$BLUE" "ACU $NC |"
+    colorecho "$BLUE" "ACU $NC | ${GREEN}Category \t\t Description"
+    colorecho "$BLUE" "ACU $NC |"
+    options=()
+    for ((i = 0; i < ${#apps_category_name[@]}; i++)); do
+        options+=("${apps_category_name[i]} \t${apps_category_description[i]}")
+    done
+    options+=("Return to main menu")
+    select_option "${options[@]}"
 
 elif [ "$1" = "install" ] || [ "$1" = "-S" ] ; then
     if [ -z "$2" ]; then
