@@ -379,16 +379,20 @@ apps:
           - rockchip
         packages:
           - wget
+          - unzip
           - docker
           - android-tools
           - scrcpy
-          - malior
         commands: |
           systemctl start docker --now
-          echo "starting docker ..."
-          sleep 3
+          echo "Starting docker ..."
+          sleep 2
+          echo "Installing malior ..."
+          bash <(curl -fsSL https://github.com/ChisBread/malior/raw/main/install.sh)
+          malior update
           sudo mkdir /dev/binderfs
           sudo mount -t binder binder /dev/binderfs
+          echo "Installing malior-droid ..."
           malior install malior-droid
           malior-droid update
 
@@ -542,17 +546,6 @@ apps:
         packages:
           - geekbench
         commands: null
-
-      - package_name: malior
-        app_name: Malior
-        category: System
-        description: Containerized game packaging for RK3588
-        compatible:
-          - rockchip
-        packages: null
-        commands: |
-          bash <(curl -fsSL https://github.com/ChisBread/malior/raw/main/install.sh)
-          malior update
 
 ########################################################################
   # Others
