@@ -1533,8 +1533,6 @@ add_repo() {
     elif [ "$1" = "7Ji" ]; then
         server_url="https://github.com/7Ji/archrepo/releases/download/\$arch"
         gpg_key="BA27F219383BB875"
-    elif [ "$1" = "BredOS" ]; then
-        server_url="https://github.com/BredGang/bred-repo/raw/main/\$repo/\$arch"
     else
         colorecho "$RED" "Invalid repo name. Aborting."
         return 1
