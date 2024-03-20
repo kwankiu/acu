@@ -1,86 +1,138 @@
-# Arch (ARM) Configuration Utility (experimental)
+# ACU (A Configuration Utility for Arch Linux ARM)
+### Warning: ACU is still experimental. 
+### Some feature may not be usable and commands may change without further notices
 
-![alt Arch Rock Configuration Utility](https://i.imgur.com/bccc10d.png)
+![alt ACU Screenshot](https://i.imgur.com/0bMi2Lh.png)
 
 ## What is acu?
-- acu is a configuration utility for Arch Linux ARM (Aarch64) 
-- acu provides some similar features with [armbian-config](https://github.com/armbian/config) or [raspi-config](https://www.raspberrypi.com/documentation/computers/configuration.html) or [rsetup](https://docs.radxa.com/en/radxa-os/rsetup/rsetup-tool) but for Arch Linux
-- acu provides a pacman (and other package manager) wrapper with additional features (such as installing packages from a github release based repo, from URL, compiling and installing packages from source (PKGBUILD), etc.)
-- currently with main focus on the Radxa Rock 5 and RK3588
 
-### Note that this configuration utility is work-in-progress.
+- **Supported Platform**: ACU is a community-built Configuration Utility for Arch Linux ARM (Aarch64). Since most of the commands are the same on Arch Linux ARM and x86_64, this utility can also be used on x86_64, but some features are ARM / SBC specific, therefore it is not fully supported. ACU is currently with main focus on Rockchip RK3588 (Radxa Rock 5B) as this is the primary ARM SBC i am using.
 
-## Installation
+- **Configuration Utility**: ACU provides some similar features with [armbian-config](https://github.com/armbian/config) or [raspi-config](https://www.raspberrypi.com/documentation/computers/configuration.html) or [rsetup](https://docs.radxa.com/en/radxa-os/rsetup/rsetup-tool) but for Arch Linux
+
+- **Packages Management**: ACU act as a package manager helper that gather everything in one place with additional features (such as a menu that allows you to selectively upgrade packages, downgrading a package to a specific version, installing a package from a github release or URL, compiling and installing packages from source (PKGBUILD) like AUR or other Git Repositories, etc.) With ACU, you can do all this in one command.
+
+- **Introducing ACU Apps**: ACU provides an "App Store" like [pi-apps](https://github.com/Botspot/pi-apps) which provides a collection of apps for Arch Linux ARM and ARM Single Board Computers. 
+
+- **System Infomation**: ACU provides system infomation just like [Neofetch](https://github.com/dylanaraps/neofetch) but with ARM support (software like neofetch is capapable, some ARM SoC's CPU and GPU infomation may not be shown properly, ACU has got this covered)
+
+- **Customization**: ACU currently provides a configuration file `config.yaml`, a repositories list `repo.yaml`, and an apps list `apps.yaml` which allows you to customize configurations, add/remove an ACU managed repositories, modify or creating your own apps list for **ACU Apps**, etc. it is also possible to load a configuration file from a path / url using `--loadconfig` and configurate your own `repo.yaml` and `apps.yaml` upstream or locally.
+
+## Sounds cool. How do I Install it?
 
 The configuration utility is pre-installed with Arch Linux installed or provided by [archlinux-installer-rock5](https://github.com/kwankiu/archlinux-installer-rock5) (it currently uses `arch-rock-config` but will soon be mirgated to `acu`)
 
-To install `acu`, run the following command :
+### Mirgating from `arch-rock-config` to `ACU` :
+```
+arch-rock-config -u acu
+```
+To remove `arch-rock-config` itself:
+```
+arch-rock-config --remove-this
+```
 
-```
-bash <(curl -fsSL https://raw.githubusercontent.com/kwankiu/acu/dev/acu) -u
-```
-
-## Usage
-
-To launch the configuration utility:
-```
-acu
-```
-## Optional arguments
-
-```
-acu <options/features> <additional-arguments (optional)>
-```
-### For example
-Install a package without confirming:
-```
-acu install git --noconfirm
-```
 OR
+
+### New Install :
 ```
-acu -S git --noconfirm
+bash <(curl -fsSL https://raw.githubusercontent.com/kwankiu/acu/0.0.5-dev/acu) -u
+```
+(Notes: ACU automatically installs the latest version available using the -u command)
+
+## Getting Started
+### Quick Start :
+To get started, let's add some ACU recommended repositories. 
+(Notes: Advanced user can use ACU with their own configurations and repositories.)
+```
+  acu rem set default 
 ```
 
-Update with dev channel:
+Now let's fetch the repositories and update the apps list.
+(Notes: the acu repo currently requires [AGR](https://github.com/hbiyik/agr) and you will be prompted to install the software)
 ```
-acu --update=dev
+acu update
+```
+(Notes: To make sure the repositories and apps list is up-to-date, you should run `acu update` regularly, ACU will also sync pacman repositories database for you.)
+
+### Updating ACU
+To update ACU itself, when there is an update available, there will be an option shows up when you run `acu`. Alternatively, you may also update ACU manually using:
+```
+acu -u
+```
+To update to a specific version or channel:
+```
+acu --update=0.0.5-dev
 ```
 
-### Options
+### Removing ACU
 
-| Options | Additional Arguments | Description |
-| ------------- | ------------- | ------------- |
-| `-h` or `--help` | N/A | Usage and Infomation of this configuration utility. |
-| `-u` or `--update` | `<channel>` | Install latest configuration utility without checking updates. channel options: main, dev. |
+To uninstall ACU:
+```
+acu remove acu
+```
+If AGR is installed, you may want to remove AGR before removing ACU:
+```
+acu remove agr
+```
 
+## Tips
 
-### Features
+### Install command
+```
+acu install <package>
+```
+is same as
+```
+acu -S <package>
+```
+To install a package with a specific package manager / helper
+```
+acu install <package> --usepm=<pm>
+# <pm> options: pacman, agr, git, ghrel.
+```
 
-#### System Maintenance
-| Features | Additional Arguments | Description |
-| ------------- | ------------- | ------------- |
-| `upgrade` |  N/A | Check & Perform Selective / Full System Upgrade. |
-| `install-kernel` |  `<kernel>` | Re-install / Replace Linux Kernel. kernel options: rkbsp, rkbsp-git, midstream. |
-| `flash-bootloader` |  `<bootloader>` | Flash Latest SPI Bootloader. bootloader options: radxa, radxa-debug, edk2-rock5a, edk2-rock5b, armbian. |
+To install a linux kernel (--device is needed for ACU to update extlinux.conf automatically):
+```
+acu install <linux-package> --device=<tag>
+# available tags are rock5, orangepi5 and edge2
+``` 
+(Notes: refer to [boot-templates](https://github.com/kwankiu/archlinux-installer-rock5/tree/main/boot-templates))
 
-#### Manage Packages
-| Features | Additional Arguments | Description |
-| ------------- | ------------- | ------------- |
-| `install` |  `<package>` | Package Manager (Install only), Includes RK3588 Specified and Customized Packages. You can use it like: `arch-rock-config install chromium neofetch git` |
-| `downgrade` |  `<package> <index>` | Install / Downgrade any Arch Linux ARM Packages from Archive (alaa). You can use it like: `arch-rock-config downgrade chromium`. By default only 15 archives shown, you may optionally add `<index>` to show more/less.  |
+### Remove command
+```
+acu remove <package>
+```
+is same as
+```
+acu -R <package>
+```
 
-#### Performance & Features
-| Features | Additional Arguments | Description |
-| ------------- | ------------- | ------------- |
-| `soc` |  `<option>` | Manage SoC Settings. options: `performance`, `ondemand`, `powersave` (and `status` for SoC Monitor). |
-| `fan` |  `<option>` | Configure PWM Fan-control. options: `install`, `enable`, `disable` and `status`. |
+### Downgrade command
+```
+acu downgrade <package>
+```
+is same as
+```
+acu -D <package>
+```
 
-#### User & Localization
-| Features | Additional Arguments | Description |
-| ------------- | ------------- | ------------- |
-| `user` | `<option>` | Add, Remove and Change User Account Settings. options: `add <user>` `remove <user>` `manage <user>` |
-| `locale` |  N/A | Generate Locale Settings. options: `list-generated` : print generated locales, `list-available` : print all available locales to generate, `generate <country_code>` : country code to generate locale (en_US) |
-| `font` |  N/A | Install Fonts, TTF, Non-English Characters, Special Characters / Emoji. |
-| `time` | `<option>` | Change Time Zone, Current Date and Time. options: `set-time-zone <time-zone> or 'sync'` `set-time-date <YYYY-MM-DD HH:MM:SS>` `network-time-zone` `system-time-zone`|
-| `keyboard` |  N/A | Change Keyboard Layout. |
-| `wifi` |  N/A | Change WiFi Country Settings. |
+### Remote / Repositories command
+List ACU managed repositories
+```
+acu rem list
+```
+is same as
+```
+acu rem show
+```
+
+Fetch ACU managed repositories and list all packages
+```
+acu rem
+```
+is same as
+```
+acu rem fetch
+```
+
+More detailed documentation will be available on [wiki](https://github.com/kwankiu/acu/wiki)
