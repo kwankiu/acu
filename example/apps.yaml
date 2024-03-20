@@ -540,9 +540,9 @@ apps:
   # Others
 
       - package_name: intel-ax210-fw
-        app_name: Intel AX210 Firmware
+        app_name: AX210 Firmware
         category: Others
-        description: Wi-Fi Firmware
+        description: Intel AX210 WiFi+BT Firmware (for BSP Kernel)
         compatible: null
         packages: null
         commands: |
