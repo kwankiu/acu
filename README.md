@@ -6,17 +6,18 @@
 
 ## What is acu?
 
-- **Supported Platform**: ACU is a community-built Configuration Utility for Arch Linux ARM (Aarch64). Since most of the commands are the same on Arch Linux ARM and x86_64, this utility can also be used on x86_64, but some features are ARM / SBC specific, therefore it is not fully supported. ACU is currently with main focus on Rockchip RK3588 (Radxa Rock 5B) as this is the primary ARM SBC i am using.
+- **Supported Platform**:  ACU is a community-built tool designed for managing configurations and packages on Arch Linux ARM (Aarch64). While primarily tailored for ARM architectures, it can be used on x86_64 platforms as well, although with limitations due to ARM/SBC-specific features. However, it is important to note that ACU is not fully supported on x86_64 platforms. Currently, ACU is optimized for the Rockchip RK3588 (Radxa Rock 5B), serving as a comprehensive utility for ARM Single Board Computers (SBCs).
 
-- **Configuration Utility**: ACU provides some similar features with [armbian-config](https://github.com/armbian/config) or [raspi-config](https://www.raspberrypi.com/documentation/computers/configuration.html) or [rsetup](https://docs.radxa.com/en/radxa-os/rsetup/rsetup-tool) but for Arch Linux
+- **Configuration Utility**: ACU offers functionalities akin to popular configuration tools such as [armbian-config](https://github.com/armbian/config) or [raspi-config](https://www.raspberrypi.com/documentation/computers/configuration.html) or [rsetup](https://docs.radxa.com/en/radxa-os/rsetup/rsetup-tool) but for Arch Linux.
 
-- **Packages Management**: ACU act as a package manager helper that gather everything in one place with additional features (such as a menu that allows you to selectively upgrade packages, downgrading a package to a specific version, installing a package from a github release or URL, compiling and installing packages from source (PKGBUILD) like AUR or other Git Repositories, etc.) With ACU, you can do all this in one command.
+- **Packages Management**: Serving as a package manager helper, ACU consolidates various package management tasks into a single, intuitive interface. It streamlines processes like selective package upgrades, downgrading to specific versions, installing packages from GitHub releases or URLs, as well as compiling and installing packages from source (PKGBUILD), including those from AUR or other Git repositories.
 
-- **Introducing ACU Apps**: ACU provides an "App Store" like [pi-apps](https://github.com/Botspot/pi-apps) which provides a collection of apps for Arch Linux ARM and ARM Single Board Computers. 
+- **Introducing ACU Apps**: ACU introduces an "App Store" like [pi-apps](https://github.com/Botspot/pi-apps), offering a curated collection of applications for Arch Linux ARM and ARM Single Board Computers (SBCs).
 
-- **System Infomation**: ACU provides system infomation just like [Neofetch](https://github.com/dylanaraps/neofetch) but with ARM support (software like neofetch is capapable, some ARM SoC's CPU and GPU infomation may not be shown properly, ACU has got this covered)
+- **System Infomation**: ACU provides system information akin to [Neofetch](https://github.com/dylanaraps/neofetch) but with enhanced ARM support. While standard system information tools may struggle with ARM SoC details, ACU ensures comprehensive reporting.
 
-- **Customization**: ACU currently provides a configuration file `config.yaml`, a repositories list `repo.yaml`, and an apps list `apps.yaml` which allows you to customize configurations, add/remove an ACU managed repositories, modify or creating your own apps list for **ACU Apps**, etc. it is also possible to load a configuration file from a path / url using `--loadconfig` and configurate your own `repo.yaml` and `apps.yaml` upstream or locally.
+- **Customization**: 
+ACU facilitates extensive customization through configuration files like `config.yaml`, `repo.yaml`, and `apps.yaml` (in `~/.acu/config`). These files empower users to tailor configurations, manage repositories, and creating your own or modifying app lists for ACU Apps. Moreover, users can load configurations from local paths or URLs using the `--loadconfig` option, allowing for seamless customization upstream or locally.
 
 ## Sounds cool. How do I Install it?
 
@@ -136,3 +137,17 @@ acu rem fetch
 ```
 
 More detailed documentation will be available on [wiki](https://github.com/kwankiu/acu/wiki)
+
+## Contributing
+
+Contributions to ACU are welcome! Whether you're interested in fixing bugs, adding features, or improving documentation, your contributions help enhance the utility for the community. Feel free to submit pull requests (PRs) with your changes.
+
+## Support
+
+For assistance, bug reports, or feature requests, please [open a Discussion](https://github.com/kwankiu/acu/discussions) on the ACU GitHub repository. Our community is here to help! Discussions are preferred for general inquiries, feature requests, or broader discussions. However, if you encounter a bug or have a specific issue, feel free to [open an issue](https://github.com/kwankiu/acu/issues).
+
+For real-time discussions about ACU, you can also join our Discord server [here](https://discord.gg/yY3F9b7hSK).
+
+## License
+
+ACU is licensed under the GPL v3 License, granting users the freedom to use, modify, and distribute the software.
