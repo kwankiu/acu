@@ -2307,9 +2307,12 @@ for arg in "$@"; do
             echo
             colorecho "$BLUE" "Manage Packages"
             echo
-            echo "  -S / install : show interactive menu to install a collection of apps / packages."
+            echo "  apps / install / -S : show interactive menu to install a collection of apps / packages."
+            echo "  apps list : show all available packages of acu apps list."
+            echo "  apps list <package> : find a packages from acu apps list."
+            echo "  apps index <package> : find a packages from acu apps list and return only its list item index."
             echo "  -S / install <package> : install a package using acu, you can install multiple packages with one command, example: acu install package1 package4 package3"
-            echo "  update : Fetch pacman and acu repositories."
+            echo "  update : Fetch pacman repositories, acu managed repositories and update lists defined in config."
             echo "  upgrade : Check & Perform Selective / Full System Upgrade."
             echo "  -D / downgrade <package> <index> : Install / Downgrade any Arch Linux Packages from Archive. <package>: package name <index>: index to show, default=15."
             echo "  -R / remove : remove / uninstall a package from this system."
@@ -2596,7 +2599,7 @@ elif [ "$1" = "rem" ] || [ "$1" = "remote" ]; then
     elif [ "$2" = "del" ] || [ "$2" = "remove" ]; then
         if [ "$3" = "pacman" ]; then
             colorecho "$GREEN" "INFO $NC | Auto removing a pacman repo is not yet supported. But you can edit pacman.conf manually, hold on, I will bring you there."
-            colorecho "$GREEN" "INFO $NC | When you finish, press Ctrl+O to save then press Ctrl+X to exit the editor."
+            colorecho "$GREEN" "INFO $NC | When you finish, press Ctrl+O to save then press Ctrl+X to exit the editor." "bottom"
             sleep 2
             sudo nano /etc/pacman.conf
         else
