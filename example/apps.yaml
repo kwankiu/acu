@@ -57,7 +57,6 @@ apps:
           - rockchip
         packages:
           - chromium-mpp
-          - (fallback)chromium
         commands: |
           sudo systemctl enable --now libv4l-rkmpp-setup.service
           # Check if the file /etc/chromium-browser exists
@@ -396,16 +395,6 @@ apps:
           malior install malior-droid
           malior-droid update
 
-      - package_name: redroid-rk3588
-        app_name: ReDroid
-        category: Virtualization
-        description: Redroid Android emulator for RK3588
-        compatible:
-          - rockchip
-        packages:
-          - redroid
-        commands: null
-
 ########################################################################
   # Development
 
@@ -539,12 +528,12 @@ apps:
         commands: null
 
       - package_name: geekbench
-        app_name: Geekbench 5
+        app_name: Geekbench 6 
         category: System
-        description: Geekbench System Benchmark
+        description: Geekbench 6 System Benchmark (Preview build)
         compatible: null
         packages:
-          - geekbench
+          - geekbench-preview
         commands: null
 
 ########################################################################
