@@ -1429,15 +1429,16 @@ install_pkg() {
                     colorecho "$DEBUG" "APPS $NC | Packages: $package"
                     if [ "$package" != "null" ]; then
                         colorecho "$GREEN" "APPS $NC | Resolving packages ..."
-                        acu install $package --skipapps
+                        acu install -y $package --skipapps
                     fi
                     local commands="${apps_commands[index]}"
                     colorecho "$DEBUG" "APPS $NC | Commands: $commands"
-                    if [ "$command" != "null" ]; then 
+                    if [ "$commands" != "null" ]; then 
                         colorecho "$GREEN" "APPS $NC | Running Package commands ..."
                         mkdir -p $HOME/.acu/cache
                         echo -e $commands | tee $HOME/.acu/cache/install.sh >/dev/null
                         bash $HOME/.acu/cache/install.sh
+                        rm $HOME/.acu/cache/install.sh
                     fi
                 elif [ "$use_pm" = "pacman" ] || ([ -z "$use_pm" ] && sudo pacman -Ssy "^${selection[i]}$" &> /dev/null); then
                     colorecho "$GREEN" "PACMAN $NC | Installing ${selection[i]}"  

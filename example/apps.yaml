@@ -464,7 +464,7 @@ apps:
         commands: null
 
       - package_name: python-pipx
-        app_name: Python PIP
+        app_name: Python PIPX
         category: Development
         description: Python Package Installer
         compatible: null
