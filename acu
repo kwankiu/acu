@@ -170,7 +170,7 @@ function select_option {
             else
                 formatted_opt=" $((idx + 1)) \t $opt"
             fi
-            LEN=$(($(tput cols) - 20))
+            LEN=$(($(tput cols) - 10))
             if [ "$LEN" -gt 100 ]; then
                 LEN=100
             fi
