@@ -132,8 +132,14 @@ function select_option {
     cursor_blink_on()  { printf "$ESC[?25h"; }
     cursor_blink_off() { printf "$ESC[?25l"; }
     cursor_to()        { printf "$ESC[$1;${2:-1}H"; }
-    print_option()     { printf "   $1 "; }
-    print_selected()   { printf "  $ESC[7m $1 $ESC[27m"; }
+    print_option()     { local COLS=$(tput cols);
+                         local LEN=${#1}
+                         hposition=$(( (COLS - LEN) / 2 ));
+                         printf "$ESC[${hposition}G$1";}
+    print_selected()     { local COLS=$(tput cols);
+                         local LEN=${#1}
+                         hposition=$(( (COLS - LEN) / 2 ));
+                         printf "$ESC[7m$ESC[${hposition}G$1$ESC[27m";}
     get_cursor_row()   { IFS=';' read -sdR -p $'\E[6n' ROW COL; echo ${ROW#*[}; }
     key_input()        { read -s -n3 key 2>/dev/null >&2
                          if [[ $key = $ESC[A ]]; then echo up;    fi
@@ -155,15 +161,20 @@ function select_option {
     while true; do
         # Print options by overwriting the last lines
         local idx=0
-        local max_width=$(tput cols)
+        local formatted_opt
+        local LEN
         for opt; do
             cursor_to $(($startrow + $idx))
             if [ "$checkbox_menu" = 1 ]; then
-                local formatted_opt="[${checkbox_menu_checked[idx]}] \t $opt"
+                formatted_opt=" [${checkbox_menu_checked[idx]}] \t $opt"
             else
-                local formatted_opt="$((idx + 1)) \t $opt"
+                formatted_opt=" $((idx + 1)) \t $opt"
             fi
-            local formatted_opt=$(echo "$formatted_opt" | cut -c1-$((max_width - 3)))
+            LEN=$(($(tput cols) - 20))
+            if [ "$LEN" -gt 100 ]; then
+                LEN=100
+            fi
+            formatted_opt=$(printf "%-${LEN}s" "$formatted_opt" | cut -c1-$(echo ${LEN}))
             if [ $idx -eq $selected ]; then
                 print_selected "$formatted_opt"
             else
