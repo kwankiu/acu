@@ -200,10 +200,6 @@ colorecho() {
     local LINES=$(tput lines)
     local COLS=$(tput cols)
     tput sc # Save cursor position
-    get_cursor_row() {
-    IFS=';' read -sdR -p $'\E[6n' ROW COL
-    echo "$(( ${ROW#*[} - 1 ))"
-    }
     
     if [ "$vposition" = "top" ]; then
         vposition=0
@@ -211,9 +207,6 @@ colorecho() {
         vposition=$((LINES - 2))
     elif [ "$vposition" = "center" ]; then
         vposition=$((LINES / 2))
-    else
-        vposition=`get_cursor_row`
-        local rrc=1
     fi
 
     if [ "$hposition" = "left" ]; then
@@ -229,6 +222,8 @@ colorecho() {
         tput cup $vposition $hposition
     elif [ -n "$vposition" ]; then
         tput cup $vposition
+    elif [ -n "$hposition" ]; then
+        text="\033[${hposition}G${text}"
     fi
     
     [ -n "$no_warning" ] && [ "$color" = "$WARNING" ] || [ "$color" = "$DEBUG" ] && [ -z "$debug_log" ] || echo -e "${color}${text}${NC}"
@@ -236,7 +231,7 @@ colorecho() {
     if [ "$arg" = "-n" ]; then
         tput cup $vposition ${#text}
     else
-        if [ -n "$vposition" ] && [ -z "$rrc" ] || [ -n "$hposition" ] && [ -z "$rrc" ]; then
+        if [ -n "$vposition" ] || [ -n "$vposition" ] && [ -n "$hposition" ]; then
             tput rc # Restore cursor position
         fi
     fi
