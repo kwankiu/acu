@@ -2731,6 +2731,12 @@ elif [ "$1" = "cli" ]; then
             sysinfo)
                 system_info
                 ;;
+            menu)
+                config_options
+                ;;
+            apps)
+                apps
+                ;;
             "")
                 ;;
             echo* | print* | printf*)
