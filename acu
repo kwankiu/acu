@@ -2733,9 +2733,15 @@ elif [ "$1" = "cli" ]; then
                 ;;
             "")
                 ;;
+            echo* | print* | printf*)
+                clear
+                cmd="${cmd#* }"
+                colorecho "$THEME" "$cmd" "center" "center"
+                ;;
             *)
                 clear
-                colorecho "$THEME" "CLI is Coming Soon" "center" "center"
+                tput cup 1 0
+                eval $cmd
                 ;;
         esac
     done
