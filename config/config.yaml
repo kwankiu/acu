@@ -11,17 +11,26 @@ configurations:
   # do not confirm when installing a package using pacman -S / -U or makepkg -si
   #no_confirm: 1
 
-  # do not print warning ($YELLOW) messages
+  # do not print warning ($WARNING) messages
   #no_warning: 1
 
   # do not clear terminal outputs
   #no_clear: 1
 
-  # do not print warning ($YELLOW) messages
+  # print debug ($DEBUG) messages
   #debug_log: 1
 
   # auto update acu when launch without asking
   #auto_update: 1
+
+  # set terminal color
+  # note that WARNING and DEBUG must not be same as THEME
+  # available colors are $BLACK $GREY $RED $GREEN $YELLOW $ORANGE $BLUE $DKBLUE $MAGENTA $CYAN $WHITE $LTMAGENTA $LTBLUE $LTGREY $DKRED $DKGREEN $NC
+  # Theme Color
+  #THEME: $BLUE
+  #WARNING=$YELLOW
+  # Debug messages color
+  #DEBUG=$LTGREY
 
   # archive repo url for downgrading packages
   # Arch Linux ARM Archive repo
