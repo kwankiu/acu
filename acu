@@ -49,29 +49,53 @@ config_file="$HOME/.acu/config/config.yaml"
 ################################################################
 # Tools for formatting / styling
 
-# Define terminal color codes
-BLACK='\033[0;30m'
-GREY='\033[0;90m'
-RED='\033[0;91m'
-GREEN='\033[0;92m'
-YELLOW='\033[0;33m'
-ORANGE='\033[0;93m'
-BLUE='\033[0;34m'
-DKBLUE='\033[0;94m'
-MAGENTA='\033[0;35m'
-CYAN='\033[0;96m'
-WHITE='\033[0;97m'
-LTMAGENTA='\033[0;95m'
-LTBLUE='\033[0;36m'
-LTGREY='\033[0;37m'
-DKRED='\033[0;31m'
-DKGREEN='\033[0;32m'
-NC='\033[0m' # No Color
+# Reset to Terminal Default Colors
+TDC='\033[0m'
+
+# Terminal text colors
+BLACK='\033[30m'
+GREY='\033[90m'
+RED='\033[91m'
+GREEN='\033[92m'
+YELLOW='\033[33m'
+ORANGE='\033[93m'
+BLUE='\033[34m'
+DKBLUE='\033[94m'
+MAGENTA='\033[35m'
+CYAN='\033[96m'
+WHITE='\033[97m'
+LTMAGENTA='\033[95m'
+LTBLUE='\033[36m'
+LTGREY='\033[37m'
+DKRED='\033[31m'
+DKGREEN='\033[32m'
+
+# Terminal background colors
+BGBLACK='\033[40m'
+BGGREY='\033[100m'
+BGRED='\033[101m'
+BGGREEN='\033[102m'
+BGYELLOW='\033[43m'
+BGORANGE='\033[103m'
+BGBLUE='\033[44m'
+BGDKBLUE='\033[104m'
+BGMAGENTA='\033[45m'
+BGCYAN='\033[106m'
+BGWHITE='\033[107m'
+BGLTMAGENTA='\033[105m'
+BGLTBLUE='\033[46m'
+BGLTGREY='\033[47m'
+BGDKRED='\033[41m'
+BGDKGREEN='\033[42m'
 
 # Default Theme color
 THEME=$BLUE
+#THEME='\033[34;107m'
 WARNING=$YELLOW
 DEBUG=$LTGREY
+#NC='\033[34;107m'
+NC=$TDC
+#BACKGROUND=$NC
 
 # sudo override
 sudo () {
@@ -89,6 +113,7 @@ sudo () {
 clear () {
     local command=$@
     if [ -z "$no_clear" ]; then
+        echo -e $BACKGROUND
         command clear "$@"
     fi
 }
@@ -174,6 +199,10 @@ colorecho() {
     local LINES=$(tput lines)
     local COLS=$(tput cols)
     tput sc # Save cursor position
+    get_cursor_row() {
+    IFS=';' read -sdR -p $'\E[6n' ROW COL
+    echo "$(( ${ROW#*[} - 1 ))"
+    }
     
     if [ "$vposition" = "top" ]; then
         vposition=0
@@ -181,6 +210,9 @@ colorecho() {
         vposition=$((LINES - 2))
     elif [ "$vposition" = "center" ]; then
         vposition=$((LINES / 2))
+    else
+        vposition=`get_cursor_row`
+        local rrc=1
     fi
 
     if [ "$hposition" = "left" ]; then
@@ -195,12 +227,12 @@ colorecho() {
     if [ -n "$vposition" ] && [ -n "$hposition" ]; then
         tput cup $vposition $hposition
     elif [ -n "$vposition" ]; then
-        tput cup $vposition 0
+        tput cup $vposition
     fi
     
     [ -n "$no_warning" ] && [ "$color" = "$WARNING" ] || [ "$color" = "$DEBUG" ] && [ -z "$debug_log" ] || echo -e "${color}${text}${NC}"
     
-    if [ -n "$vposition" ] || [ -n "$hposition" ]; then
+    if [ -n "$vposition" ] && [ -z "$rrc" ] || [ -n "$hposition" ] && [ -z "$rrc" ]; then
         tput rc # Restore cursor position
     fi
 }
@@ -208,25 +240,25 @@ colorecho() {
 # Title / Heading
 title() {
   clear
-  colorecho "$NC" "---------------------------------------------------------------------"
-  colorecho "$THEME" "                  ##                     __   ____  _  _    "
-  colorecho "$THEME" "                 ####                   / _\ (  _ \( \/ )   "
-  colorecho "$THEME" "                ######                 /    \ )   // \/ \ "
-  colorecho "$THEME" "               ########                \_/\_/(__\_)\_)(_/ "
-  colorecho "$THEME" "              ##########          ___  __   __ _  ____  __  ___ "
-  colorecho "$THEME" "             ############        / __)/  \ (  ( \(  __)(  )/ __)"
-  colorecho "$THEME" "            ##############      ( (__(  O )/    / ) _)  )(( (_ \ "
-  colorecho "$THEME" "           ################      \___)\__/ \_)__)(__)  (__)\___/"
-  colorecho "$THEME" "          ######      ######           _  _  ____  __  __   "
-  colorecho "$THEME" "         #######      #######         / )( \(_  _)(  )(  )  "
-  colorecho "$THEME" "       #######         #######        ) \/ (  )(   )( / (_/\ "
-  colorecho "$THEME" "      ######             ######       \____/ (__) (__)\____/ "
-  colorecho "$THEME" "     ###                     ###    "
-  colorecho "$NC" "---------------------------------------------------------------------"
+  colorecho "$NC" "---------------------------------------------------------------------" "" "center"
+  colorecho "$THEME" "                  ##                     __   ____  _  _         " "" "center"
+  colorecho "$THEME" "                 ####                   / _\ (  _ \( \/ )        " "" "center"
+  colorecho "$THEME" "                ######                 /    \ )   // \/ \        " "" "center"
+  colorecho "$THEME" "               ########                \_/\_/(__\_)\_)(_/        " "" "center"
+  colorecho "$THEME" "              ##########          ___  __   __ _  ____  __  ___  " "" "center"
+  colorecho "$THEME" "             ############        / __)/  \ (  ( \(  __)(  )/ __) " "" "center"
+  colorecho "$THEME" "            ##############      ( (__(  O )/    / ) _)  )(( (_ \ " "" "center"
+  colorecho "$THEME" "           ################      \___)\__/ \_)__)(__)  (__)\___/ " "" "center"
+  colorecho "$THEME" "          ######      ######           _  _  ____  __  __        " "" "center"
+  colorecho "$THEME" "         #######      #######         / )( \(_  _)(  )(  )       " "" "center"
+  colorecho "$THEME" "       #######         #######        ) \/ (  )(   )( / (_/\     " "" "center"
+  colorecho "$THEME" "      ######             ######       \____/ (__) (__)\____/     " "" "center"
+  colorecho "$THEME" "     ###                     ###                                 " "" "center"
+  colorecho "$NC" "---------------------------------------------------------------------" "" "center"
   if [ -n "$1" ]; then
     text="$1"
-    colorecho "$THEME" "${text}"
-    colorecho "$NC" "---------------------------------------------------------------------"
+    colorecho "$THEME" "${text}" "" "center"
+    colorecho "$NC" "---------------------------------------------------------------------" "" "center"
   fi
 }
 
@@ -883,7 +915,8 @@ fetch_repositories() {
 
 config_options() {
     title
-    colorecho "$WARNING" "WARNING $NC | $utilname is experimental" "bottom" # Experimental warning
+    colorecho "$NC" ""
+    colorecho "$WARNING" "\t    WARNING $NC| $utilname is experimental |$GREEN $release" "bottom" "center" # Bottom Text
     options=("System Maintenance \t Managing Updates, Bootloader, System, Linux Kernel")
     options+=("Manage Packages \t Upgrade or downgrade packages, Manage packages repositories")
     options+=("Install Apps \t\t Install New Software or Application packages")
@@ -2678,4 +2711,7 @@ elif [ "$1" != "-v" ] && [ "$1" != "--version" ]; then
     config_options
 fi
 
+################################################################
+# Restore terminal default background
+echo -e "$TDC"
 ################################################################
