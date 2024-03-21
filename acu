@@ -775,7 +775,7 @@ fetch_repositories() {
             agr)
                 if ! command -v agr &> /dev/null; then
                     # Install AGR if not installed
-                    colorecho "$RED" "This repository requires agr to be installed, do you want to install it? [y/N]:" 
+                    colorecho "$RED" "REPO $NC | This repository requires agr to be installed, do you want to install it? [y/N]:" 
                     read -r agrconfirm
                     case "$agrconfirm" in
                         [yY])
@@ -1121,7 +1121,7 @@ flash_uboot() {
         colorecho "$GREEN" "Downloading SPI U-Boot Image from ${which_url}${latest_image} ..."
         curl -LJO ${which_url}${latest_image}
     else
-        colorecho "$RED" "Fetch Error : No image found."
+        colorecho "$RED" "ERROR $NC | Fetch Error : No image found."
         sleep 1
         exit 1
     fi
@@ -1534,7 +1534,7 @@ add_repo() {
         server_url="https://github.com/7Ji/archrepo/releases/download/\$arch"
         gpg_key="BA27F219383BB875"
     else
-        colorecho "$RED" "Invalid repo name. Aborting."
+        colorecho "$RED" "ERROR $NC | Invalid repo name. Aborting."
         return 1
     fi
 
@@ -1733,7 +1733,7 @@ soc_profile() {
                     choice=99
                     ;;
                 *)
-                    colorecho "$RED" "Invalid Option, Exiting ..."
+                    colorecho "$RED" "ERROR $NC | Invalid Option, Exiting ..."
                     exit 1
                     ;;
         esac
@@ -1811,9 +1811,9 @@ manage_user() {
             read -s -p "Confirm password for $new_user: " cfm_pw
             echo
             if [ "$new_pw" != "$cfm_pw" ]; then
-                colorecho "$RED" "Password and confirm password does not match."
+                colorecho "$RED" "ERROR $NC | Password and confirm password does not match."
             elif [ -z "$new_pw" ] || [ -z "$cfm_pw" ]; then
-                colorecho "$RED" "Password can not be empty."
+                colorecho "$RED" "ERROR $NC | Password can not be empty."
             else
                 return 0
             fi
@@ -1981,7 +1981,7 @@ locale() {
     elif [ "$1" = "list-available" ] || [ "$1" = "generate" ]; then
         choice=0
     else
-        colorecho "$RED" "Invalid option"
+        colorecho "$RED" "ERROR $NC | Invalid option"
         exit 1
     fi
 
@@ -2030,7 +2030,7 @@ locale() {
                 elif [ "$3" = "-y" ]; then
                     choice=0
                 else
-                    colorecho "$RED" "Invalid option"
+                    colorecho "$RED" "ERROR $NC | Invalid option"
                     exit 1
                 fi
 
@@ -2496,7 +2496,7 @@ elif [ "$1" = "remove" ] || [ "$1" = "-R" ]; then
         if [[ "${!i}" != -* ]] && [[ "${!i}" != "acu" ]] && [[ "${!i}" != "agr" ]]; then
             pkgtoremove+=("${!i}")
         elif [[ "${!i}" == "acu" ]]; then
-            colorecho "$RED" "Are you sure to remove this utility (acu)? (you wont be able to use acu again if you confirm to remove) [y/N]:" 
+            colorecho "$RED" "REMOVE $NC | Are you sure to remove this utility (acu)? (${RED}you wont be able to use acu again if you confirm to remove${NC}) [y/N]:" 
             read -r rmconfirm
             case "$rmconfirm" in
                 [yY])
@@ -2511,7 +2511,7 @@ elif [ "$1" = "remove" ] || [ "$1" = "-R" ]; then
             esac
         elif [[ "${!i}" == "agr" ]]; then
             if acu rem list | grep -q "Type: agr"; then
-                colorecho "$RED" "Are you sure to remove agr? (you wont be able to use acu again if you confirm to remove) [y/N]:" 
+                colorecho "$RED" "REMOVE $NC | Are you sure to remove agr? (${RED}you wont be able to use acu again if you confirm to remove${NC}) [y/N]:" 
                 read -r rmagrconfirm
                 if [ "$rmagrconfirm" != "y" ] && [ "$rmagrconfirm" != "Y" ]; then
                     exit 1
