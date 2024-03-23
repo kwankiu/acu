@@ -2637,7 +2637,7 @@ elif [ "$1" = "rem" ] || [ "$1" = "remote" ]; then
         list_repositories
     elif [ "$2" = "set" ] || [ "$2" = "add" ]; then
         if [ "$3" = "pacman" ]; then
-            add_repo "$3" "$4" "$5"
+            add_repo "$4" "$5" "$6"
         elif [ "$3" = "default" ]; then
             if [ -f "$repositories_file" ]; then
                 colorecho "$RED" "REPO $NC | Load default repositories file? (This will replace your existing repositories configuration) [y/N]:" 
