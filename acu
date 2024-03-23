@@ -950,7 +950,7 @@ config_options() {
     colorecho "$WARNING" "\t    WARNING $NC| $utilname is experimental |$GREEN $release" "bottom" "center" # Bottom Text
     options=("System Maintenance \t Managing Updates, Bootloader, System, Linux Kernel")
     options+=("Manage Packages \t Upgrade or downgrade packages, Manage packages repositories")
-    options+=("Install Apps \t\t Install New Software or Application packages")
+    options+=("ACU Apps \t\t Curated collection of applications or packages to install")
     options+=("Performance \t\t Tweak SoC Performance Settings, Enable PWM Fan, Overclocking")
     options+=("Localization \t\t Generate locale, Install fonts, Set date, time & timezone")
     options+=("User Accounts \t\t Add, Remove or Change user account settings")
