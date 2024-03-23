@@ -210,7 +210,16 @@ colorecho() {
     local arg="$5"
     local LINES=$(tput lines)
     local COLS=$(tput cols)
+    local LEN
     tput sc # Save cursor position
+
+    if [[ "$arg" == "-a" ]]; then
+            LEN=$(($(tput cols) - 10))
+            if [ "$LEN" -gt 100 ]; then
+                LEN=100
+            fi
+            text=$(printf "%-${LEN}s" "$text" | cut -c1-$(echo ${LEN}))
+    fi
     
     if [ "$vposition" = "top" ]; then
         vposition=0
@@ -250,26 +259,37 @@ colorecho() {
 
 # Title / Heading
 title() {
-  clear
-  colorecho "$NC" "---------------------------------------------------------------------" "" "center"
-  colorecho "$THEME" "                  ##                     __   ____  _  _         " "" "center"
-  colorecho "$THEME" "                 ####                   / _\ (  _ \( \/ )        " "" "center"
-  colorecho "$THEME" "                ######                 /    \ )   // \/ \        " "" "center"
-  colorecho "$THEME" "               ########                \_/\_/(__\_)\_)(_/        " "" "center"
-  colorecho "$THEME" "              ##########          ___  __   __ _  ____  __  ___  " "" "center"
-  colorecho "$THEME" "             ############        / __)/  \ (  ( \(  __)(  )/ __) " "" "center"
-  colorecho "$THEME" "            ##############      ( (__(  O )/    / ) _)  )(( (_ \ " "" "center"
-  colorecho "$THEME" "           ################      \___)\__/ \_)__)(__)  (__)\___/ " "" "center"
-  colorecho "$THEME" "          ######      ######           _  _  ____  __  __        " "" "center"
-  colorecho "$THEME" "         #######      #######         / )( \(_  _)(  )(  )       " "" "center"
-  colorecho "$THEME" "       #######         #######        ) \/ (  )(   )( / (_/\     " "" "center"
-  colorecho "$THEME" "      ######             ######       \____/ (__) (__)\____/     " "" "center"
-  colorecho "$THEME" "     ###                     ###                                 " "" "center"
-  colorecho "$NC" "---------------------------------------------------------------------" "" "center"
+  if [ "$3" != "noclear" ]; then
+    clear
+  fi
+
+  if [ "$2" = "left" ]; then
+    local align="left"
+  elif [ "$2" = "right" ]; then
+    local align="right"
+  else
+    local align="center"
+  fi
+
+  colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
+  colorecho "$THEME" "                  ##                     __   ____  _  _         " "" "$align"
+  colorecho "$THEME" "                 ####                   / _\ (  _ \( \/ )        " "" "$align"
+  colorecho "$THEME" "                ######                 /    \ )   // \/ \        " "" "$align"
+  colorecho "$THEME" "               ########                \_/\_/(__\_)\_)(_/        " "" "$align"
+  colorecho "$THEME" "              ##########          ___  __   __ _  ____  __  ___  " "" "$align"
+  colorecho "$THEME" "             ############        / __)/  \ (  ( \(  __)(  )/ __) " "" "$align"
+  colorecho "$THEME" "            ##############      ( (__(  O )/    / ) _)  )(( (_ \ " "" "$align"
+  colorecho "$THEME" "           ################      \___)\__/ \_)__)(__)  (__)\___/ " "" "$align"
+  colorecho "$THEME" "          ######      ######           _  _  ____  __  __        " "" "$align"
+  colorecho "$THEME" "         #######      #######         / )( \(_  _)(  )(  )       " "" "$align"
+  colorecho "$THEME" "       #######         #######        ) \/ (  )(   )( / (_/\     " "" "$align"
+  colorecho "$THEME" "      ######             ######       \____/ (__) (__)\____/     " "" "$align"
+  colorecho "$THEME" "     ###                     ###                                 " "" "$align"
+  colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
   if [ -n "$1" ]; then
     text="$1"
-    colorecho "$THEME" "${text}" "" "center"
-    colorecho "$NC" "---------------------------------------------------------------------" "" "center"
+    colorecho "$THEME" "${text}" "" "$align"
+    colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
   fi
 }
 
@@ -1000,7 +1020,7 @@ system_maintenance() {
             sudo partimage
             ;;
         2)
-            system_info
+            system_info --center
             ;;
         *)
             config_options
@@ -1352,7 +1372,7 @@ apps_menu() {
 
     title "Apps - Categories"
     echo
-    colorecho "$GREEN" "\t Category \t\t Description \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t" "" "center"
+    colorecho "$GREEN" "\t Category \t\t Description" "" "center" "-a"
     echo
     options=()
     for ((i = 0; i < ${#apps_category_name[@]}; i++)); do
@@ -1389,7 +1409,7 @@ apps_menu_category() {
     colorecho "$THEME" "INFO $NC | Loading ${apps_category_name[catinx]} ..."
     title "Apps - ${apps_category_name[catinx]}"
     echo
-    colorecho "$GREEN" "\t Apps \t\t\t Description \t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t" "" "center"
+    colorecho "$GREEN" "\t Apps \t\t Description" "" "center" "-a"
     echo
     options=()
     selinx=()
@@ -1654,13 +1674,22 @@ performance_features() {
 }
 
 system_info() {
-    title "System Information"
+    if [ "$1" == "--center" ]; then
+        title "System Information"
+    else
+        title "System Information" "left" "noclear"
+    fi
 
     # Get OS
     sys_os=$(cat /etc/*-release | grep PRETTY_NAME | cut -d'"' -f2)
 
     # Get host / device model
-    sys_host=$(cat /proc/device-tree/model | tr -d '\0')
+    sys_dmi_id_path="/sys/devices/virtual/dmi/id"
+    if [ -e "$sys_dmi_id_path/sys_vendor" ] && [ -e "$sys_dmi_id_path/product_name" ]; then
+        sys_host="$(cat $sys_dmi_id_path/sys_vendor | tr -d '\0') $(cat $sys_dmi_id_path/product_name | tr -d '\0')"
+    elif [ -e "/proc/device-tree/model" ]; then
+        sys_host=$(cat /proc/device-tree/model | tr -d '\0')
+    fi
 
     # Get kernel
     sys_krl=$(uname -sr)
@@ -1740,19 +1769,24 @@ system_info() {
 
     sys_terminal_font=$(basename "$TERM")
 
-    colorecho "$THEME" "OS: $NC $sys_os ($sys_arch)"
-    colorecho "$THEME" "Host: $NC $sys_host"
-    colorecho "$THEME" "Kernel: $NC $sys_krl"
-    colorecho "$THEME" "Uptime: $NC $sys_uptime"
-    colorecho "$THEME" "Packages: $NC $sys_packages"
-    colorecho "$THEME" "Shell: $NC $sys_shell"
-    colorecho "$THEME" "DE: $NC $sys_de ($sys_session)"
-    colorecho "$THEME" "Terminal: $NC $sys_terminal ($sys_terminal_font)"
-    colorecho "$THEME" "CPU: $NC ($sys_cpu_thread) $sys_cpu @ $(awk "BEGIN{printf \"%.2f\\n\", ((${sys_cpu_clock[4]:-${sys_cpu_clock[0]}}/1000000))}") Ghz (${sys_cpu_governor[4]:-${sys_cpu_governor[0]}})"
-    colorecho "$THEME" "GPU: $NC $sys_gpu"
-    colorecho "$THEME" "Resolution: $NC $sys_resolution"
-    colorecho "$THEME" "Memory: $NC $sys_mem_free GiB / $sys_mem_total GiB ($(awk "BEGIN{printf \"%.2f%%\\n\", (1-(${sys_mem_free}/${sys_mem_total}))*100}"))"
-    colorecho "$THEME" "Disk: $NC $sys_disk"
+    if [ "$1" == "--center" ]; then
+        local align="center"
+        local alignarg="-a"
+    fi
+
+    colorecho "$THEME" "OS: $NC $sys_os ($sys_arch)" "" "$align" "$alignarg"
+    colorecho "$THEME" "Host: $NC $sys_host" "" "$align" "$alignarg"
+    colorecho "$THEME" "Kernel: $NC $sys_krl" "" "$align" "$alignarg"
+    colorecho "$THEME" "Uptime: $NC $sys_uptime" "" "$align" "$alignarg"
+    colorecho "$THEME" "Packages: $NC $sys_packages" "" "$align" "$alignarg"
+    colorecho "$THEME" "Shell: $NC $sys_shell" "" "$align" "$alignarg"
+    colorecho "$THEME" "DE: $NC $sys_de ($sys_session)" "" "$align" "$alignarg"
+    colorecho "$THEME" "Terminal: $NC $sys_terminal ($sys_terminal_font)" "" "$align" "$alignarg"
+    colorecho "$THEME" "CPU: $NC ($sys_cpu_thread) $sys_cpu @ $(awk "BEGIN{printf \"%.2f\\n\", ((${sys_cpu_clock[4]:-${sys_cpu_clock[0]}}/1000000))}") Ghz (${sys_cpu_governor[4]:-${sys_cpu_governor[0]}})" "" "$align" "$alignarg"
+    colorecho "$THEME" "GPU: $NC $sys_gpu" "" "$align" "$alignarg"
+    colorecho "$THEME" "Resolution: $NC $sys_resolution" "" "$align" "$alignarg"
+    colorecho "$THEME" "Memory: $NC $sys_mem_free GiB / $sys_mem_total GiB ($(awk "BEGIN{printf \"%.2f%%\\n\", (1-(${sys_mem_free}/${sys_mem_total}))*100}"))" "" "$align" "$alignarg"
+    colorecho "$THEME" "Disk: $NC $sys_disk" "" "$align" "$alignarg"
 }
 
 # SoC Performance Profile
