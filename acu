@@ -242,7 +242,7 @@ colorecho() {
     if [ "$arg" = "-n" ]; then
         tput cup $vposition ${#text}
     else
-        if [ -n "$vposition" ] || [ -n "$vposition" ] && [ -n "$hposition" ]; then
+        if [ -n "$vposition" ] || ([ -n "$vposition" ] && [ -n "$hposition" ]); then
             tput rc # Restore cursor position
         fi
     fi
