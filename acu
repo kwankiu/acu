@@ -1916,12 +1916,13 @@ manage_user() {
 
     if [ -z "$1" ]; then
     title "Manage User"
+    echo
     
     # List all user accounts
     real_users=($(getent passwd | awk -F: '$3 >= 1000 && $3 < 65534 {print $1}'))
 
     # Prompt to add a new user
-    select_options=("Return to Main Menu" "Add User")
+    select_options=("Return to Main Menu" "Add User ...")
     select_options+=("${real_users[@]}")
     
     select_option "${select_options[@]}"
@@ -1946,7 +1947,7 @@ manage_user() {
             ;;
         1)
             if [ -z "$new_user" ]; then
-                title "Add New User"
+                title "Add New User" "left"
                 read -p "Enter username for the new user: " new_user
             fi
             if [ -z "$new_pw" ]; then
@@ -1984,9 +1985,10 @@ manage_user() {
             fi
 
             if [ -z "$manage_action" ]; then
-                title "Manage $selected_user"
-                colorecho "$GREEN" "User: $selected_user"
-                echo ""
+                title "\t Manage User ${WHITE}($selected_user)"
+                echo
+                colorecho "$GREEN" "Options" "" "center"
+                echo
 
                 # Perform actions for the selected user (if needed)
                 options=("Return to Manage User Menu" "Change User Password")
@@ -1997,7 +1999,7 @@ manage_user() {
                     options+=("Disable Sudo Password")
                 fi
 
-                if grep -qFx "$selected_user $hostname =NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot" /etc/sudoers; then
+                if sudo grep -qFx "$selected_user $hostname =NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot" /etc/sudoers; then
                     options+=("Enable Reboot Password")
                 else
                     options+=("Disable Reboot Password")
