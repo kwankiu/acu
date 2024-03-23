@@ -948,12 +948,13 @@ config_options() {
     title
     colorecho "$NC" ""
     colorecho "$WARNING" "\t    WARNING $NC| $utilname is experimental |$GREEN $release" "bottom" "center" # Bottom Text
-    options=("System Maintenance \t Managing Updates, Bootloader, System, Linux Kernel")
+    options=("System Maintenance \t Configure system settings, System utilites & infomation")
     options+=("Manage Packages \t Upgrade or downgrade packages, Manage packages repositories")
     options+=("ACU Apps \t\t Curated collection of applications or packages to install")
     options+=("Performance \t\t Tweak SoC Performance Settings, Enable PWM Fan, Overclocking")
     options+=("Localization \t\t Generate locale, Install fonts, Set date, time & timezone")
     options+=("User Accounts \t\t Add, Remove or Change user account settings")
+    options+=("ACU Settings \t\t Customize ACU Theme, configurations & settings")
 
     if [ "$update_available" = true ]; then 
         options+=("Update Now $GREEN(Updates available)$NC Update Utility to latest version $GREEN($release -> $remote_release)$NC ")
@@ -984,10 +985,11 @@ config_options() {
             manage_user
             ;;
         6)
-            update_util
+            title "ACU Settings"
+            colorecho "$GREEN" "Coming Soon" "center" "center"
             ;;
-        *)
-            exit 0
+        7)
+            update_util # Or Exit Utility if no update is available
             ;;
     esac
 
