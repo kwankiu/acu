@@ -1707,8 +1707,9 @@ add_repo() {
 # Performance & Features Main Menu
 performance_features() {
     title "Performance & Features"
-    options=("SoC Performance Profile \t Available options are performance, ondemand and powersave")
-    options+=("PWM Fan Control \t\t (ROCK 5 ONLY) Configure PWM Fan-control service")
+    options=("SoC Profile \t\t Available options are performance, ondemand and powersave")
+    options+=("HW Monitor \t\t Monitor Hardware infomations, temperatures & clock frequency")
+    options+=("Fan Control \t\t (ROCK 5 ONLY) Configure PWM Fan-control service")
     #options+=("Overclocking - Configure rk3588-unlock-opps overlay which increases CPU supply & CPU VDD supply")
     #options+=("Overlay - Configure Device Tree Overlay")
     options+=("Return to Main Menu")
@@ -1886,7 +1887,7 @@ soc_profile() {
                 colorecho "$GREEN" "Removed SoC Profile service"
                 ;;
             *)
-                config_options
+                performance_features
                 ;;
         esac
         
