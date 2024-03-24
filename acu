@@ -752,7 +752,12 @@ add_repository() {
             fi
             repo_url="https://github.com/kwankiu/acu"
         else
-            local p=$(colorecho "$NC" "Enter repository URL: " "" "center")
+            if [ -z "$1" ]; then
+                local align="center"
+            else
+                local align="left"
+            fi
+            local p=$(colorecho "$NC" "Enter repository URL: " "" "$align")
             read -p "$p" repo_url
         fi
     else
@@ -773,6 +778,7 @@ add_repository() {
         repo_type="git"
     else
         colorecho "$RED" "ERROR $NC | Invalid repository URL format."
+        sleep 1
         return
     fi
 
@@ -972,7 +978,6 @@ manage_repositories() {
     # Choice
     case $choice in
         0)
-            title "Add an ACU Managed Repository" "left"
             add_repository
             manage_repositories
             ;;
@@ -2499,7 +2504,8 @@ for arg in "$@"; do
             echo "  -D / downgrade <package> <index> : Install / Downgrade any Arch Linux Packages from Archive. <package>: package name <index>: index to show, default=15."
             echo "  -R / remove : remove / uninstall a package from this system."
             echo "  -B / build <URL> : build / compile a package without installing. <URL> supported protocols: gh://username/repo (GitHub) OR aur://package (AUR) OR https://git_url_to_clone (or http:// or ssh://)"
-            echo "  rem / rem fetch : fetch acu managed repositories."
+            echo "  rem / rem manage : show menu for add, list or remove ACU Managed and Pacman Repositories."
+            echo "  rem fetch : fetch acu managed repositories with packages list."
             echo "  rem list / rem show : list acu managed repositories."
             echo "  rem add / rem set <name> <url> : add a repository to acu (pacman and default are reserved name, do not use)."
             echo "  rem add / rem set pacman <name> <url> <gpg_key> : add a repository to acu."
@@ -2754,7 +2760,9 @@ elif [ "$1" = "downgrade" ] || [ "$1" = "-D" ]; then
     downgrade "$2" "$3"
 
 elif [ "$1" = "rem" ] || [ "$1" = "remote" ]; then
-    if [ -z "$2" ] || [ "$2" = "fetch" ]; then
+    if [ -z "$2" ] || [ "$2" = "manage" ]; then
+        manage_repositories
+    elif [ "$2" = "fetch" ]; then
         # fetch repositories and list all packages
         fetch_repositories list
     elif [ "$2" = "list" ] || [ "$2" = "show" ]; then
