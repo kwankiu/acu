@@ -737,7 +737,9 @@ add_repository() {
     fi
     # Read repository name
     if [ -z "$1" ]; then
-        read -p "Enter repository name: " repo_name
+        title "Add an ACU Managed Repository"
+        local p=$(colorecho "$NC" "Enter repository name: " "" "center")
+        read -p "$p" repo_name
     else
         repo_name="$1"
     fi
@@ -750,7 +752,8 @@ add_repository() {
             fi
             repo_url="https://github.com/kwankiu/acu"
         else
-            read -p "Enter repository URL: " repo_url
+            local p=$(colorecho "$NC" "Enter repository URL: " "" "center")
+            read -p "$p" repo_url
         fi
     else
         repo_url="$2"
@@ -795,12 +798,21 @@ list_repositories() {
     load_repositories
 
     # Print repositories
-    colorecho "$GREEN" "INFO $NC | List of Repositories:"
+    colorecho "$GREEN" "INFO $NC | List of ACU Managed Repositories:"
     for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
         echo "  Name: ${repositories_repo_name[i]}"
         echo "  Type: ${repositories_repo_type[i]}"
         echo "  URL: ${repositories_repo_url[i]}"
     done
+    colorecho "$GREEN" "INFO $NC | List of Pacman Repositories (Custom):"
+        local pacman_repo_list=($(pacman-conf --repo-list))
+        for ((i = 0; i < ${#pacman_repo_list[@]}; i++)); do
+            if [ "${pacman_repo_list[i]}" != "core" ] && [ "${pacman_repo_list[i]}" != "extra" ]; then
+                echo "  Name: ${pacman_repo_list[i]}"
+                local repo_info=$(pacman-conf --repo="${pacman_repo_list[i]}")
+                echo "  $repo_info"
+            fi
+        done
 }
 
 # Function to list repositories sorted by type
@@ -817,7 +829,7 @@ remove_repository() {
             ;;
         *)
             colorecho "$THEME" "INFO $NC | Repository will not be removed."
-            exit 1
+            return 1
             ;;
     esac
 
@@ -940,6 +952,56 @@ fetch_repositories() {
                 ;;
         esac
     done
+}
+
+manage_repositories() {
+    title "Manage Repositories"
+    list_repositories
+    options=()
+    options+=("Add an ACU Managed Repository")
+    options+=("Add a Pacman Repository")
+    options+=("Remove an ACU Managed Repository")
+    options+=("Edit Pacman Configurations")
+    options+=("Return to Manage Packages Menu")
+    echo
+    colorecho "$GREEN" "Options" "" "center"
+    echo
+    select_option "${options[@]}"
+    choice=$?
+
+    # Choice
+    case $choice in
+        0)
+            title "Add an ACU Managed Repository" "left"
+            add_repository
+            manage_repositories
+            ;;
+        1)
+            add_repo
+            manage_repositories
+            ;;
+        2)
+            title "Remove an ACU Managed Repository"
+            echo
+            colorecho "$GREEN" "Select a repository to remove: " "" "center"
+            echo
+            select_option "${repositories_repo_name[@]}"
+            choice=$?
+            remove_repository "${repositories_repo_name[choice]}"
+            manage_repositories
+            ;;
+        3)
+            colorecho "$GREEN" "INFO $NC | When you finish, press Ctrl+O to save then press Ctrl+X to exit the editor." "bottom" "center" "-a"
+            sleep 2
+            sudo nano /etc/pacman.conf
+            sudo pacman -Sy
+            manage_repositories
+            ;;
+        *)
+            manage_packages
+            ;;
+    esac
+
 }
 
 ################################################################
@@ -1308,8 +1370,7 @@ manage_packages() {
     title "Manage Packages"
     options=("Update Packages \t Check & Perform Selective / Full System Upgrade")
     options+=("Downgrade Packages \t Install / Downgrade any Arch Linux Packages from Archive")
-    options+=("Add Pacman Repo \t Add a package repository to archlinux's package manager (pacman).")
-    options+=("Add ACU Repo \t\t Add a package repository to be managed by acu.")
+    options+=("Manage Repositories \t List, add or remove ACU Managed and Pacman Repositories.")
     options+=("Return to Main Menu")
     select_option "${options[@]}"
     choice=$?
@@ -1323,7 +1384,7 @@ manage_packages() {
             downgrade
             ;;
         2)
-            add_repo
+            manage_repositories
             ;;
         *)
             config_options
@@ -1621,11 +1682,15 @@ downgrade() {
 add_repo() {
     if [ -z "$1" ]; then
         title "Add Pacman Repo"
-        read -p "Enter repo name: " repo_name
-        read -p "Enter server URL for $repo_name repo: " server_url
-        read -p "Do you want to add a GPG key for $repo_name repo? [Y/n]: " add_gpg_key
+        local p=$(colorecho "$NC" "Enter repo name: " "" "center")
+        read -p "$p" repo_name
+        local p=$(colorecho "$NC" "Enter server URL for $repo_name repo: " "" "center")
+        read -p "$p" server_url
+        local p=$(colorecho "$NC" "Do you want to add a GPG key for $repo_name repo? [Y/n]: " "" "center")
+        read -p "$p" add_gpg_key
         if [[ $add_gpg_key == [Yy]* ]]; then
-            read -p "Enter GPG key for $repo_name repo: " gpg_key
+            local p=$(colorecho "$NC" "Enter GPG key for $repo_name repo: " "" "center")
+            read -p "$p" gpg_key
         fi
     elif [ "$1" = "7Ji" ] && [ -z "$2" ]; then
         server_url="https://github.com/7Ji/archrepo/releases/download/\$arch"
@@ -2794,13 +2859,22 @@ elif [ "$1" = "cli" ]; then
                 acu -h
                 ;;
             sysinfo)
-                system_info
+                keypress=''
+                while [ "$keypress" != 'q' ]; do
+                    clear && system_info
+                    colorecho "$GREEN" "Press q to return to ACU CLI" "bottom" "center"
+                    read -t 3 -n 1 keypress
+                done
+                clear
                 ;;
             menu)
                 config_options
                 ;;
             apps)
                 apps
+                ;;
+            install | install*)
+                acu $cmd
                 ;;
             "")
                 ;;
