@@ -1856,68 +1856,69 @@ system_info() {
 # SoC Performance Profile
 soc_profile() {
 
-    if [ -z "$1" ] || [ "$1" = "status" ]; then
-        if [ -z "$1" ]; then
-            title "SoC Performance Profile"
-        else
-            title "SoC Monitor"
-        fi
-        colorecho "$THEME" "CPU Profile: $(cat /sys/bus/cpu/devices/cpu[046]/cpufreq/scaling_governor)"
-        colorecho "$THEME" "Memory Profile: $(cat /sys/class/devfreq/dmc/governor)"
-        colorecho "$THEME" "GPU Profile: $(cat /sys/class/devfreq/fb000000.gpu/governor)"
-    fi
-
     if [ -z "$1" ]; then
-        echo ""
-        options=("Performance - Run SoC at full performance" "On Demand - Run SoC on CPU usage demand" "Power Save - Run SoC on Power Saving Mode" "Return to Main Menu")
+        title "SoC Performance Profile"
+        echo
+        colorecho "$THEME" "CPU Profile: $(cat /sys/bus/cpu/devices/cpu[046]/cpufreq/scaling_governor 2>/dev/null)" "" "center" "-a"
+        colorecho "$THEME" "Memory Profile: $(cat /sys/class/devfreq/dmc/governor 2>/dev/null)" "" "center" "-a"
+        colorecho "$THEME" "GPU Profile: $(cat /sys/class/devfreq/fb000000.gpu/governor 2>/dev/null)" "" "center" "-a"
+        echo
+        options=("Performance - Run SoC at full performance" "On Demand - Run SoC on CPU usage demand" "Power Save - Run SoC on Power Saving Mode" "System Default - Run SoC with system default settings" "Return to Main Menu")
         select_option "${options[@]}"
         choice=$?
+
+        case $choice in
+            0)
+                create_soc_profile_service "performance"
+                colorecho "$GREEN" "Profile set to Performance"
+                ;;
+            1)
+                create_soc_profile_service "ondemand"
+                colorecho "$GREEN" "Profile set to On Demand"
+                ;;
+            2)
+                create_soc_profile_service "powersave"
+                colorecho "$GREEN" "Profile set to Power Save"
+                ;;
+            3)
+                sudo rm /etc/systemd/system/soc_profile.service
+                sudo systemctl daemon-reload
+                colorecho "$GREEN" "Removed SoC Profile service"
+                ;;
+            *)
+                config_options
+                ;;
+        esac
+        
     else
         case $1 in
-                "performance")
-                    choice=0
-                    ;;
-                "ondemand")
-                    choice=1
-                    ;;
-                "powersave")
-                    choice=2
-                    ;;
-                "status")
-                    choice=99
-                    ;;
-                "force-performance")
-                    force_performance_at_boot
-                    choice=99
-                    ;;
-                *)
-                    colorecho "$RED" "ERROR $NC | Invalid Option, Exiting ..."
-                    exit 1
-                    ;;
+            "performance")
+                echo performance | sudo tee /sys/bus/cpu/devices/cpu*/cpufreq/scaling_governor /sys/class/devfreq/dmc/governor /sys/class/devfreq/fb000000.gpu/governor
+                colorecho "$GREEN" "Set to Performance"
+                ;;
+            "ondemand")
+                echo ondemand | sudo tee /sys/bus/cpu/devices/cpu*/cpufreq/scaling_governor
+                echo dmc_ondemand | sudo tee /sys/class/devfreq/dmc/governor
+                echo simple_ondemand | sudo tee /sys/class/devfreq/fb000000.gpu/governor
+                colorecho "$GREEN" "Set to On Demand"
+                ;;
+            "powersave")
+                echo powersave | sudo tee /sys/bus/cpu/devices/cpu*/cpufreq/scaling_governor /sys/class/devfreq/dmc/governor /sys/class/devfreq/fb000000.gpu/governor
+                colorecho "$GREEN" "Set to Power Save"
+                ;;
+            *)
+                colorecho "$RED" "ERROR $NC | Invalid SoC Governor"
+                exit 1
+                ;;
         esac
     fi
-
-    if [ "$choice" = "0" ]; then
-        echo performance | sudo tee /sys/bus/cpu/devices/cpu[046]/cpufreq/scaling_governor /sys/class/devfreq/dmc/governor /sys/class/devfreq/fb000000.gpu/governor
-         colorecho "$GREEN" "Profile set to Performance"
-    elif [ "$choice" = "1" ]; then
-        echo ondemand | sudo tee /sys/bus/cpu/devices/cpu[046]/cpufreq/scaling_governor && echo dmc_ondemand | sudo tee /sys/class/devfreq/dmc/governor && echo simple_ondemand | sudo tee /sys/class/devfreq/fb000000.gpu/governor
-        colorecho "$GREEN" "Profile set to On Demand"
-    elif [ "$choice" = "2" ]; then
-        echo powersave | sudo tee /sys/bus/cpu/devices/cpu[046]/cpufreq/scaling_governor /sys/class/devfreq/dmc/governor /sys/class/devfreq/fb000000.gpu/governor
-        colorecho "$GREEN" "Profile set to Power Save"
-    elif [ "$choice" = "99" ]; then
-        fan_control status --soc-monitor
-    else
-        config_options
-    fi
-
 }
 
-force_performance_at_boot() {
-    echo -e "[Unit]\nDescription=Set Performance Mode on Boot\nAfter=multi-user.target\n\n[Service]\nType=oneshot\nExecStart=/bin/bash -c \"echo performance > /sys/bus/cpu/devices/cpu4/cpufreq/scaling_governor; echo performance > /sys/bus/cpu/devices/cpu0/cpufreq/scaling_governor; echo performance > /sys/bus/cpu/devices/cpu6/cpufreq/scaling_governor; echo performance > /sys/class/devfreq/dmc/governor; echo performance > /sys/class/devfreq/fb000000.gpu/governor\"\n\n[Install]\nWantedBy=multi-user.target" | sudo tee /etc/systemd/system/force-performance.service > /dev/null
-    sudo systemctl daemon-reload
-    sudo systemctl enable force-performance.service
+create_soc_profile_service() {
+    local governor=$1
+    echo -e "[Unit]\nDescription=SoC Profile\nAfter=multi-user.target\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/acu soc $governor \nRemainAfterExit=no\n\n[Install]\nWantedBy=multi-user.target" | sudo tee /etc/systemd/system/soc_profile.service > /dev/null
+    sudo systemctl enable soc_profile.service
+    sudo systemctl restart soc_profile.service
 }
 
 ################################################################
