@@ -1612,9 +1612,12 @@ add_repo() {
         if [[ $add_gpg_key == [Yy]* ]]; then
             read -p "Enter GPG key for $repo_name repo: " gpg_key
         fi
-    elif [ "$1" = "7Ji" ]; then
+    elif [ "$1" = "7Ji" ] && [ -z "$2" ]; then
         server_url="https://github.com/7Ji/archrepo/releases/download/\$arch"
         gpg_key="BA27F219383BB875"
+    elif [ "$1" = "Experimental" ] && [ -z "$2" ]; then
+        server_url="https://github.com/kwankiu/archlinux-installer-rock5/releases/download/experimental"
+        gpg_key="B669E3B56B3DC918"
     else
         colorecho "$RED" "ERROR $NC | Invalid repo name. Aborting."
         return 1
@@ -1627,9 +1630,9 @@ add_repo() {
     colorecho "$GREEN" "Adding $repo_name to pacman.conf ..."
 
     if [ -z "$gpg_key" ]; then
-        echo -e "[$repo_name]\nServer = $server_url" | sudo tee -a /etc/pacman.conf
-    else
         echo -e "[$repo_name]\nSigLevel = Never\nServer = $server_url" | sudo tee -a /etc/pacman.conf
+    else
+        echo -e "[$repo_name]\nServer = $server_url" | sudo tee -a /etc/pacman.conf
         colorecho "$GREEN" "Adding GPG keys ..."
         sudo pacman-key --recv-keys "$gpg_key"
         sudo pacman-key --lsign "$gpg_key"
