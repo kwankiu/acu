@@ -214,11 +214,11 @@ colorecho() {
     tput sc # Save cursor position
 
     if [[ "$arg" == "-a" ]]; then
-            LEN=$(($(tput cols) - 10))
+            LEN=$(($(tput cols) - 2))
             if [ "$LEN" -gt 100 ]; then
                 LEN=100
             fi
-            text=$(printf "%-${LEN}s" "$text" | cut -c1-$(echo ${LEN}))
+            text=$(printf "%-${LEN}s" "     $text" | cut -c1-$(echo ${LEN}))
     fi
     
     if [ "$vposition" = "top" ]; then
@@ -947,7 +947,7 @@ fetch_repositories() {
 config_options() {
     title
     colorecho "$NC" ""
-    colorecho "$WARNING" "\t    WARNING $NC| $utilname is experimental |$GREEN $release" "bottom" "center" # Bottom Text
+    colorecho "$WARNING" "\t    WARNING $NC| $utilname is experimental |$GREEN $release" "bottom" "center" "-a" # Bottom Text
     options=("System Maintenance \t Configure system settings, System utilites & infomation")
     options+=("Manage Packages \t Upgrade or downgrade packages, Manage packages repositories")
     options+=("ACU Apps \t\t Curated collection of applications or packages to install")
@@ -1022,7 +1022,13 @@ system_maintenance() {
             sudo partimage
             ;;
         2)
-            system_info --center
+            local keypress=''
+            while [ "$keypress" != 'q' ]; do
+                system_info --center
+                colorecho "$GREEN" "Press q to return to main menu" "bottom" "center"
+                read -t 3 -n 1 keypress
+            done
+            config_options
             ;;
         *)
             config_options
@@ -1313,7 +1319,7 @@ manage_packages() {
             package_update
             ;;
         1)
-            downgrade_packages
+            downgrade
             ;;
         2)
             add_repo
@@ -1571,11 +1577,12 @@ install_pkg() {
 }
 
 # Install Packages from Archive
-downgrade_packages() {
+downgrade() {
     title "Downgrade Packages"
 
     if [ -z "$1" ]; then
-        read -p "Enter package to downgrade: " dgpkg
+        local p=$(colorecho "$NC" "Enter a package to downgrade: " "" "center")
+        read -p "$p" dgpkg
     else
         dgpkg=$1
     fi
@@ -1589,18 +1596,25 @@ downgrade_packages() {
 
     dgpkgfb=$(echo $dgpkg | cut -b 1)
     which_url="${alaa_url}/packages/${dgpkgfb}/${dgpkg}/"
-    colorecho "$GREEN" "Fetching $which_url ..."
-    #latest_image=$(curl -s "$which_url" | grep -o '*-aarch64.pkg.tar.xz' | head -n 1)
-    dgpkg_list=$(curl -s "$which_url" | grep -v '.sig' | grep -o 'href="[^"]*"' | sed 's/href="//;s/"$//' | grep -o ${dgpkg}.*-aarch64.pkg.tar.xz)
-    dgpkg_date=$(curl -s "$which_url" | grep -v '.sig' | grep -o "${dgpkg}.*-aarch64.pkg.tar.xz.*<td class=\"date\">.*</td>" | grep -o "<td class=\"date\">.*</td>" | awk -F'<td class="date">|</td>' '{print $2}')
-
-    #paste -d ' ' <(echo "$dgpkg_list") <(echo "$dgpkg_date") | sort -k 2,2 -r
-    dgpkg_list=($(paste -d ' ' <(echo "$dgpkg_list") <(echo "$dgpkg_date") | sort -k 2,2 -r | awk '{print $1}' | head -n $nopkg))
-    select_option "${dgpkg_list[@]}"
-    choice=$?
-
-    download_pkg_from_url "${which_url}${dgpkg_list[choice]}"
-    install_local_pkg "${which_url}${dgpkg_list[choice]}"
+    colorecho "$GREEN" "Fetching $which_url ..." "" "center"
+    echo
+    response_code=$(curl --write-out '%{response_code}' -s "$which_url" -o /dev/null)
+    if [ "$response_code" != 200 ]; then
+        colorecho "$RED" "ERROR $response_code | No result found" "center" "center"
+        select_option "Return to Manage Packages Menu"
+    else
+        dgpkg_list=$(curl -s "$which_url" | grep -v '.sig' | grep -o 'href="[^"]*"' | sed 's/href="//;s/"$//' | grep -o ${dgpkg}.*-aarch64.pkg.tar.xz)
+        dgpkg_date=$(curl -s "$which_url" | grep -v '.sig' | grep -o "${dgpkg}.*-aarch64.pkg.tar.xz.*<td class=\"date\">.*</td>" | grep -o "<td class=\"date\">.*</td>" | awk -F'<td class="date">|</td>' '{print $2}')
+        dgpkg_list=($(paste -d ' ' <(echo "$dgpkg_list") <(echo "$dgpkg_date") | sort -k 2,2 -r | awk '{print $1}' | head -n $nopkg))
+        select_option "${dgpkg_list[@]}" "Return to Manage Packages Menu"
+        choice=$?
+    fi
+    if [ "$choice" -lt "${#dgpkg_list[@]}" ]; then
+        download_pkg_from_url "${which_url}${dgpkg_list[choice]}"
+        install_local_pkg "${which_url}${dgpkg_list[choice]}"
+    else
+        manage_packages
+    fi
 }
 
 add_repo() {
@@ -1681,6 +1695,7 @@ performance_features() {
 system_info() {
     if [ "$1" == "--center" ]; then
         title "System Information"
+        echo
     else
         title "System Information" "left" "noclear"
     fi
@@ -2670,7 +2685,7 @@ elif [ "$1" = "build" ] || [ "$1" = "-B" ]; then
     echo "sources located at $HOME/.acu/sources"
 
 elif [ "$1" = "downgrade" ] || [ "$1" = "-D" ]; then
-    downgrade_packages "$2" "$3"
+    downgrade "$2" "$3"
 
 elif [ "$1" = "rem" ] || [ "$1" = "remote" ]; then
     if [ -z "$2" ] || [ "$2" = "fetch" ]; then
