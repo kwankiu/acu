@@ -334,7 +334,7 @@ update_util() {
         fi
         args=("$@")
         for ((i = 0; i < ${#args[@]}; i++)); do
-            if [[ "${args[i]}" == "-u" || "${args[i]}" == "--update" ]]; then
+            if [[ "${args[i]}" == "-u" || "${args[i]}" == "--update" || "${args[i]}" == "--update="* ]]; then
                 unset 'args[i]'  # Remove -y or --yes from the arguments
             fi
         done
@@ -2512,7 +2512,9 @@ fi
 
 # Install / Reinstall / Updates / Auto Update
 if [ -n "$argupdate" ] || [ -n "$auto_update" ]; then
-    check_util_updates
+    if [ -z "$remote_release" ]; then
+        check_util_updates
+    fi
     update_util "$@"
 fi
 
