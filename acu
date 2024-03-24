@@ -170,11 +170,12 @@ function select_option {
             else
                 formatted_opt=" $((idx + 1)) \t $opt"
             fi
-            LEN=$(($(tput cols) - 10))
+            LEN=$(($(tput cols) - 20))
             if [ "$LEN" -gt 100 ]; then
                 LEN=100
             fi
-            formatted_opt=$(printf "%-${LEN}s" "$formatted_opt" | cut -c1-$(echo ${LEN}))
+            formatted_opt=$(echo "$formatted_opt" | cut -c1-$(echo ${LEN}))
+            formatted_opt=$(printf "%-${LEN}s" "$formatted_opt")
             if [ $idx -eq $selected ]; then
                 print_selected "$formatted_opt"
             else
