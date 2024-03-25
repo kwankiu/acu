@@ -1951,10 +1951,27 @@ hw_monitor() {
     sys_temps=($(cat /sys/class/thermal/thermal_zone*/temp))
     sys_temps_name=($(cat /sys/class/thermal/thermal_zone*/type))
 
-    if [ -e "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq" ]; then
-        sys_cpu_freq=($(sudo cat /sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_cur_freq))
+    if command -v lscpu &> /dev/null; then
+        sys_core_vendor=$(lscpu | grep "Vendor ID" | cut -d ":" -f 2 | cut -c 2- | tr -d ' ')
+        sys_core_model=($(lscpu -e=MODELNAME | tr -d ' '))
+        sys_core_model=("${sys_core_model[@]:1}") # Remove the first element
+
+        sys_core_freq=($(lscpu -e=MHZ))
+        sys_core_freq=("${sys_core_freq[@]:1}")  # Remove the first element
+
+        sys_core_min_freq=($(lscpu -e=MINMHZ))
+        sys_core_min_freq=("${sys_core_min_freq[@]:1}")  # Remove the first element
+
+        sys_core_max_freq=($(lscpu -e=MAXMHZ))
+        sys_core_max_freq=("${sys_core_max_freq[@]:1}")  # Remove the first element
+
+    elif [ -e "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq" ]; then
+        sys_core_freq=($(sudo cat /sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_cur_freq))
+        for ((i = 0; i < ${#sys_core_freq[@]}; i++)); do
+            sys_core_freq[i]=$(( ${sys_core_freq[i]} / 1000 ))
+        done
     else
-        sys_cpu_freq=(0)
+        sys_core_freq=("0.00")
     fi
 
     if [ -e "/sys/bus/cpu/devices/cpu0/cpufreq/scaling_governor" ]; then
@@ -1964,8 +1981,18 @@ hw_monitor() {
     # GPU Model
     if command -v glxinfo &> /dev/null; then
         sys_gpu=$(glxinfo | grep "OpenGL renderer string" | cut -d ":" -f 2 | cut -c 2-)
+        sys_gl_ver=$(glxinfo | grep "OpenGL version string" | cut -d ":" -f 2 | cut -c 2-)
+        sys_gles_ver=$(glxinfo | grep "OpenGL ES profile version string" | cut -d ":" -f 2 | cut -c 2-)
     else
         sys_gpu="Unknown (mesa-utils not installed)"
+        sys_gl_ver="Unknown (mesa-utils not installed)"
+        sys_gles_ver="Unknown (mesa-utils not installed)"
+    fi
+
+    if command -v vulkaninfo &> /dev/null; then
+        sys_vk_ver=$(vulkaninfo | grep "Vulkan Instance Version" | cut -d ":" -f 2 | cut -c 2-)
+    else
+        sys_vk_ver="Unknown (vulkaninfo not installed)"
     fi
 
     if [ "$1" == "--center" ]; then
@@ -1975,17 +2002,22 @@ hw_monitor() {
 
     colorecho "$THEME" "CPU: $NC ($sys_cpu_thread) $sys_cpu ($sys_arch)" "" "$align" "$alignarg"
     echo
-    for ((i=0; i<${#sys_cpu_freq[@]}; i++)); do
-        local core_freq="$((sys_cpu_freq[i] / 1000000))"
-        colorecho "$THEME" "\t Core $i: $NC $sys_cpu @ $core_freq Ghz (${sys_cpu_governor[i]})" "" "$align" "$alignarg"
+    for ((i=0; i<${#sys_core_freq[@]}; i++)); do
+        local core_freq="${sys_core_freq[i]}"
+        local core_model="${sys_core_vendor} ${sys_core_model[i]}"
+        local core_mfreq="Min: ${sys_core_min_freq[i]} MHz, Max: ${sys_core_max_freq[i]} MHz"
+        colorecho "$THEME" "\t Core $i: $NC $core_model @ $core_freq MHz (${sys_cpu_governor[i]}) ($core_mfreq)" "" "$align" "$alignarg"
     done
     echo
-    colorecho "$THEME" "GPU: $NC $sys_gpu" "" "$align" "$alignarg"
+    colorecho "$THEME" "GPU: $NC ${sys_gpu:-"Software Rendering"}" "" "$align" "$alignarg"
+    colorecho "$THEME" "\t OpenGL: $NC ${sys_gl_ver:-"Unsupported"}" "" "$align" "$alignarg"
+    colorecho "$THEME" "\t OpenGL ES: $NC ${sys_gles_ver:-"Unsupported"}" "" "$align" "$alignarg"
+    colorecho "$THEME" "\t Vulkan: $NC ${sys_vk_ver:-"Unsupported"}" "" "$align" "$alignarg"
     echo
     colorecho "$THEME" "Temperatures:" "" "$align" "$alignarg"
     for ((i=0; i<${#sys_temps[@]}; i++)); do
         local stemp="$((sys_temps[i] / 1000))"
-        local stemp_name="${sys_temps_name[i]%-thermal}"
+        local stemp_name=$(echo "${sys_temps_name[i]%-thermal}" | tr '[:lower:]' '[:upper:]')
         colorecho "$THEME" "\t $stemp_name: $NC $stemp C" "" "$align" "$alignarg"
     done
 }
