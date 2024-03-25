@@ -1825,7 +1825,7 @@ performance_features() {
     title "Performance & Features"
     options=("SoC Profile \t\t Available options are performance, ondemand and powersave")
     options+=("HW Monitor \t\t Monitor Hardware infomations, temperatures & clock frequency")
-    options+=("Fan Control \t\t (ROCK 5 ONLY) Configure PWM Fan-control service")
+    #options+=("Fan Control \t\t (ROCK 5 ONLY) Configure PWM Fan-control service")
     #options+=("Overclocking - Configure rk3588-unlock-opps overlay which increases CPU supply & CPU VDD supply")
     #options+=("Overlay - Configure Device Tree Overlay")
     options+=("Return to Main Menu")
@@ -1896,8 +1896,8 @@ soc_profile() {
                 ;;
         esac
         
-    else
-        case $1 in
+    elif [ "$1" = "set" ]; then
+        case $2 in
             "performance")
                 echo performance | sudo tee /sys/bus/cpu/devices/cpu*/cpufreq/scaling_governor /sys/class/devfreq/dmc/governor /sys/class/devfreq/fb000000.gpu/governor
                 colorecho "$GREEN" "Set to Performance"
@@ -1922,7 +1922,7 @@ soc_profile() {
 
 create_soc_profile_service() {
     local governor=$1
-    echo -e "[Unit]\nDescription=SoC Profile\nAfter=multi-user.target\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/acu soc $governor \nRemainAfterExit=no\n\n[Install]\nWantedBy=multi-user.target" | sudo tee /etc/systemd/system/soc_profile.service > /dev/null
+    echo -e "[Unit]\nDescription=SoC Profile\nAfter=multi-user.target\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/acu soc set $governor \nRemainAfterExit=no\n\n[Install]\nWantedBy=multi-user.target" | sudo tee /etc/systemd/system/soc_profile.service > /dev/null
     sudo systemctl enable soc_profile.service
     sudo systemctl restart soc_profile.service
 }
@@ -2683,8 +2683,9 @@ for arg in "$@"; do
             echo
             colorecho "$THEME" "Performance"
             echo
-            echo "  soc <option> : Manage SoC Settings. options: performance, ondemand, powersave (and status for SoC Monitor) and force-performance which set performance at every bootup."
-            echo "  fan <option> : Configure PWM Fan-control. options: install, enable, disable and status."
+            echo "  soc set <governor> : Manage SoC Settings. options: performance, ondemand, powersave."
+            echo "  hwmon : Print hardware infomations like cpu clock freq, temps and gpu info."
+            #echo "  fan <option> : Configure PWM Fan-control. options: install, enable, disable and status."
             echo
             colorecho "$THEME" "Localization"
             echo
@@ -2692,7 +2693,7 @@ for arg in "$@"; do
             echo "  font : Install Fonts, TTF, Non-English Characters, Special Characters / Emoji."
             echo "  time <option> : Change Time Zone, Current Date and Time. options: set-time-zone, set-time-date, network-time-zone, system-time-zone"
             echo "  keyboard : Change Keyboard Layout."
-            echo "  wifi : Change WiFi Country Settings."
+            #echo "  wifi : Change WiFi Country Settings."
             echo
             colorecho "$THEME" "User Accounts"
             echo
@@ -2981,13 +2982,16 @@ elif [ "$1" = "bootloader" ]; then
 
 ### Features - Performance & Features ###
 elif [ "$1" = "soc" ]; then
-    soc_profile "$2"
+    soc_profile "$2" "$3"
 
 elif [ "$1" = "fan" ]; then
     fan_control "$2"
 
 elif [ "$1" = "sysinfo" ]; then
     system_info
+
+elif [ "$1" = "hwmon" ]; then
+    hw_monitor
 
 ### Features - User & Localization ###
 
@@ -3043,6 +3047,15 @@ elif [ "$1" = "cli" ]; then
                 keypress=''
                 while [ "$keypress" != 'q' ]; do
                     clear && system_info
+                    colorecho "$GREEN" "Press q to return to ACU CLI" "bottom" "center"
+                    read -t 3 -n 1 keypress
+                done
+                clear
+                ;;
+            hwmon)
+                keypress=''
+                while [ "$keypress" != 'q' ]; do
+                    clear && hw_monitor
                     colorecho "$GREEN" "Press q to return to ACU CLI" "bottom" "center"
                     read -t 3 -n 1 keypress
                 done
