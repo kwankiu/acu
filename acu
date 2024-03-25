@@ -51,6 +51,7 @@ config_file="$HOME/.acu/config/config.yaml"
 
 # Reset to Terminal Default Colors
 TDC='\033[0m'
+NC=$TDC
 
 # Terminal text colors
 BLACK='\033[30m'
@@ -71,31 +72,27 @@ DKRED='\033[31m'
 DKGREEN='\033[32m'
 
 # Terminal background colors
-BGBLACK='\033[40m'
-BGGREY='\033[100m'
-BGRED='\033[101m'
-BGGREEN='\033[102m'
-BGYELLOW='\033[43m'
-BGORANGE='\033[103m'
-BGBLUE='\033[44m'
-BGDKBLUE='\033[104m'
-BGMAGENTA='\033[45m'
-BGCYAN='\033[106m'
-BGWHITE='\033[107m'
-BGLTMAGENTA='\033[105m'
-BGLTBLUE='\033[46m'
-BGLTGREY='\033[47m'
-BGDKRED='\033[41m'
-BGDKGREEN='\033[42m'
+BGBLACK='40m'
+BGGREY='100m'
+BGRED='101m'
+BGGREEN='102m'
+BGYELLOW='43m'
+BGORANGE='103m'
+BGBLUE='44m'
+BGDKBLUE='104m'
+BGMAGENTA='45m'
+BGCYAN='106m'
+BGWHITE='107m'
+BGLTMAGENTA='105m'
+BGLTBLUE='46m'
+BGLTGREY='47m'
+BGDKRED='41m'
+BGDKGREEN='42m'
 
 # Default Theme color
 THEME=$BLUE
-#THEME='\033[34;107m'
 WARNING=$YELLOW
 DEBUG=$LTGREY
-#NC='\033[34;107m'
-NC=$TDC
-#BACKGROUND=$NC
 
 # sudo override
 sudo () {
@@ -154,7 +151,7 @@ function select_option {
     local startrow=$(($lastrow - $#))
 
     # Ensure cursor and input echoing back on upon a ctrl+c during read -s
-    trap "cursor_blink_on; stty echo; printf '\n'; exit" 2
+    trap "cursor_blink_on; stty echo; printf '\n'; tset; exit" 2
     cursor_blink_off
 
     local selected=0
@@ -1053,8 +1050,7 @@ config_options() {
             manage_user
             ;;
         6)
-            title "ACU Settings"
-            colorecho "$GREEN" "Coming Soon" "center" "center"
+            settings
             ;;
         7)
             update_util # Or Exit Utility if no update is available
@@ -1925,6 +1921,10 @@ create_soc_profile_service() {
     sudo systemctl restart soc_profile.service
 }
 
+hw_monitor() {
+    title "HW Monitor"  
+}
+
 ################################################################
 # Localization
 
@@ -2343,6 +2343,111 @@ keyboard() {
     esac
 }
 
+# ACU Settings
+settings() {
+    title "ACU Settings"
+    echo
+    colorecho "$NC" "\t\tTheme:          ${THEME_NAME:-"(unset)"}" "" "center" "-a"
+    colorecho "$NC" "\t\tTheme Color:   $THEME This is an example $NC" "" "center" "-a"
+    colorecho "$NC" "\t\tWarning Color: $WARNING This is a warning message $NC" "" "center" "-a"
+    colorecho "$NC" "\t\tDebug Color:   $DEBUG This is a debug message $NC" "" "center" "-a"
+    colorecho "$NC" "\t\tConfig File:    $config_file" "" "center" "-a"
+    colorecho "$WARNING" "\t    WARNING $NC| $utilname is experimental |$GREEN $release" "bottom" "center" "-a" # Bottom Text
+    echo
+    select_options=("Change ACU Theme" "Change Theme Color" "Edit ACU Configurations" "Load Default ACU Configurations" "Return to Main Menu")
+    select_option "${select_options[@]}"
+    choice=$?
+
+    case $choice in
+        0)
+            title "ACU Themes"
+            echo
+            select_options=(   "ACU - Light" "ACU - Dark" "ACU - Gaming")
+            local theme_color=("\$BLUE"      "\$LTBLUE"     "\$RED"       )
+            local theme_bg=(   "\$BGWHITE"   "\$BGBLACK"  "\$BGBLACK"   )
+            select_option "${select_options[@]}" "Reset to default (theme unset)" "Return to Main Menu"
+            choice=$?
+            if [ "$choice" -lt "${#select_options[@]}" ]; then
+                sed -i "s| #BACKGROUND: | BACKGROUND: |" $config_file
+                sed -i "s| #THEME_NAME: | THEME_NAME: |" $config_file
+                sed -i "s| #THEME: | THEME: |" $config_file
+                sed -i "s/ THEME_NAME:.*/ THEME_NAME: ${select_options[choice]}/g" $config_file
+                sed -i "s/ BACKGROUND:.*/ BACKGROUND: ${theme_bg[choice]}/g" $config_file
+                sed -i "s/ THEME:.*/ THEME: ${theme_color[choice]}/g" $config_file
+                load_config
+                settings
+            elif [ "$choice" -eq "${#select_options[@]}" ]; then
+                echo "Reset to default"
+                sed -i "s| BACKGROUND: | #BACKGROUND: |" $config_file
+                sed -i "s| THEME_NAME: | #THEME_NAME: |" $config_file
+                sed -i "s| THEME: | #THEME: |" $config_file
+                acu settings
+            else
+                settings
+            fi
+            ;;
+        1)
+            title "Theme Color"
+            echo
+            select_options=("\$GREY" "\$RED" "\$GREEN" "\$ORANGE" "\$BLUE" "\$DKBLUE" "\$MAGENTA" "\$CYAN" "\$WHITE" "\$LTMAGENTA" "\$LTBLUE" "\$DKRED" "\$DKGREEN")
+            select_option "${select_options[@]}" "Reset to default" "Return to Main Menu"
+            choice=$?
+            if [ "$choice" -lt "${#select_options[@]}" ]; then
+                sed -i "s| #THEME: | THEME: |" $config_file
+                sed -i "s/ THEME:.*/ THEME: ${select_options[choice]}/g" $config_file
+                load_config
+                settings
+            elif [ "$choice" -eq "${#select_options[@]}" ]; then
+                echo "Reset to default"
+                sed -i "s| THEME: | #THEME: |" $config_file
+                acu settings
+            else
+                settings
+            fi
+            ;;
+        2)
+            title "Edit ACU Configurations"
+            colorecho "$GREEN" "INFO $NC | Starting Editor ... When you finish, press Ctrl+O to save then press Ctrl+X to exit the editor." "center" "center"
+            sleep 2
+            nano $config_file
+            acu settings
+            ;;
+        3)
+            title "Load Default ACU Configurations"
+
+            if [ -z "$no_confirm" ]; then
+                local p=$(colorecho "$RED" "ACU $NC | Confirm to load default ACU Configurations? (This will overwrite your existing ACU configurations) [y/N]:")
+                read -p "$p" resetconfig
+            else
+                resetconfig="y"
+            fi
+
+            if [[ "$resetconfig" == [Yy]* ]]; then
+                echo "Downloading new configuration file ..."
+                # Download default configurations file
+                local config_dir=$(dirname "$config_file")
+                mkdir -p "$config_dir"
+                response_code=$(curl --write-out '%{response_code}' -L https://raw.githubusercontent.com/kwankiu/acu/$release/config/config.yaml -o tmpdownload_config.yaml)
+                if [ "$response_code" = 200 ]; then
+                    cp -r tmpdownload_config.yaml $HOME/.acu/config/config.yaml
+                    sudo rm -rf tmpdownload_config.yaml
+                    load_config
+                    settings
+                else
+                    sudo rm -rf tmpdownload_config.yaml
+                    colorecho "$RED" "ERROR $NC | Failed to load default ACU Configurations." 
+                fi
+            else
+                settings
+            fi
+            ;;
+        *)
+            config_options
+            ;;
+    esac
+    
+}
+
 ################################################################
 # Main Program
 
@@ -2351,6 +2456,11 @@ keyboard() {
 load_config() {
     if [ -f "$config_file" ] || [[ "$config_file" == *"://"* ]] ; then
         eval $(load_yaml "$config_file" " ")
+        if [ -n "$BACKGROUND" ]; then
+            BACKGROUND="${THEME%?};${BACKGROUND}"
+            THEME=$BACKGROUND
+            NC=$BACKGROUND
+        fi
     elif [ ! "$(id -u)" -eq 0 ]; then
         # Download default configurations file
         local config_dir=$(dirname "$config_file")
@@ -2490,6 +2600,10 @@ for arg in "$@"; do
             colorecho "$THEME" "User Accounts"
             echo
             echo "  user <option> : Add, Remove and Change User Account Settings. options: add, remove, manage"
+            echo
+            colorecho "$THEME" "ACU Settings"
+            echo
+            echo "  settings : Config ACU Settings, change theme, color , edit ACU Configurations, etc."
             exit 0
             ;;
         -u | --update)
@@ -2795,9 +2909,6 @@ elif [ "$1" = "time" ]; then
 elif [ "$1" = "keyboard" ]; then
     keyboard "$2"
 
-elif [ "$1" = "wifi" ]; then
-    wifi_country "$2"
-
 elif [ "$1" = "alias" ]; then
     if [ "$2" = "add" ] || [ "$2" = "create" ]; then
         add_alias "${@:3}"
@@ -2863,6 +2974,9 @@ elif [ "$1" = "cli" ]; then
                 ;;
         esac
     done
+
+elif [ "$1" = "settings" ]; then
+    settings
 
 ### Main Menu ###
 elif [ "$1" != "-v" ] && [ "$1" != "--version" ]; then
