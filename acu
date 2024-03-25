@@ -2190,12 +2190,12 @@ locale() {
                 done
                 echo
 
-                if [ -z "$3" ]; then
+                if [ -n "$no_confirm" ]; then
+                    choice=0
+                elif [ -z "$3" ]; then
                     select_options=("Generate Locales" "Cancel")
                     select_option "${select_options[@]}"
                     choice=$?
-                elif [ "$3" = "-y" ]; then
-                    choice=0
                 else
                     colorecho "$RED" "ERROR $NC | Invalid option"
                     exit 1
@@ -2506,8 +2506,12 @@ for arg in "$@"; do
                     unset 'args[i]'  # Remove -y or --yes from the arguments
                 fi
             done
-            yes y | acu "${args[@]}"
-            exit 0
+            if [ -n "$3" ] && [ "$1" != "locale" ] ; then
+                yes y | acu "${args[@]}"
+                exit 0
+            else
+                no_confirm=1
+            fi
         ;;
         --noconfirm)
             no_confirm=1
