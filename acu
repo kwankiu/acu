@@ -1935,7 +1935,6 @@ localization() {
     options+=("Fonts \t\t\t Install Fonts, TTF, Non-English Characters, Special Characters / Emoji")
     options+=("Time \t\t\t Change Time Zone, Current Date and Time")
     options+=("Keyboard Layout \t Change Keyboard Layout")
-    options+=("WiFi Country \t\t Change WiFi Country Settings")
     options+=("Return to Main Menu")
     select_option "${options[@]}"
     choice=$?
@@ -1953,9 +1952,6 @@ localization() {
             ;;
         3)
             keyboard
-            ;;
-        4)
-            wifi_country
             ;;
         *)
             config_options
@@ -2125,16 +2121,20 @@ manage_user() {
 # Function to select and generate locale
 locale() {
 
-    generated_locales=$(sudo locale -a)
+    generated_locales=$(sudo localedef --list-archive)
+    local i
     
     if [ -z "$1" ]; then
         title "Locale"
-        
         # List available locales
-        colorecho "$GREEN" "Generated Locales:"
-
-        echo "$generated_locales"
-        echo ""
+        echo
+        colorecho "$GREEN" "Generated Locales:" "" "center"
+        echo
+        generated_locales=($(echo $generated_locales))
+        for ((i = 0; i < ${#generated_locales[@]}; i++)); do
+            colorecho "$NC" "${generated_locales[i]}" "" "center"
+        done
+        echo
 
         # Prompt to select and generate locale
         select_options=("Generate New Locales" "Return to Localization Menu")
@@ -2182,11 +2182,13 @@ locale() {
                 done
                 
                 title "Generate Locale"
-                colorecho "$GREEN" "The following locales will be added:"
-
+                echo
+                colorecho "$GREEN" "The following locales will be added:" "" "center"
+                echo
                 for ((i = 0; i < ${#matches[@]}; i++)); do
-                    echo "${matches[i]}"
+                    colorecho "$NC" "${matches[i]}" "" "center"
                 done
+                echo
 
                 if [ -z "$3" ]; then
                     select_options=("Generate Locales" "Cancel")
@@ -2253,16 +2255,16 @@ timezone() {
     if [ -z "$1" ]; then
 
         title "Time Zone"
-
-        colorecho "$GREEN" "Network Time Zone: $network_timezone"
+        echo
+        colorecho "$GREEN" "Network Time Zone: $network_timezone" "" "center"
 
         if [ "$current_timezone" = "$network_timezone" ]; then
-            colorecho "$GREEN" "Current Time Zone: $current_timezone"
+            colorecho "$GREEN" "Current Time Zone: $current_timezone" "" "center"
         else
-            colorecho "$RED" "Current Time Zone: $current_timezone"
+            colorecho "$RED" "Current Time Zone: $current_timezone" "" "center"
         fi
 
-        echo ""
+        echo
         select_options=("Return to Localization Menu" "Set Time Zone Manually" "Set Date & Time Manually")
 
         if [ "$current_timezone" != "$network_timezone" ]; then
@@ -2320,7 +2322,9 @@ keyboard() {
     # Get current keyboard layout
     current_layout=$(localectl status | grep "X11 Layout" | awk '{print $3}')
     
-    echo "Current Keyboard Layout: $current_layout"
+    echo
+    colorecho "$GREEN" "Current Keyboard Layout: $current_layout" "" "center"
+    echo
     
     # Prompt to select new keyboard layout
     select_options=("Change Keyboard Layout" "Return to Localization Menu")
@@ -2337,27 +2341,6 @@ keyboard() {
             localization
             ;;
     esac
-}
-
-# Function to change WiFi country
-wifi_country() {
-    title "WiFi Country"
-
-    # Get available WiFi countries
-    wifi_countries=("Return to Localization Menu")
-    wifi_countries+=($(iw reg get | grep -o -E '^[A-Z]{2}'))
-    
-    # Display available WiFi countries and prompt to select
-    select_option "${wifi_countries[@]}"
-    choice=$?
-    
-    if [ "$choice" -ge 1 ] && [ "$choice" -le "${#wifi_countries[@]}" ]; then
-        selected_country=${wifi_countries[$((choice))]}
-        sudo iw reg set "$selected_country"
-        echo "WiFi Country updated to $selected_country"
-    else
-        localization
-    fi
 }
 
 ################################################################
