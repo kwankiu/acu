@@ -1082,12 +1082,15 @@ system_maintenance() {
             flash_uboot
             ;;
         1)
-            if ! pacman -Q partimage; then
-                echo "partimage is not installed"
-                echo "Installing required package ..."
+            title "Copy System"
+            if ! command -v partimage &> /dev/null; then
+                echo
+                colorecho "$RED" "partimage is not installed, installing ..." "" "center"
+                echo
                 acu install partimage
             fi
             sudo partimage
+            system_maintenance
             ;;
         2)
             local keypress=''
@@ -1105,83 +1108,121 @@ system_maintenance() {
 
 }
 
-# System Update
-package_update() {
-
-    title "Package Updates"
-
-    if [ "$1" = "--select" ]; then
-        local selected_option="${poptions[$2]}"
-
-        if [[ " ${selection[*]} " == *" $selected_option "* ]]; then
-            options[$2]="[ ] ${selected_option}"
-            selection=("${selection[@]/$selected_option}")
-        else
-            options[$2]="[x] ${selected_option}"
-            selection+=("$selected_option")
-        fi
+system_info() {
+    if [ "$1" == "--center" ]; then
+        title "System Information"
+        echo
     else
-        selection=()
-        options=("Return to Main Menu" "Upgrade All Packages" "Upgrade Selected Packages")
-        options+=("$GREEN----------------------------------------------------" "$GREEN Upgradable Packages (Press enter to select/deselect): " "$GREEN----------------------------------------------------" "Refresh / Reset $NC")
-        poptions=("${options[@]}")
+        title "System Information" "left" "noclear"
+    fi
 
-        if [ -x "$(command -v yay)" ]; then
-            update_list=($(yay -Qu))
-            if [ -z "$update_list" ]; then
-                options[6]="Refresh / Reset $NC (All packages are up-to-date)"
-            else
-                for ((i=0; i<${#update_list[@]}; i+=4)); do
-                    options+=("[ ] ${update_list[i]}")
-                    poptions+=("${update_list[i]}")
-                done
-                options[6]="Refresh / Reset $NC (Using yay)"
-            fi
-        else
-            update_list=($(pacman -Qu | awk -F' ' '{ if (NF == 4) { $5 = "[]" } }1'))
-            if [ -z "$update_list" ]; then
-                options[6]="Refresh / Reset $NC (All packages are up-to-date)"
-            else
-                for ((i=0; i<${#update_list[@]}; i+=5)); do
-                    options+=("[ ] ${update_list[i]}")
-                    poptions+=("${update_list[i]}")
-                done
-                options[6]="Refresh / Reset $NC (Using pacman)"
-            fi
+    # Get OS
+    sys_os=$(cat /etc/*-release | grep PRETTY_NAME | cut -d'"' -f2)
+
+    # Get host / device model
+    sys_dmi_id_path="/sys/devices/virtual/dmi/id"
+    if [ -e "$sys_dmi_id_path/sys_vendor" ] && [ -e "$sys_dmi_id_path/product_name" ]; then
+        sys_host="$(cat $sys_dmi_id_path/sys_vendor | tr -d '\0') $(cat $sys_dmi_id_path/product_name | tr -d '\0')"
+    elif [ -e "/proc/device-tree/model" ]; then
+        sys_host=$(cat /proc/device-tree/model | tr -d '\0')
+    fi
+
+    # Get kernel
+    sys_krl=$(uname -sr)
+
+    # Get uptime
+    sys_uptime=$(uptime -p | sed 's/^up //')
+    
+    # Get cpu info
+    sys_cpu=$(cat /proc/cpuinfo | grep -m1 "model name" | cut -d':' -f2 | sed 's/^ *//' | tr -d '\0')
+    if [ -z "$sys_cpu" ] && [ -e "/proc/device-tree/compatible" ]; then
+        sys_cpu_vendor=$(awk -F ',' '{print $1}' /proc/device-tree/cpuinfo/compatible | tr -d '\0' | sed 's/^\(.\)/\U\1/')
+        sys_cpu_model=$(awk -F ',' '{print $NF}' /proc/device-tree/compatible | tr -d '\0' | tr '[:lower:]' '[:upper:]')
+        sys_cpu=$(echo "$sys_cpu_vendor $sys_cpu_model")
+    fi
+    sys_cpu_thread=$(nproc)
+    if [ -e "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq" ]; then
+        sys_cpu_clock=($(sudo cat /sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_cur_freq))
+    else
+        sys_cpu_clock="0.00"
+    fi
+    if [ -e "/sys/bus/cpu/devices/cpu0/cpufreq/scaling_governor" ]; then
+        sys_cpu_governor=($(cat /sys/bus/cpu/devices/cpu*/cpufreq/scaling_governor))
+    fi
+    sys_arch=$(uname -m)
+
+    # Get mem usage
+    sys_mem_free=$(free -h | grep "Mem:" | awk '{print $4}' | sed 's\Gi\\g' | sed 's\Mi\\g')
+    sys_mem_total=$(free -h | grep "Mem:" | awk '{print $2}' | sed 's\Gi\\g' | sed 's\Mi\\g')
+
+    # Get disk usage
+    sys_disk=$(df -h / | awk 'NR==2 {print $4" / "$2" ("$5")"}' | sed 's/G/ GiB/g; s/M/ MiB/g')
+
+    # Get number of packages installed
+    sys_packages=$(pacman -Q | wc -l)
+
+    # Get shell
+    sys_shell=$(basename "$SHELL")
+
+    # Get graphics session
+    if [ -n "$WAYLAND_DISPLAY" ]; then
+        sys_session="Wayland"
+    elif [ -n "$DISPLAY" ]; then
+        sys_session="Xorg"
+    fi
+
+    # Get screen resolution
+    if command -v xdpyinfo &> /dev/null; then
+        sys_resolution=$(xdpyinfo | awk '/dimensions:/ {print $2}')
+    else
+        if [[ -d /sys/class/drm ]]; then
+            for dev in /sys/class/drm/*/modes; do
+                read -r single_resolution _ < "$dev"
+                [[ $single_resolution ]] && sys_resolution="${single_resolution}"
+            done
         fi
     fi
 
-    select_option "${options[@]}"
-    choice=$?
-
-    if [ "$choice" = "0" ]; then
-        config_options
-    elif [ "$choice" = "1" ]; then
-        if [ -x "$(command -v yay)" ]; then
-            yay -Syyu
-        else
-            if [ -z "$no_confirm" ]; then
-                sudo pacman -Syyu
-            else
-                sudo pacman -Syyu --noconfirm
-            fi
-        fi
-    elif [ "$choice" = "2" ]; then
-        if [ -x "$(command -v yay)" ]; then
-            yay -S "${selection[*]}"
-        else
-            if [ -z "$no_confirm" ]; then
-                sudo pacman -Sy "${selection[*]}"
-            else
-                sudo pacman -Sy "${selection[*]}" --noconfirm
-            fi
-        fi
-    elif [ "$choice" = "3" ] || [ "$choice" = "4" ] || [ "$choice" = "5" ] || [ "$choice" = "6" ]; then
-        package_update
+    # GPU Model
+    if command -v glxinfo &> /dev/null; then
+        sys_gpu=$(glxinfo | grep "OpenGL renderer string" | cut -d ":" -f 2 | cut -c 2-)
     else
-        package_update --select $choice
+        sys_gpu="Unknown (mesa-utils not installed)"
     fi
 
+    # Get Desktop Environment
+    sys_de=$(echo "$XDG_CURRENT_DESKTOP" | sed 's/.\+://')
+
+    # Get terminal
+    ppid=$(grep PPid: /proc/$$/status | awk '{print $2}')
+    sys_terminal=$(basename $(cat "/proc/$ppid/comm"))
+    if [ -n "$sys_session" ]; then
+        while [ "$sys_terminal" == "watch" ] || [ "$sys_terminal" == "bash" ]; do
+            ppid=$(grep PPid: /proc/${ppid}/status | awk '{print $2}')
+            sys_terminal=$(basename $(cat "/proc/$ppid/comm"))
+        done
+    fi
+
+    sys_terminal_font=$(basename "$TERM")
+
+    if [ "$1" == "--center" ]; then
+        local align="center"
+        local alignarg="-a"
+    fi
+
+    colorecho "$THEME" "OS: $NC $sys_os ($sys_arch)" "" "$align" "$alignarg"
+    colorecho "$THEME" "Host: $NC $sys_host" "" "$align" "$alignarg"
+    colorecho "$THEME" "Kernel: $NC $sys_krl" "" "$align" "$alignarg"
+    colorecho "$THEME" "Uptime: $NC $sys_uptime" "" "$align" "$alignarg"
+    colorecho "$THEME" "Packages: $NC $sys_packages" "" "$align" "$alignarg"
+    colorecho "$THEME" "Shell: $NC $sys_shell" "" "$align" "$alignarg"
+    colorecho "$THEME" "DE: $NC $sys_de ($sys_session)" "" "$align" "$alignarg"
+    colorecho "$THEME" "Terminal: $NC $sys_terminal ($sys_terminal_font)" "" "$align" "$alignarg"
+    colorecho "$THEME" "CPU: $NC ($sys_cpu_thread) $sys_cpu @ $(awk "BEGIN{printf \"%.2f\\n\", ((${sys_cpu_clock[4]:-${sys_cpu_clock[0]}}/1000000))}") Ghz (${sys_cpu_governor[4]:-${sys_cpu_governor[0]}})" "" "$align" "$alignarg"
+    colorecho "$THEME" "GPU: $NC $sys_gpu" "" "$align" "$alignarg"
+    colorecho "$THEME" "Resolution: $NC $sys_resolution" "" "$align" "$alignarg"
+    colorecho "$THEME" "Memory: $NC $sys_mem_free GiB / $sys_mem_total GiB ($(awk "BEGIN{printf \"%.2f%%\\n\", (1-(${sys_mem_free}/${sys_mem_total}))*100}"))" "" "$align" "$alignarg"
+    colorecho "$THEME" "Disk: $NC $sys_disk" "" "$align" "$alignarg"
 }
 
 # Update Bootloader
@@ -1368,6 +1409,85 @@ manage_packages() {
             config_options
             ;;
     esac
+
+}
+
+# System Update
+package_update() {
+
+    title "Package Updates"
+
+    if [ "$1" = "--select" ]; then
+        local selected_option="${poptions[$2]}"
+
+        if [[ " ${selection[*]} " == *" $selected_option "* ]]; then
+            options[$2]="[ ] ${selected_option}"
+            selection=("${selection[@]/$selected_option}")
+        else
+            options[$2]="[x] ${selected_option}"
+            selection+=("$selected_option")
+        fi
+    else
+        selection=()
+        options=("Return to Main Menu" "Upgrade All Packages" "Upgrade Selected Packages")
+        options+=("$GREEN----------------------------------------------------" "$GREEN Upgradable Packages (Press enter to select/deselect): " "$GREEN----------------------------------------------------" "Refresh / Reset $NC")
+        poptions=("${options[@]}")
+
+        if [ -x "$(command -v yay)" ]; then
+            update_list=($(yay -Qu))
+            if [ -z "$update_list" ]; then
+                options[6]="Refresh / Reset $NC (All packages are up-to-date)"
+            else
+                for ((i=0; i<${#update_list[@]}; i+=4)); do
+                    options+=("[ ] ${update_list[i]}")
+                    poptions+=("${update_list[i]}")
+                done
+                options[6]="Refresh / Reset $NC (Using yay)"
+            fi
+        else
+            update_list=($(pacman -Qu | awk -F' ' '{ if (NF == 4) { $5 = "[]" } }1'))
+            if [ -z "$update_list" ]; then
+                options[6]="Refresh / Reset $NC (All packages are up-to-date)"
+            else
+                for ((i=0; i<${#update_list[@]}; i+=5)); do
+                    options+=("[ ] ${update_list[i]}")
+                    poptions+=("${update_list[i]}")
+                done
+                options[6]="Refresh / Reset $NC (Using pacman)"
+            fi
+        fi
+    fi
+
+    select_option "${options[@]}"
+    choice=$?
+
+    if [ "$choice" = "0" ]; then
+        config_options
+    elif [ "$choice" = "1" ]; then
+        if [ -x "$(command -v yay)" ]; then
+            yay -Syyu
+        else
+            if [ -z "$no_confirm" ]; then
+                sudo pacman -Syyu
+            else
+                sudo pacman -Syyu --noconfirm
+            fi
+        fi
+    elif [ "$choice" = "2" ]; then
+        if [ -x "$(command -v yay)" ]; then
+            yay -S "${selection[*]}"
+        else
+            if [ -z "$no_confirm" ]; then
+                sudo pacman -Sy "${selection[*]}"
+            else
+                sudo pacman -Sy "${selection[*]}" --noconfirm
+            fi
+        fi
+    elif [ "$choice" = "3" ] || [ "$choice" = "4" ] || [ "$choice" = "5" ] || [ "$choice" = "6" ]; then
+        package_update
+    else
+        package_update --select $choice
+    fi
 
 }
 
@@ -1722,7 +1842,7 @@ performance_features() {
             soc_profile
             ;;
         1)
-            fan_control
+            hw_monitor
             ;;
         #2)
             #overclocking
@@ -1735,123 +1855,6 @@ performance_features() {
             ;;
     esac
 
-}
-
-system_info() {
-    if [ "$1" == "--center" ]; then
-        title "System Information"
-        echo
-    else
-        title "System Information" "left" "noclear"
-    fi
-
-    # Get OS
-    sys_os=$(cat /etc/*-release | grep PRETTY_NAME | cut -d'"' -f2)
-
-    # Get host / device model
-    sys_dmi_id_path="/sys/devices/virtual/dmi/id"
-    if [ -e "$sys_dmi_id_path/sys_vendor" ] && [ -e "$sys_dmi_id_path/product_name" ]; then
-        sys_host="$(cat $sys_dmi_id_path/sys_vendor | tr -d '\0') $(cat $sys_dmi_id_path/product_name | tr -d '\0')"
-    elif [ -e "/proc/device-tree/model" ]; then
-        sys_host=$(cat /proc/device-tree/model | tr -d '\0')
-    fi
-
-    # Get kernel
-    sys_krl=$(uname -sr)
-
-    # Get uptime
-    sys_uptime=$(uptime -p | sed 's/^up //')
-    
-    # Get cpu info
-    sys_cpu=$(cat /proc/cpuinfo | grep -m1 "model name" | cut -d':' -f2 | sed 's/^ *//' | tr -d '\0')
-    if [ -z "$sys_cpu" ] && [ -e "/proc/device-tree/compatible" ]; then
-        sys_cpu_vendor=$(awk -F ',' '{print $1}' /proc/device-tree/cpuinfo/compatible | tr -d '\0' | sed 's/^\(.\)/\U\1/')
-        sys_cpu_model=$(awk -F ',' '{print $NF}' /proc/device-tree/compatible | tr -d '\0' | tr '[:lower:]' '[:upper:]')
-        sys_cpu=$(echo "$sys_cpu_vendor $sys_cpu_model")
-    fi
-    sys_cpu_thread=$(nproc)
-    if [ -e "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq" ]; then
-        sys_cpu_clock=($(sudo cat /sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_cur_freq))
-    else
-        sys_cpu_clock="0.00"
-    fi
-    if [ -e "/sys/bus/cpu/devices/cpu0/cpufreq/scaling_governor" ]; then
-        sys_cpu_governor=($(cat /sys/bus/cpu/devices/cpu*/cpufreq/scaling_governor))
-    fi
-    sys_arch=$(uname -m)
-
-    # Get mem usage
-    sys_mem_free=$(free -h | grep "Mem:" | awk '{print $4}' | sed 's\Gi\\g' | sed 's\Mi\\g')
-    sys_mem_total=$(free -h | grep "Mem:" | awk '{print $2}' | sed 's\Gi\\g' | sed 's\Mi\\g')
-
-    # Get disk usage
-    sys_disk=$(df -h / | awk 'NR==2 {print $4" / "$2" ("$5")"}' | sed 's/G/ GiB/g; s/M/ MiB/g')
-
-    # Get number of packages installed
-    sys_packages=$(pacman -Q | wc -l)
-
-    # Get shell
-    sys_shell=$(basename "$SHELL")
-
-    # Get graphics session
-    if [ -n "$WAYLAND_DISPLAY" ]; then
-        sys_session="Wayland"
-    elif [ -n "$DISPLAY" ]; then
-        sys_session="Xorg"
-    fi
-
-    # Get screen resolution
-    if command -v xdpyinfo &> /dev/null; then
-        sys_resolution=$(xdpyinfo | awk '/dimensions:/ {print $2}')
-    else
-        if [[ -d /sys/class/drm ]]; then
-            for dev in /sys/class/drm/*/modes; do
-                read -r single_resolution _ < "$dev"
-                [[ $single_resolution ]] && sys_resolution="${single_resolution}"
-            done
-        fi
-    fi
-
-    # GPU Model
-    if command -v glxinfo &> /dev/null; then
-        sys_gpu=$(glxinfo | grep "OpenGL renderer string" | cut -d ":" -f 2 | cut -c 2-)
-    else
-        sys_gpu="Unknown (mesa-utils not installed)"
-    fi
-
-    # Get Desktop Environment
-    sys_de=$(echo "$XDG_CURRENT_DESKTOP" | sed 's/.\+://')
-
-    # Get terminal
-    ppid=$(grep PPid: /proc/$$/status | awk '{print $2}')
-    sys_terminal=$(basename $(cat "/proc/$ppid/comm"))
-    if [ -n "$sys_session" ]; then
-        while [ "$sys_terminal" == "watch" ] || [ "$sys_terminal" == "bash" ]; do
-            ppid=$(grep PPid: /proc/${ppid}/status | awk '{print $2}')
-            sys_terminal=$(basename $(cat "/proc/$ppid/comm"))
-        done
-    fi
-
-    sys_terminal_font=$(basename "$TERM")
-
-    if [ "$1" == "--center" ]; then
-        local align="center"
-        local alignarg="-a"
-    fi
-
-    colorecho "$THEME" "OS: $NC $sys_os ($sys_arch)" "" "$align" "$alignarg"
-    colorecho "$THEME" "Host: $NC $sys_host" "" "$align" "$alignarg"
-    colorecho "$THEME" "Kernel: $NC $sys_krl" "" "$align" "$alignarg"
-    colorecho "$THEME" "Uptime: $NC $sys_uptime" "" "$align" "$alignarg"
-    colorecho "$THEME" "Packages: $NC $sys_packages" "" "$align" "$alignarg"
-    colorecho "$THEME" "Shell: $NC $sys_shell" "" "$align" "$alignarg"
-    colorecho "$THEME" "DE: $NC $sys_de ($sys_session)" "" "$align" "$alignarg"
-    colorecho "$THEME" "Terminal: $NC $sys_terminal ($sys_terminal_font)" "" "$align" "$alignarg"
-    colorecho "$THEME" "CPU: $NC ($sys_cpu_thread) $sys_cpu @ $(awk "BEGIN{printf \"%.2f\\n\", ((${sys_cpu_clock[4]:-${sys_cpu_clock[0]}}/1000000))}") Ghz (${sys_cpu_governor[4]:-${sys_cpu_governor[0]}})" "" "$align" "$alignarg"
-    colorecho "$THEME" "GPU: $NC $sys_gpu" "" "$align" "$alignarg"
-    colorecho "$THEME" "Resolution: $NC $sys_resolution" "" "$align" "$alignarg"
-    colorecho "$THEME" "Memory: $NC $sys_mem_free GiB / $sys_mem_total GiB ($(awk "BEGIN{printf \"%.2f%%\\n\", (1-(${sys_mem_free}/${sys_mem_total}))*100}"))" "" "$align" "$alignarg"
-    colorecho "$THEME" "Disk: $NC $sys_disk" "" "$align" "$alignarg"
 }
 
 # SoC Performance Profile
