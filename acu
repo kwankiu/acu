@@ -1838,7 +1838,13 @@ performance_features() {
             soc_profile
             ;;
         1)
-            hw_monitor
+            local keypress=''
+            while [ "$keypress" != 'q' ]; do
+                hw_monitor --center
+                colorecho "$GREEN" "Press q to return to main menu" "bottom" "center"
+                read -t 3 -n 1 keypress
+            done
+            config_options
             ;;
         #2)
             #overclocking
@@ -1922,7 +1928,66 @@ create_soc_profile_service() {
 }
 
 hw_monitor() {
-    title "HW Monitor"  
+    if [ "$1" == "--center" ]; then
+        title "Hardware Monitor"
+        echo
+    else
+        title "Hardware Monitor" "left" "noclear"
+    fi
+    
+    # Get CPU Model
+    sys_cpu=$(cat /proc/cpuinfo | grep -m1 "model name" | cut -d':' -f2 | sed 's/^ *//' | tr -d '\0')
+    if [ -z "$sys_cpu" ] && [ -e "/proc/device-tree/compatible" ]; then
+        sys_cpu_vendor=$(awk -F ',' '{print $1}' /proc/device-tree/cpuinfo/compatible | tr -d '\0' | sed 's/^\(.\)/\U\1/')
+        sys_cpu_model=$(awk -F ',' '{print $NF}' /proc/device-tree/compatible | tr -d '\0' | tr '[:lower:]' '[:upper:]')
+        sys_cpu=$(echo "$sys_cpu_vendor $sys_cpu_model")
+    fi
+
+    # Get Number of Threads and Architechure
+    sys_cpu_thread=$(nproc)
+    sys_arch=$(uname -m)
+
+    # Get CPU Cores Model and Clock Freq
+    sys_temps=($(cat /sys/class/thermal/thermal_zone*/temp))
+    sys_temps_name=($(cat /sys/class/thermal/thermal_zone*/type))
+
+    if [ -e "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq" ]; then
+        sys_cpu_freq=($(sudo cat /sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_cur_freq))
+    else
+        sys_cpu_freq=(0)
+    fi
+
+    if [ -e "/sys/bus/cpu/devices/cpu0/cpufreq/scaling_governor" ]; then
+        sys_cpu_governor=($(cat /sys/bus/cpu/devices/cpu*/cpufreq/scaling_governor))
+    fi
+
+    # GPU Model
+    if command -v glxinfo &> /dev/null; then
+        sys_gpu=$(glxinfo | grep "OpenGL renderer string" | cut -d ":" -f 2 | cut -c 2-)
+    else
+        sys_gpu="Unknown (mesa-utils not installed)"
+    fi
+
+    if [ "$1" == "--center" ]; then
+        local align="center"
+        local alignarg="-a"
+    fi
+
+    colorecho "$THEME" "CPU: $NC ($sys_cpu_thread) $sys_cpu ($sys_arch)" "" "$align" "$alignarg"
+    echo
+    for ((i=0; i<${#sys_cpu_freq[@]}; i++)); do
+        local core_freq="$((sys_cpu_freq[i] / 1000000))"
+        colorecho "$THEME" "\t Core $i: $NC $sys_cpu @ $core_freq Ghz (${sys_cpu_governor[i]})" "" "$align" "$alignarg"
+    done
+    echo
+    colorecho "$THEME" "GPU: $NC $sys_gpu" "" "$align" "$alignarg"
+    echo
+    colorecho "$THEME" "Temperatures:" "" "$align" "$alignarg"
+    for ((i=0; i<${#sys_temps[@]}; i++)); do
+        local stemp="$((sys_temps[i] / 1000))"
+        local stemp_name="${sys_temps_name[i]%-thermal}"
+        colorecho "$THEME" "\t $stemp_name: $NC $stemp C" "" "$align" "$alignarg"
+    done
 }
 
 ################################################################
