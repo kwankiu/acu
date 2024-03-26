@@ -20,9 +20,9 @@ apps:
       - category_name: Multimedia
         category_description: Audio, Video & Graphics Software
       - category_name: Gaming
-        category_description: Games, Game Stores & Emulators
+        category_description: Games, Game Stores & Game Emulators
       - category_name: Virtualization
-        category_description: Virtual machines & Containers
+        category_description: Virtual machines, Emulators & Containers
       - category_name: Development
         category_description: Code Editors, IDEs & Build Tools
       - category_name: System
@@ -332,12 +332,84 @@ apps:
   # Gaming
 
       - package_name: minecraft
-        app_name: Minecraft
+        app_name: Minecraft (HMCL)
         category: Gaming
-        description: Minecraft
+        description: A multi-functional, cross-platform, popular Minecraft Launcher
         compatible: null
         packages:
-          - minecraft
+          - hmcl
+        commands: null
+
+      - package_name: supertuxkart
+        app_name: Super Tux Kart
+        category: Gaming
+        description: Kart racing game featuring Tux and his friends
+        compatible: null
+        packages:
+          - supertuxkart
+        commands: null
+
+      - package_name: 2048
+        app_name: 2048
+        category: Gaming
+        description: Obtain the 2048 tile (Gnome 2048)
+        compatible: null
+        packages:
+          - gnome-2048
+        commands: null
+
+      - package_name: lutris
+        app_name: Lutris
+        category: Gaming
+        description: Video game preservation platform
+        compatible: null
+        packages:
+          - lutris
+        commands: null
+
+      - package_name: dolphin-emu
+        app_name: Dolphin Emulator
+        category: Gaming
+        description: GameCube / Wii / Triforce Emulator
+        compatible: null
+        packages:
+          - dolphin-emu-git
+        commands: null
+
+      - package_name: ppsspp
+        app_name: PPSSPP
+        category: Gaming
+        description: A PlayStation Portable emulator
+        compatible: null
+        packages:
+          - ppsspp-git
+        commands: null
+
+      - package_name: melonds
+        app_name: MelonDS
+        category: Gaming
+        description: Nintendo DS and DSi emulator
+        compatible: null
+        packages:
+          - melonds
+        commands: null
+
+      - package_name: ryujinx
+        app_name: Ryujinx
+        category: Gaming
+        description: A Nintendo Switch Emulator
+        compatible: null
+        packages:
+          - ryujinx-git
+        commands: null
+
+      - package_name: pegasus
+        app_name: Pegasus
+        category: Gaming
+        description: Customizable graphical frontend for launching emulators
+        compatible: null
+        packages:
+          - pegasus-frontend-git
         commands: null
 
 ########################################################################
