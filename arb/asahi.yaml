@@ -1,0 +1,15 @@
+# Format of this file is documented at https://github.com/7Ji/arch_repo_builder#config
+dephash_strategy: strict
+basepkgs: [base-devel, bc, distcc, ccache]
+home_binds: [.cache/ccache, .config/ccache]
+pkgbuilds:
+  # Mesa for Asahi (Apple Silicon)
+  mesa-asahi-edge:
+    url: https://github.com/joske/PKGBUILDs.git
+    branch: mesa
+    subtree: mesa-asahi-edge
+  # Linux Kernel for Asahi (Apple Silicon)
+  linux-asahi:
+    url: https://github.com/joske/PKGBUILDs.git
+    branch: kernel
+    subtree: linux-asahi
