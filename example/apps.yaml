@@ -404,7 +404,7 @@ apps:
       - package_name: wine-8.18
         app_name: Wine 8.18 (64-bit)
         category: Virtualization
-        description: (Just for Testing) Wine 8.18 Staging (64-Bit) needed for some games like GTA V
+        description: (Just for Testing) Wine 8.18 Staging (64-Bit) needed for some games
         compatible: null
         packages:
           - box64
