@@ -258,6 +258,11 @@ colorecho() {
 # Title / Heading
 title() {
   if [ "$3" != "noclear" ]; then
+    if [ -n "$BACKGROUND" ] && [ "$BACKGROUND" != "$THEME" ]; then
+        BACKGROUND="${THEME%?};${BACKGROUND}"
+        THEME=$BACKGROUND
+        NC=$BACKGROUND
+    fi
     clear
   fi
 
@@ -2553,11 +2558,6 @@ settings() {
 load_config() {
     if [ -f "$config_file" ] || [[ "$config_file" == *"://"* ]] ; then
         eval $(load_yaml "$config_file" " ")
-        if [ -n "$BACKGROUND" ]; then
-            BACKGROUND="${THEME%?};${BACKGROUND}"
-            THEME=$BACKGROUND
-            NC=$BACKGROUND
-        fi
     elif [ ! "$(id -u)" -eq 0 ]; then
         # Download default configurations file
         local config_dir=$(dirname "$config_file")
