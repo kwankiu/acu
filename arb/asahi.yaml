@@ -1,6 +1,6 @@
 # Format of this file is documented at https://github.com/7Ji/arch_repo_builder#config
 dephash_strategy: strict
-basepkgs: [base-devel, bc, distcc, ccache]
+basepkgs: [base-devel, bc, distcc, ccache, rust, rust-bindgen]
 home_binds: [.cache/ccache, .config/ccache]
 pkgbuilds:
   # Mesa for Asahi (Apple Silicon)
@@ -8,8 +8,20 @@ pkgbuilds:
     url: https://github.com/joske/PKGBUILDs.git
     branch: mesa
     subtree: mesa-asahi-edge
+    makedeps: [spirv-llvm-translator]
   # Linux Kernel for Asahi (Apple Silicon)
   linux-asahi:
     url: https://github.com/joske/PKGBUILDs.git
     branch: kernel
     subtree: linux-asahi
+  # m1n1 bootloader for Asahi (Apple Silicon)
+  m1n1:
+    url: https://github.com/joske/PKGBUILDs.git
+    branch: kernel
+    subtree: m1n1
+  # u-boot for Asahi (Apple Silicon)
+  uboot-asahi:
+    url: https://github.com/joske/PKGBUILDs.git
+    branch: kernel
+    subtree: uboot-asahi
+
