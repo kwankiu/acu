@@ -454,15 +454,15 @@ apps:
       - package_name: wine
         app_name: Wine (64-bit)
         category: Virtualization
-        description: (Just for Testing) Wine (64-Bit) for running Windows applications
+        description: (For Testing) Wine (64-Bit with WoW64) for running Windows applications
         compatible: null
         packages:
           - box64
         commands: |
-          echo "Installing Wine (64-bit) ..."
+          echo "Installing Wine (64-Bit with WoW64) ..."
           cd ~/.acu/cache
-          curl -LJO https://github.com/Kron4ek/Wine-Builds/releases/download/9.4/wine-9.4-amd64.tar.xz
-          tar -xf wine-9.4-amd64.tar.xz
+          curl -LJO https://github.com/kwankiu/archlinux-installer-rock5/releases/download/experimental/wine-9.5-exp-wow64-amd64.tar.xz
+          tar -xf wine-9.5-exp-wow64-amd64.tar.xz
           sudo rm -rf ~/wine ~/.wine 2> /dev/null
           mkdir ~/wine
           sudo rm /usr/local/bin/wine 2> /dev/null
@@ -470,22 +470,22 @@ apps:
           sudo rm /usr/local/bin/wineserver 2> /dev/null
           sudo rm /usr/local/bin/winecfg 2> /dev/null
           sudo rm /usr/local/bin/wineboot 2> /dev/null
-          mv ~/.acu/cache/wine-9.4-amd64 ~/wine
-          sudo rm wine-9.4-amd64.tar.xz
+          mv ~/.acu/cache/wine-9.5-exp-wow64-amd64 ~/wine
+          sudo rm wine-9.5-exp-wow64-amd64.tar.xz
           echo "Adding Wine (64-bit) to PATH ..."
-          cd ~/wine/wine-9.4-amd64
+          cd ~/wine/wine-9.5-exp-wow64-amd64
           sudo ln -s bin/wine /usr/local/bin/wine
           sudo ln -s bin/wine64 /usr/local/bin/wine64
           sudo ln -s bin/wineserver /usr/local/bin/wineserver
           sudo ln -s bin/winecfg /usr/local/bin/winecfg
           sudo ln -s bin/wineboot /usr/local/bin/wineboot
-          echo "Installed Wine (64-bit)"
+          echo "Installed Wine (64-Bit with WoW64)"
           echo -e "To test Wine on ARM64, run:"" box64 wine winecfg"
 
       - package_name: wine-8.18
         app_name: Wine 8.18 (64-bit)
         category: Virtualization
-        description: (Just for Testing) Wine 8.18 Staging (64-Bit) needed for some games
+        description: (For Testing) Wine 8.18 Staging (64-Bit) needed for some games
         compatible: null
         packages:
           - box64
