@@ -25,7 +25,7 @@ configurations:
 
   # Theme with Background Color (Experimental)
   # If BACKGROUND value is set, the above THEME value (Theme Color) will be ignored
-  #BACKGROUND: \033[34;107m
+  #BACKGROUND: $BGBLACK
 
   ## ACU Configurable Variables ##
 
