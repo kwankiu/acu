@@ -340,6 +340,15 @@ apps:
           - hmcl
         commands: null
 
+      - package_name: supertux
+        app_name: Super Tux
+        category: Gaming
+        description: A classic 2D jump'n'run sidescroller game in a style similar to the original SuperMario games
+        compatible: null
+        packages:
+          - supertux
+        commands: null
+
       - package_name: supertuxkart
         app_name: Super Tux Kart
         category: Gaming
