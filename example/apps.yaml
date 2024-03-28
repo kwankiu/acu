@@ -472,7 +472,7 @@ apps:
           sudo rm /usr/local/bin/wineserver 2> /dev/null
           sudo rm /usr/local/bin/winecfg 2> /dev/null
           sudo rm /usr/local/bin/wineboot 2> /dev/null
-          mv ~/.acu/cache/\${pkg} ~/wine
+          mv ~/.acu/cache/\${pkg} /usr/lib/wine
           sudo rm \${pkg}.tar.xz
           echo "Adding Wine (64-bit) to PATH ..."
           sudo ln -s /usr/lib/wine/\${pkg}/bin/wine /usr/local/bin/wine
@@ -504,7 +504,7 @@ apps:
           sudo rm /usr/local/bin/wineserver 2> /dev/null
           sudo rm /usr/local/bin/winecfg 2> /dev/null
           sudo rm /usr/local/bin/wineboot 2> /dev/null
-          mv ~/.acu/cache/\${pkg} ~/wine
+          mv ~/.acu/cache/\${pkg} /usr/lib/wine
           sudo rm \${pkg}.tar.xz
           echo "Adding Wine (64-bit) to PATH ..."
           sudo ln -s /usr/lib/wine/\${pkg}/bin/wine /usr/local/bin/wine
