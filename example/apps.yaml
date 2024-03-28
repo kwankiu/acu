@@ -461,24 +461,25 @@ apps:
         commands: |
           echo "Installing Wine (64-Bit with WoW64) ..."
           cd ~/.acu/cache
-          curl -LJO https://github.com/kwankiu/archlinux-installer-rock5/releases/download/experimental/wine-9.5-exp-wow64-amd64.tar.xz
-          tar -xf wine-9.5-exp-wow64-amd64.tar.xz
-          sudo rm -rf ~/wine ~/.wine 2> /dev/null
-          mkdir ~/wine
+          url="https://github.com/kwankiu/archlinux-installer-rock5/releases/download/experimental"
+          pkg="wine-9.5-exp-wow64-amd64"
+          curl -LJO \${url}/\${pkg}.tar.xz
+          tar -xf \${pkg}.tar.xz
+          sudo mkdir -p /usr/lib/wine
+          sudo rm -rf /usr/lib/wine/\${pkg} 2> /dev/null
           sudo rm /usr/local/bin/wine 2> /dev/null
           sudo rm /usr/local/bin/wine64 2> /dev/null
           sudo rm /usr/local/bin/wineserver 2> /dev/null
           sudo rm /usr/local/bin/winecfg 2> /dev/null
           sudo rm /usr/local/bin/wineboot 2> /dev/null
-          mv ~/.acu/cache/wine-9.5-exp-wow64-amd64 ~/wine
-          sudo rm wine-9.5-exp-wow64-amd64.tar.xz
+          mv ~/.acu/cache/\${pkg} ~/wine
+          sudo rm \${pkg}.tar.xz
           echo "Adding Wine (64-bit) to PATH ..."
-          cd ~/wine/wine-9.5-exp-wow64-amd64
-          sudo ln -s bin/wine /usr/local/bin/wine
-          sudo ln -s bin/wine64 /usr/local/bin/wine64
-          sudo ln -s bin/wineserver /usr/local/bin/wineserver
-          sudo ln -s bin/winecfg /usr/local/bin/winecfg
-          sudo ln -s bin/wineboot /usr/local/bin/wineboot
+          sudo ln -s /usr/lib/wine/\${pkg}/bin/wine /usr/local/bin/wine
+          sudo ln -s /usr/lib/wine/\${pkg}/bin/wine64 /usr/local/bin/wine64
+          sudo ln -s /usr/lib/wine/\${pkg}/bin/wineserver /usr/local/bin/wineserver
+          sudo ln -s /usr/lib/wine/\${pkg}/bin/winecfg /usr/local/bin/winecfg
+          sudo ln -s /usr/lib/wine/\${pkg}/bin/wineboot /usr/local/bin/wineboot
           echo "Installed Wine (64-Bit with WoW64)"
           echo -e "To test Wine on ARM64, run:"" box64 wine winecfg"
 
@@ -490,27 +491,28 @@ apps:
         packages:
           - box64
         commands: |
-          echo "Installing Wine (64-bit) ..."
+          echo "Installing Wine (64-Bit) ..."
           cd ~/.acu/cache
-          curl -LJO https://github.com/Kron4ek/Wine-Builds/releases/download/8.18/wine-8.18-staging-amd64.tar.xz
-          tar -xf wine-8.18-staging-amd64.tar.xz
-          sudo rm -rf ~/wine ~/.wine 2> /dev/null
-          mkdir ~/wine
+          url="https://github.com/Kron4ek/Wine-Builds/releases/download/8.18"
+          pkg="wine-8.18-staging-amd64"
+          curl -LJO \${url}/\${pkg}.tar.xz
+          tar -xf \${pkg}.tar.xz
+          sudo mkdir -p /usr/lib/wine
+          sudo rm -rf /usr/lib/wine/\${pkg} 2> /dev/null
           sudo rm /usr/local/bin/wine 2> /dev/null
           sudo rm /usr/local/bin/wine64 2> /dev/null
           sudo rm /usr/local/bin/wineserver 2> /dev/null
           sudo rm /usr/local/bin/winecfg 2> /dev/null
           sudo rm /usr/local/bin/wineboot 2> /dev/null
-          mv ~/.acu/cache/wine-8.18-staging-amd64 ~/wine
-          sudo rm wine-8.18-staging-amd64.tar.xz
+          mv ~/.acu/cache/\${pkg} ~/wine
+          sudo rm \${pkg}.tar.xz
           echo "Adding Wine (64-bit) to PATH ..."
-          cd ~/wine/wine-8.18-staging-amd64
-          sudo ln -s bin/wine /usr/local/bin/wine
-          sudo ln -s bin/wine64 /usr/local/bin/wine64
-          sudo ln -s bin/wineserver /usr/local/bin/wineserver
-          sudo ln -s bin/winecfg /usr/local/bin/winecfg
-          sudo ln -s bin/wineboot /usr/local/bin/wineboot
-          echo "Installed Wine (64-bit)"
+          sudo ln -s /usr/lib/wine/\${pkg}/bin/wine /usr/local/bin/wine
+          sudo ln -s /usr/lib/wine/\${pkg}/bin/wine64 /usr/local/bin/wine64
+          sudo ln -s /usr/lib/wine/\${pkg}/bin/wineserver /usr/local/bin/wineserver
+          sudo ln -s /usr/lib/wine/\${pkg}/bin/winecfg /usr/local/bin/winecfg
+          sudo ln -s /usr/lib/wine/\${pkg}/bin/wineboot /usr/local/bin/wineboot
+          echo "Installed Wine (64-Bit)"
           echo -e "To test Wine on ARM64, run:"" box64 wine winecfg"
 
       - package_name: malior-droid
