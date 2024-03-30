@@ -420,6 +420,28 @@ apps:
         packages:
           - pegasus-frontend-git
         commands: null
+      
+      - package_name: steam
+        app_name: Steam
+        category: Gaming
+        description: (For Testing) Wine 64-Bit WoW64, Winetricks & Steam (Windows)
+        compatible: null
+        packages:
+          - box64
+          - zenity
+          - cabextract
+
+        commands: |
+          echo "Installing Wine (64-Bit with WoW64) ..."
+          acu install wine -y
+          cd ~/.acu/cache
+          curl -LJO https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks
+          sudo chmod +x winetricks
+          sudo mv winetricks /usr/local/bin/
+          echo "Installing required software using Winetricks ..."
+          echo "(This can take some time ...)"
+          winetricks -q dotnet20sp2 dotnet40 vcrun6 corefonts
+          winetricks steam
 
 ########################################################################
   # Virtualization
@@ -452,7 +474,7 @@ apps:
         commands: null
 
       - package_name: wine
-        app_name: Wine (64-bit)
+        app_name: Wine (WoW64)
         category: Virtualization
         description: (For Testing) Wine (64-Bit with WoW64) for running Windows applications
         compatible: null
