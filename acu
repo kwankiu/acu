@@ -1684,7 +1684,16 @@ install_pkg() {
                     colorecho "$DEBUG" "APPS $NC | Packages: $package"
                     if [ "$package" != "null" ]; then
                         colorecho "$GREEN" "APPS $NC | Resolving packages ..."
-                        acu install -y $package --skipapps
+                        local j
+                        for ((j=0; j<${#package[@]}; j++)); do
+                            if [[ "${package[j]}" = "(needed)"* ]]; then
+                                acu install -y "${package[j]#"(needed)"}" --skipapps
+                            elif [[ "${package[j]}" != "(fallback)"* ]] && [[ "${package[j+1]}" == "(fallback)"* ]]; then
+                                acu install -y ${package[j]} "${package[j+1]#"(fallback)"}" --fallback --skipapps
+                            else
+                                acu install -y ${package[j]} --skipapps
+                            fi
+                        done
                     fi
                     local commands="${apps_commands[index]}"
                     colorecho "$DEBUG" "APPS $NC | Commands: $commands"
