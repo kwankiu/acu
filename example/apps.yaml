@@ -433,7 +433,7 @@ apps:
 
         commands: |
           echo "Installing Wine (64-Bit with WoW64) ..."
-          acu install wine -y
+          acu install -y wine
           cd ~/.acu/cache
           curl -LJO https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks
           sudo chmod +x winetricks
