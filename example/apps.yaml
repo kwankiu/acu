@@ -334,7 +334,7 @@ apps:
       - package_name: minecraft
         app_name: Minecraft (HMCL)
         category: Gaming
-        description: A multi-functional, cross-platform, popular Minecraft Launcher
+        description: (For Testing) A multi-functional, cross-platform, popular Minecraft Launcher
         compatible: null
         packages:
           - hmcl
@@ -388,7 +388,7 @@ apps:
       - package_name: ppsspp
         app_name: PPSSPP
         category: Gaming
-        description: A PlayStation Portable emulator
+        description: PlayStation Portable emulator
         compatible: null
         packages:
           - ppsspp-git
@@ -406,7 +406,7 @@ apps:
       - package_name: ryujinx
         app_name: Ryujinx
         category: Gaming
-        description: A Nintendo Switch Emulator
+        description: Nintendo Switch Emulator
         compatible: null
         packages:
           - ryujinx-git
@@ -599,6 +599,15 @@ apps:
         compatible: null
         packages:
           - vim
+        commands: null
+
+      - package_name: gh
+        app_name: GitHub CLI
+        category: Development
+        description: The GitHub CLI
+        compatible: null
+        packages:
+          - git
         commands: null
 
       - package_name: github-desktop-bin
