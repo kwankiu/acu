@@ -3131,5 +3131,7 @@ fi
 
 ################################################################
 # Restore terminal default background
-echo -e "$TDC"
+if [ -n "$BACKGROUND" ] && [ "$BACKGROUND" == "$THEME" ]; then
+    echo -e "$TDC"
+fi
 ################################################################
