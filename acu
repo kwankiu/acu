@@ -1687,7 +1687,7 @@ install_pkg() {
                         local j
                         for ((j=0; j<${#package[@]}; j++)); do
                             if [[ "${package[j]}" = "(needed)"* ]]; then
-                                acu install -y "${package[j]#"(needed)"}" --skipapps
+                                acu install -y "${package[j]#"(needed)"}" --needed --skipapps
                             elif [[ "${package[j]}" != "(fallback)"* ]] && [[ "${package[j+1]}" == "(fallback)"* ]]; then
                                 acu install -y ${package[j]} "${package[j+1]#"(fallback)"}" --fallback --skipapps
                             else
