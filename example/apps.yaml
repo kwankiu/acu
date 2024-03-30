@@ -601,15 +601,6 @@ apps:
           - vim
         commands: null
 
-      - package_name: git
-        app_name: Git
-        category: Development
-        description: Git Version Control
-        compatible: null
-        packages:
-          - git
-        commands: null
-
       - package_name: github-desktop-bin
         app_name: GitHub Desktop
         category: Development
