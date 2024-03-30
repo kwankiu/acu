@@ -1665,9 +1665,15 @@ install_pkg() {
                     use_pm="git"
                 fi
 
-                # TODO: Handle fallbacks
-                if [[ "${selection[i]}" == "(fallback)"* ]]; then
-                    use_pm="fallback" # TO BE REPLACED
+                # Handle fallbacks
+                if [ "$fallback" = 1 ]; then
+                    if [ ! "${#selection[@]}" -eq 2 ]; then
+                        colorecho "$RED" "ERROR $NC | You must specify exactly two packages when used with --fallback."
+                        return 1
+                    fi
+                # Skip installed packages
+                elif [ "$needed" = 1 ] && pacman -Q "${selection[i]#*)}" > /dev/null 2>&1 ; then
+                    use_pm="skip"
                 fi
 
                 # Find and Install the package        
@@ -1708,7 +1714,7 @@ install_pkg() {
                         agr install ${selection[i]} --noconfirm
                     fi
                 elif aurrepo=$(git ls-remote "https://aur.archlinux.org/${selection[i]}") && [ -n "$aurrepo" ] ; then
-                    # THIS NEEDS TO BE UPDATED
+                    # TODO: UPDATE THIS
                     colorecho "$GREEN" "AUR $NC | Compiling & Installing ${selection[i]}"  
                     install_from_source "aur://${selection[i]}"
                 elif [ "$use_pm" = "ghrel" ] || [ -z "$use_pm" ] && fetch_repositories -q && echo -e "n" | install_ghrel_packages "${selection[i]}" | grep -q '.*pkg.*'; then
@@ -1717,10 +1723,22 @@ install_pkg() {
                 elif [ "$use_pm" = "git" ]; then
                     colorecho "$GREEN" "MAKEPKG $NC | Compiling & Installing ${selection[i]}"
                     install_from_source "${selection[i]}"
-                elif [ "$use_pm" = "fallback" ]; then
-                    colorecho "$DEBUG" "COMING SOON, SKIPPED"
+                elif [ "$use_pm" = "skip" ]; then
+                    colorecho "$THEME" "INFO $NC | ${selection[i]} is installed. Skipping ..."
+                    use_pm=""
                 else
-                    colorecho "$RED" "ERROR $NC | Package ${selection[i]} not found"
+                    if [ "$fallback" != 1 ]; then
+                        colorecho "$RED" "ERROR $NC | Package ${selection[i]} not found"
+                        return 1
+                    fi
+                fi
+
+                if [ "$fallback" = 1 ]; then 
+                    if pacman -Q "${selection[i]#*)}" > /dev/null 2>&1 ; then
+                        return 0
+                    else
+                        colorecho "$WARNING" "WARNING $NC | ${selection[0]} is replaced with ${selection[1]}"
+                    fi 
                 fi
 
                 # Handle Kernel Installation
@@ -2641,6 +2659,8 @@ for arg in "$@"; do
             echo "  --update=<release> : Install / Update configuration utility to a specified release tag."
             echo "  --usepm=<pm> : Specify a package manager to use when installing packages. <pm> options: pacman, agr, git."
             echo "  --skipapps : Skip looking up apps list when using the install command"
+            echo "  --needed : Skip already installed package when using the install command"
+            echo "  --fallback : Install an alternative package if the first one fails when using the install command"
             echo "  --device=<tag> : Specify target device tag. <device> options are determined by the tags_file set in acu config."
             echo "  --branch=<branch> : Specify a git branch for setting or cloning from remote repository."
             echo "  --noconfirm : Do not ask for confirmation when resolving dependencies and installing packages managed by pacman / makepkg."
@@ -2733,6 +2753,12 @@ for arg in "$@"; do
         ;;
         --noclear)
             no_clear=1
+        ;;
+        --needed)
+            needed=1
+        ;;
+        --fallback)
+            fallback=1
         ;;
         --skipapps)
             skip_apps=1
