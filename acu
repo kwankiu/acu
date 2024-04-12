@@ -3056,8 +3056,8 @@ elif [ "$1" = "alias" ]; then
 ### For developer and debugging ###
 elif [ "$2" = "parse" ] && [ -n "$debug_log" ]; then
     clear
-    colorecho "$THEME" "ACU $NC | Parsed output of $3"
-    colorecho "$THEME" "ACU $NC | $4"
+    echo "#ACU | Parsed output of $3"
+    echo "#ACU | $4"
     load_yaml "$3" "$4" list
 
 ### CLI ###
