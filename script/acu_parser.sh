@@ -98,7 +98,6 @@ load_yaml() {
     target_file="$(pre_parser "$target_file")"
 
     # Parse the data into variables format
-    if [ -f "$target_file" ] || [[ "$target_file" == *"://"* ]] ; then
         while IFS= read -r line; do
             # Ignore comments and empty lines
             if ! [[ $line =~ ^[[:space:]]*($|#) ]]; then
@@ -201,7 +200,6 @@ load_yaml() {
                     echo "\""
             fi
         fi
-    fi
 }
 
 set_before=$( set -o posix; set | sed -e '/^_=*/d' )
