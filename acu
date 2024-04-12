@@ -203,54 +203,59 @@ function select_option {
 colorecho() {
     local color="$1"
     local text="$2"
-    local vposition="$3"
-    local hposition="$4"
-    local arg="$5"
-    local LINES=$(tput lines)
-    local COLS=$(tput cols)
-    local LEN
-    tput sc # Save cursor position
 
-    if [[ "$arg" == "-a" ]]; then
-            LEN=$(($(tput cols) - 2))
-            if [ "$LEN" -gt 100 ]; then
-                LEN=100
-            fi
-            text=$(printf "%-${LEN}s" "     $text" | cut -c1-$(echo ${LEN}))
-    fi
-    
-    if [ "$vposition" = "top" ]; then
-        vposition=0
-    elif [ "$vposition" = "bottom" ]; then
-        vposition=$((LINES - 2))
-    elif [ "$vposition" = "center" ]; then
-        vposition=$((LINES / 2))
-    fi
-
-    if [ "$hposition" = "left" ]; then
-        hposition=0
-    elif [ "$hposition" = "right" ]; then
-        hposition=$((COLS - 2))
-    elif [ "$hposition" = "center" ]; then
-        text_length=${#text}
-        hposition=$(( (COLS - text_length) / 2 ))
-    fi
-
-    if [ -n "$vposition" ] && [ -n "$hposition" ]; then
-        tput cup $vposition $hposition
-    elif [ -n "$vposition" ]; then
-        tput cup $vposition
-    elif [ -n "$hposition" ]; then
-        text="\033[${hposition}G${text}"
-    fi
-    
-    [ -n "$no_warning" ] && [ "$color" = "$WARNING" ] || [ "$color" = "$DEBUG" ] && [ -z "$debug_log" ] || echo -e "${color}${text}${NC}"
-    
-    if [ "$arg" = "-n" ]; then
-        tput cup $vposition ${#text}
+    if [ -n "$no_color_echo" ]; then
+        [ -n "$no_warning" ] && [ "$color" = "$WARNING" ] || [ "$color" = "$DEBUG" ] && [ -z "$debug_log" ] || echo -e "${text}"
     else
-        if [ -n "$vposition" ] || ([ -n "$vposition" ] && [ -n "$hposition" ]); then
-            tput rc # Restore cursor position
+        local vposition="$3"
+        local hposition="$4"
+        local arg="$5"
+        local LINES=$(tput lines)
+        local COLS=$(tput cols)
+        local LEN
+        tput sc # Save cursor position
+
+        if [[ "$arg" == "-a" ]]; then
+                LEN=$(($(tput cols) - 2))
+                if [ "$LEN" -gt 100 ]; then
+                    LEN=100
+                fi
+                text=$(printf "%-${LEN}s" "     $text" | cut -c1-$(echo ${LEN}))
+        fi
+        
+        if [ "$vposition" = "top" ]; then
+            vposition=0
+        elif [ "$vposition" = "bottom" ]; then
+            vposition=$((LINES - 2))
+        elif [ "$vposition" = "center" ]; then
+            vposition=$((LINES / 2))
+        fi
+
+        if [ "$hposition" = "left" ]; then
+            hposition=0
+        elif [ "$hposition" = "right" ]; then
+            hposition=$((COLS - 2))
+        elif [ "$hposition" = "center" ]; then
+            text_length=${#text}
+            hposition=$(( (COLS - text_length) / 2 ))
+        fi
+
+        if [ -n "$vposition" ] && [ -n "$hposition" ]; then
+            tput cup $vposition $hposition
+        elif [ -n "$vposition" ]; then
+            tput cup $vposition
+        elif [ -n "$hposition" ]; then
+            text="\033[${hposition}G${text}"
+        fi
+        
+        [ -n "$no_warning" ] && [ "$color" = "$WARNING" ] || [ "$color" = "$DEBUG" ] && [ -z "$debug_log" ] || echo -e "${color}${text}${NC}"
+        
+        if [ "$arg" = "-n" ]; then
+            tput cup $vposition ${#text}
+        else
+            if [ -n "$vposition" ] || ([ -n "$vposition" ] && [ -n "$hposition" ]); then
+                tput rc # Restore cursor position
+            fi
         fi
     fi
 }
@@ -2644,6 +2649,9 @@ for arg in "$@"; do
         -d | --debug)
             debug_log=1
             ;;
+        --nocolorecho)
+            no_color_echo=1
+            ;;
         -v | --version)
             colorecho "$THEME" "$utilname $release"
             colorecho "$DEBUG" "Build Number: $utilver"
@@ -2676,6 +2684,7 @@ for arg in "$@"; do
             echo "  --nowarning : Do not show warning messages."
             echo "  --noclear : Do not clear terminal output."
             echo "  --nowarning : Do not show warning messages."
+            echo "  --nocolorecho : Disable color or cursor position in output, useful for non-interactive usage."
             echo
             colorecho "$GREEN" "Features"
             echo
