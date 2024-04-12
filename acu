@@ -205,6 +205,7 @@ colorecho() {
     local text="$2"
 
     if [ -n "$no_color_echo" ]; then
+        text=$(echo -e ${text} | sed 's/\x1b\[[0-9;]*m//g')
         [ -n "$no_warning" ] && [ "$color" = "$WARNING" ] || [ "$color" = "$DEBUG" ] && [ -z "$debug_log" ] || echo -e "${text}"
     else
         local vposition="$3"
@@ -2636,7 +2637,10 @@ for arg in "$@"; do
     case "$arg" in
         --loadconfig=*)
             config_file="${arg#*=}"
-        ;;  
+            ;;
+        --nocolorecho)
+            no_color_echo=1
+            ;;
     esac
 done
 
@@ -2648,9 +2652,6 @@ for arg in "$@"; do
     case "$arg" in
         -d | --debug)
             debug_log=1
-            ;;
-        --nocolorecho)
-            no_color_echo=1
             ;;
         -v | --version)
             colorecho "$THEME" "$utilname $release"
@@ -2794,7 +2795,7 @@ for arg in "$@"; do
         ;;
         -*)
             case "$arg" in
-                -S | -R | -D | -B | --loadconfig=*) 
+                -S | -R | -D | -B | --loadconfig=* | --nocolorecho) 
                     # Add more excluded arguments as needed (these args are handled before or after this loop)
                     ;;
                 *)
