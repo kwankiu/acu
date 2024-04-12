@@ -24,7 +24,6 @@ configurations:
   #DEBUG: $LTGREY
 
   # Theme with Background Color (Experimental)
-  # If BACKGROUND value is set, the above THEME value (Theme Color) will be ignored
   #BACKGROUND: $BGBLACK
 
   ## ACU Configurable Variables ##
@@ -34,13 +33,16 @@ configurations:
   #no_config_update: 1
 
   # load device configuration determined by tags (e.g. rock-5b)
-  #device_config: generic-aarch64
+  #device_config: generic
 
   # do not confirm when installing a package using pacman -S / -U or makepkg -si
   #no_confirm: 1
 
   # do not print warning ($WARNING) messages
   #no_warning: 1
+
+  # disable color or cursor position in output
+  #no_color_echo: 1
 
   # do not clear terminal outputs
   #no_clear: 1
