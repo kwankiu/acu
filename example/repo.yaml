@@ -13,7 +13,11 @@ repositories:
   repo_type: git
   repo_url: https://aur.archlinux.org
  
-- repo_name: Apps
+- repo_name: ALAA
+  repo_type: archive
+  repo_url: https://alaa.ad24.cz
+ 
+- repo_name: apps
   repo_type: acu
   repo_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/apps.yaml
-
+ 

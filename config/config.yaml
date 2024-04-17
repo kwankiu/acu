@@ -55,22 +55,12 @@ configurations:
 
   ## ACU Configurable Files and Path ##
 
-  # archive repo url for downgrading packages
-  # Arch Linux ARM Archive repo
-  alaa_url: https://alaa.ad24.cz
-
   # directory for storing source files
-  source_repo_dir: .acu/sources
+  source_repo_dir: .acu/cache/sources
 
   # Repositories List
   # repositories_list - file (or url) to load repositories list
   # repositories_list_update - Sync local file from url when fetching updates (optional)
   repositories_list: .acu/config/repo.yaml
   #repositories_list_update: https://raw.githubusercontent.com/kwankiu/acu/dev/example/repo.yaml
-
-  # Packages List
-  # packages_list - file (or url) to load apps list
-  # apps_list_update - Sync local file from url when fetching updates (optional)
-  apps_list: .acu/config/apps.yaml
-  apps_list_update: https://raw.githubusercontent.com/kwankiu/acu/dev/example/apps.yaml
 
