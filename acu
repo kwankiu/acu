@@ -2611,13 +2611,15 @@ load_config() {
         if [ "$response_code" = 200 ]; then
             cp -r $HOME/.acu/cache/tmp/tmpdownload_config.yaml $HOME/.acu/config/config.yaml
             sudo rm -rf $HOME/.acu/cache/tmp/tmpdownload_config.yaml
-            response_code=$(curl --write-out '%{response_code}' -L https://raw.githubusercontent.com/kwankiu/acu/$release/example/repo.yaml -o $HOME/.acu/cache/tmp/tmpdownload_repo.yaml)
-            if [ "$response_code" = 200 ]; then
-                cp -r $HOME/.acu/cache/tmp/tmpdownload_repo.yaml $HOME/.acu/config/repo.yaml
-                sudo rm -rf $HOME/.acu/cache/tmp/tmpdownload_repo.yaml
-            else
-                sudo rm -rf $HOME/.acu/cache/tmp/tmpdownload_repo.yaml
-                colorecho "$RED" "ERROR $NC | Failed to download new repository file."
+            if [ ! -f "$config_dir/config.old" ]; then
+                response_code=$(curl --write-out '%{response_code}' -L https://raw.githubusercontent.com/kwankiu/acu/$release/example/repo.yaml -o $HOME/.acu/cache/tmp/tmpdownload_repo.yaml)
+                if [ "$response_code" = 200 ]; then
+                    cp -r $HOME/.acu/cache/tmp/tmpdownload_repo.yaml $HOME/.acu/config/repo.yaml
+                    sudo rm -rf $HOME/.acu/cache/tmp/tmpdownload_repo.yaml
+                else
+                    sudo rm -rf $HOME/.acu/cache/tmp/tmpdownload_repo.yaml
+                    colorecho "$RED" "ERROR $NC | Failed to download new repository file."
+                fi
             fi
             load_config
         else
