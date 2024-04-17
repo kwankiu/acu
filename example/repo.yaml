@@ -6,14 +6,14 @@
 repositories:
  
 #- repo_name: example
-#  repo_type: git #available types are agr, ghapi-orgs, ghapi-releases, and git.
-#  repo_url: https://example.com
+#  repo_type: git #available types are acu, agr and git.
+#  repo_url: https://example.com #url format PROTOCOL://HOST/SUBTREE:BRANCH
  
-- repo_name: acu
-  repo_type: agr
-  repo_url: https://github.com/kwankiu/acu:pkgbuilds
- 
-- repo_name: aur
+- repo_name: AUR
   repo_type: git
   repo_url: https://aur.archlinux.org
  
+- repo_name: Apps
+  repo_type: acu
+  repo_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/apps.yaml
+

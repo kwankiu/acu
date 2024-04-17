@@ -728,8 +728,8 @@ create_repo_yaml() {
     echo "repositories:" | tee -a "$repositories_file" >/dev/null
     echo " " | tee -a "$repositories_file" >/dev/null
     echo "#- repo_name: example" | tee -a "$repositories_file" >/dev/null
-    echo "#  repo_type: git #available types are agr, ghorg, ghrel, and git." | tee -a "$repositories_file" >/dev/null
-    echo "#  repo_url: https://example.com" | tee -a "$repositories_file" >/dev/null
+    echo "#  repo_type: git #available types are acu, agr and git" | tee -a "$repositories_file" >/dev/null
+    echo "#  repo_url: https://example.com #url format PROTOCOL://HOST/SUBTREE:BRANCH" | tee -a "$repositories_file" >/dev/null
     echo " " | tee -a "$repositories_file" >/dev/null
 }
 
@@ -752,36 +752,30 @@ add_repository() {
 
     # Read repository URL
     if [ -z "$2" ] || [[ "$2" == "--"* ]]; then
-        if [ "$1" = "acu" ]; then
-            if [ -z "$git_branch" ]; then
-                git_branch="pkgbuilds"
-            fi
-            repo_url="https://github.com/kwankiu/acu"
+        if [ -z "$1" ]; then
+            local align="center"
         else
-            if [ -z "$1" ]; then
-                local align="center"
-            else
-                local align="left"
-            fi
-            local p=$(colorecho "$NC" "Enter repository URL: " "" "$align")
-            read -p "$p" repo_url
+            local align="left"
         fi
+        local p=$(colorecho "$NC" "Enter repository URL: " "" "$align")
+        read -p "$p" repo_url
     else
         repo_url="$2"
     fi
 
     # Validate and auto-detect repository type based on URL format
-    if [[ "$repo_url" == "https://api.github.com/orgs"* ]]; then
-        repo_type="ghorg"
-    elif [[ "$repo_url" == "https://api.github.com/repos"* ]]; then
-        repo_type="ghrel"
+    if [[ "$repo_url" == *".yaml" ]]; then
+        repo_type="acu"
     elif [[ "$repo_url" == "http://"*"/"*"/"* || "$repo_url" == "https://"*"/"*"/"* ]]; then
         repo_type="agr"
         if [ -n "$git_branch" ]; then
             repo_url="$repo_url:$git_branch"
         fi
-    elif [[ "$repo_url" == "http://"* || "$repo_url" == "https://"* ]]; then
+    elif [[ "$repo_url" == "http://"* || "$repo_url" == "https://"* ]]; then # TODO github api
         repo_type="git"
+        if [[ "$repo_url" == *".git" ]]; then
+            repo_url="${repo_url%.git}"
+        fi
     else
         colorecho "$RED" "ERROR $NC | Invalid repository URL format."
         sleep 1
@@ -809,13 +803,17 @@ load_repositories() {
 list_repositories() {
     load_repositories
 
-    # Print repositories
-    colorecho "$GREEN" "INFO $NC | List of ACU Managed Repositories:"
-    for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
-        echo "  Name: ${repositories_repo_name[i]}"
-        echo "  Type: ${repositories_repo_type[i]}"
-        echo "  URL: ${repositories_repo_url[i]}"
-    done
+    # Print acu managed repositories
+    if [ "$1" != "pacman" ]; then
+        colorecho "$GREEN" "INFO $NC | List of ACU Managed Repositories:"
+        for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
+            echo "  Name: ${repositories_repo_name[i]}"
+            echo "  Type: ${repositories_repo_type[i]}"
+            echo "  URL: ${repositories_repo_url[i]}"
+        done
+    fi
+    # Print pacman repositories
+    if [ "$1" != "acu" ]; then
     colorecho "$GREEN" "INFO $NC | List of Pacman Repositories (Custom):"
         local pacman_repo_list=($(pacman-conf --repo-list))
         for ((i = 0; i < ${#pacman_repo_list[@]}; i++)); do
@@ -825,6 +823,7 @@ list_repositories() {
                 echo "  $repo_info"
             fi
         done
+    fi
 }
 
 # Function to list repositories sorted by type
@@ -911,9 +910,9 @@ fetch_repositories() {
                     fi
                 fi
                 ;;
-            ghorg | ghapi-orgs)
+            ##################### gh org
                 if [ "$1" != "-q" ]; then
-                    colorecho "$THEME" "GHORG $NC | Looking up remote: ${repositories_repo_url[i]}"
+                    
                 fi
                 get_ghapi_orgs ${repositories_repo_url[i]}
                 for pkg in "${ghapi_pkg_results[@]}"; do
@@ -926,10 +925,7 @@ fetch_repositories() {
                     colorecho "$THEME" "      INFO$NC|     found ${#ghapi_pkg_results[@]} packages"
                 fi
                 ;;
-            ghrel | ghapi-releases)
-                if [ "$1" != "-q" ]; then
-                    colorecho "$THEME" "GHREL $NC | Looking up remote: ${repositories_repo_url[i]}"
-                fi
+            ################################# gh rel
                 ghrel_url+=("${repositories_repo_url[i]}")
                 ghapi_pkg_results=($(echo -e "n" | install_ghrel_packages .pkg.tar. | grep .pkg.tar.* | sed 's/\.pkg\..*//'))
                 for pkg in "${ghapi_pkg_results[@]}"; do
@@ -942,9 +938,15 @@ fetch_repositories() {
                     colorecho "$THEME" "      INFO$NC|     found ${#ghapi_pkg_results[@]} packages"
                 fi
                 ;;
-            git)
+            git | ghorg | ghapi-orgs | ghrel | ghapi-releases)
                 if [ "$1" != "-q" ]; then
-                    colorecho "$THEME" "GIT   $NC | Looking up remote: ${repositories_repo_url[i]}"
+                    if [[ "${repositories_repo_url[i]}" == "https://api.github.com/orgs"* ]]; then
+                        colorecho "$THEME" "GHORG $NC | Looking up remote: ${repositories_repo_url[i]}"
+                    elif [[ "${repositories_repo_url[i]}" == "https://api.github.com/repos"* ]]; then
+                        colorecho "$THEME" "GHREL $NC | Looking up remote: ${repositories_repo_url[i]}"
+                    else
+                        colorecho "$THEME" "GIT   $NC | Looking up remote: ${repositories_repo_url[i]}"
+                    fi
                 fi
                 if curl -s --head ${repositories_repo_url[i]} &> /dev/null; then
                     if [ "$1" == "list" ]; then
