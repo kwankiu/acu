@@ -5,6 +5,9 @@
 # ACU Apps
 apps:
 ########################################################################
+  # Minimum ACU Version
+  - min_acu_verion: 0.0.7
+########################################################################
   # Category List
   - categories:
 ########################################################################
@@ -35,7 +38,7 @@ apps:
 ########################################################################
   # Items Usage / Examples
 #      - package_name: Name to identify the package (small letter no space) (used for: acu install <package>)
-#        app_name: Name to be shown on the app list (can contain capital letter and space) (used for: acu apps)
+#        pretty_name: Name to be shown on the app list (can contain capital letter and space) (used for: acu apps)
 #        category: Specific a category that this package belongs to from the category_name of the list above
 #        description: Description of the package 
 #        compatible:
@@ -50,7 +53,7 @@ apps:
   # Web
 
       - package_name: chromium
-        app_name: Chromium
+        pretty_name: Chromium
         category: Web
         description: Chromium web browser (with Rockchip MPP support)
         compatible:
@@ -72,7 +75,7 @@ apps:
           echo "CHROMIUM_FLAGS=\\"--use-gl=egl\\"" | sudo tee -a /etc/chromium-browser/default >/dev/null
 
       - package_name: ungoogled-chromium
-        app_name: Ungoogled Chromium
+        pretty_name: Ungoogled Chromium
         category: Web
         description: Chromium browser
         compatible: null
@@ -81,7 +84,7 @@ apps:
         commands: null
 
       - package_name: firefox
-        app_name: Firefox
+        pretty_name: Firefox
         category: Web
         description: Firefox web browser
         compatible: null
@@ -90,7 +93,7 @@ apps:
         commands: null
 
       - package_name: openssh
-        app_name: OpenSSH
+        pretty_name: OpenSSH
         category: Web
         description: OpenSSH Client
         compatible: null
@@ -99,7 +102,7 @@ apps:
         commands: null
 
       - package_name: nvm
-        app_name: NVM
+        pretty_name: NVM
         category: Web
         description: NodeJS Version Manager
         compatible: null
@@ -111,7 +114,7 @@ apps:
           source ~/.bashrc
 
       - package_name: wget
-        app_name: Wget
+        pretty_name: Wget
         category: Web
         description: Non-interactive download of files from the Web
         compatible: null
@@ -123,7 +126,7 @@ apps:
   # Communication
 
       - package_name: telegram-desktop
-        app_name: Telegram Desktop
+        pretty_name: Telegram Desktop
         category: Communication
         description: Fast and secure desktop app for Telegram
         compatible: null
@@ -132,7 +135,7 @@ apps:
         commands: null
 
       - package_name: teams
-        app_name: Microsoft Teams
+        pretty_name: Microsoft Teams
         category: Communication
         description: Microsoft Teams meeting desktop app
         compatible: null
@@ -141,7 +144,7 @@ apps:
         commands: null
 
       - package_name: discord
-        app_name: Discord (Armcord)
+        pretty_name: Discord (Armcord)
         category: Communication
         description: Discord desktop app for ARM
         compatible: null
@@ -150,7 +153,7 @@ apps:
         commands: null
 
       - package_name: signal
-        app_name: Signal
+        pretty_name: Signal
         category: Communication
         description: Signal Messenger desktop app
         compatible: null
@@ -163,7 +166,7 @@ apps:
   # Suites
 
       - package_name: libreoffice
-        app_name: LibreOffice
+        pretty_name: LibreOffice
         category: Suites
         description: Free and open-source office suite
         compatible: null
@@ -172,7 +175,7 @@ apps:
         commands: null
 
       - package_name: wps-office-cn
-        app_name: WPS Office (CN)
+        pretty_name: WPS Office (CN)
         category: Suites
         description: Chinese version of WPS Office
         compatible: null
@@ -181,7 +184,7 @@ apps:
         commands: null
 
       - package_name: abiword
-        app_name: AbiWord
+        pretty_name: AbiWord
         category: Suites
         description: Lightweight word processing program
         compatible: null
@@ -190,7 +193,7 @@ apps:
         commands: null
 
       - package_name: gnumeric
-        app_name: Gnumeric
+        pretty_name: Gnumeric
         category: Suites
         description: Spreadsheet program
         compatible: null
@@ -199,7 +202,7 @@ apps:
         commands: null
 
       - package_name: gnucash
-        app_name: GNUcash
+        pretty_name: GNUcash
         category: Suites
         description: Personal and small-business financial accounting software
         compatible: null
@@ -208,7 +211,7 @@ apps:
         commands: null
 
       - package_name: glabels
-        app_name: Glabels
+        pretty_name: Glabels
         category: Suites
         description: Program for creating labels
         compatible: null
@@ -217,7 +220,7 @@ apps:
         commands: null
 
       - package_name: glom
-        app_name: Glom
+        pretty_name: Glom
         category: Suites
         description: Database designer and user interface
         compatible: null
@@ -226,7 +229,7 @@ apps:
         commands: null
 
       - package_name: dia
-        app_name: Dia
+        pretty_name: Dia
         category: Suites
         description: Diagram creation program
         compatible: null
@@ -238,7 +241,7 @@ apps:
   # Multimedia
 
       - package_name: kodi
-        app_name: Kodi
+        pretty_name: Kodi
         category: Multimedia
         description: Media player and entertainment hub (with MPP support)
         compatible:
@@ -248,7 +251,7 @@ apps:
         commands: null
 
       - package_name: vlc
-        app_name: VLC
+        pretty_name: VLC
         category: Multimedia
         description: Multimedia player
         compatible: null
@@ -257,7 +260,7 @@ apps:
         commands: null
 
       - package_name: lollypop
-        app_name: Lollypop
+        pretty_name: Lollypop
         category: Multimedia
         description: Music player for GNOME
         compatible: null
@@ -266,7 +269,7 @@ apps:
         commands: null
 
       - package_name: rhythmbox
-        app_name: Rhythmbox
+        pretty_name: Rhythmbox
         category: Multimedia
         description: Music player
         compatible: null
@@ -275,7 +278,7 @@ apps:
         commands: null
 
       - package_name: gimp
-        app_name: GIMP
+        pretty_name: GIMP
         category: Multimedia
         description: Image editor
         compatible: null
@@ -284,7 +287,7 @@ apps:
         commands: null
 
       - package_name: inkscape
-        app_name: Inkscape
+        pretty_name: Inkscape
         category: Multimedia
         description: Vector graphics editor
         compatible: null
@@ -293,7 +296,7 @@ apps:
         commands: null
 
       - package_name: krita
-        app_name: Krita
+        pretty_name: Krita
         category: Multimedia
         description: Digital painting application
         compatible: null
@@ -302,7 +305,7 @@ apps:
         commands: null
 
       - package_name: audacity
-        app_name: Audacity
+        pretty_name: Audacity
         category: Multimedia
         description: Audio editor and recorder
         compatible: null
@@ -311,7 +314,7 @@ apps:
         commands: null
 
       - package_name: ardour
-        app_name: Ardour
+        pretty_name: Ardour
         category: Multimedia
         description: Digital audio workstation
         compatible: null
@@ -320,7 +323,7 @@ apps:
         commands: null
 
       - package_name: blender
-        app_name: Blender
+        pretty_name: Blender
         category: Multimedia
         description: 3D creation software
         compatible: null
@@ -332,7 +335,7 @@ apps:
   # Gaming
 
       - package_name: minecraft
-        app_name: Minecraft (HMCL)
+        pretty_name: Minecraft (HMCL)
         category: Gaming
         description: (For Testing) A multi-functional, cross-platform, popular Minecraft Launcher
         compatible: null
@@ -341,7 +344,7 @@ apps:
         commands: null
 
       - package_name: supertux
-        app_name: Super Tux
+        pretty_name: Super Tux
         category: Gaming
         description: A classic 2D jump'n'run sidescroller game in a style similar to the original SuperMario games
         compatible: null
@@ -350,7 +353,7 @@ apps:
         commands: null
 
       - package_name: supertuxkart
-        app_name: Super Tux Kart
+        pretty_name: Super Tux Kart
         category: Gaming
         description: Kart racing game featuring Tux and his friends
         compatible: null
@@ -359,7 +362,7 @@ apps:
         commands: null
 
       - package_name: 2048
-        app_name: 2048
+        pretty_name: 2048
         category: Gaming
         description: Obtain the 2048 tile (Gnome 2048)
         compatible: null
@@ -368,7 +371,7 @@ apps:
         commands: null
 
       - package_name: lutris
-        app_name: Lutris
+        pretty_name: Lutris
         category: Gaming
         description: Video game preservation platform
         compatible: null
@@ -377,7 +380,7 @@ apps:
         commands: null
 
       - package_name: dolphin-emu
-        app_name: Dolphin Emulator
+        pretty_name: Dolphin Emulator
         category: Gaming
         description: GameCube / Wii / Triforce Emulator
         compatible: null
@@ -386,7 +389,7 @@ apps:
         commands: null
 
       - package_name: ppsspp
-        app_name: PPSSPP
+        pretty_name: PPSSPP
         category: Gaming
         description: PlayStation Portable emulator
         compatible: null
@@ -395,7 +398,7 @@ apps:
         commands: null
 
       - package_name: melonds
-        app_name: MelonDS
+        pretty_name: MelonDS
         category: Gaming
         description: Nintendo DS and DSi emulator
         compatible: null
@@ -404,7 +407,7 @@ apps:
         commands: null
 
       - package_name: ryujinx
-        app_name: Ryujinx
+        pretty_name: Ryujinx
         category: Gaming
         description: Nintendo Switch Emulator
         compatible: null
@@ -413,7 +416,7 @@ apps:
         commands: null
 
       - package_name: pegasus
-        app_name: Pegasus
+        pretty_name: Pegasus
         category: Gaming
         description: Customizable graphical frontend for launching emulators
         compatible: null
@@ -422,7 +425,7 @@ apps:
         commands: null
       
       - package_name: steam
-        app_name: Steam
+        pretty_name: Steam
         category: Gaming
         description: (For Testing) Wine 64-Bit WoW64, Winetricks & Steam (Windows)
         compatible: null
@@ -447,7 +450,7 @@ apps:
   # Virtualization
 
       - package_name: virt-manager
-        app_name: Virt Manager
+        pretty_name: Virt Manager
         category: Virtualization
         description: QEMU Virtual Machine Manager
         compatible: null
@@ -456,7 +459,7 @@ apps:
         commands: null
 
       - package_name: qemu-full
-        app_name: QEMU
+        pretty_name: QEMU
         category: Virtualization
         description: Generic and open-source machine emulator and virtualizer
         compatible: null
@@ -465,7 +468,7 @@ apps:
         commands: null
 
       - package_name: box64
-        app_name: Box64
+        pretty_name: Box64
         category: Virtualization
         description: x86_64 (64-bit) emulator
         compatible: null
@@ -474,7 +477,7 @@ apps:
         commands: null
 
       - package_name: wine
-        app_name: Wine (WoW64)
+        pretty_name: Wine (WoW64)
         category: Virtualization
         description: (For Testing) Wine (64-Bit with WoW64) for running Windows applications
         compatible: null
@@ -506,7 +509,7 @@ apps:
           echo -e "To test Wine on ARM64, run:"" box64 wine winecfg"
 
       - package_name: wine-8.18
-        app_name: Wine 8.18 (64-bit)
+        pretty_name: Wine 8.18 (64-bit)
         category: Virtualization
         description: (For Testing) Wine 8.18 Staging (64-Bit) needed for some games
         compatible: null
@@ -538,7 +541,7 @@ apps:
           echo -e "To test Wine on ARM64, run:"" box64 wine winecfg"
 
       - package_name: malior-droid
-        app_name: Malior Droid
+        pretty_name: Malior Droid
         category: Virtualization
         description: MaliorDroid (Redroid-based) Android emulator for RK3588
         compatible:
@@ -566,7 +569,7 @@ apps:
   # Development
 
       - package_name: code
-        app_name: Visual Studio Code
+        pretty_name: Visual Studio Code
         category: Development
         description: Visual Studio Code Editor
         compatible: null
@@ -575,7 +578,7 @@ apps:
         commands: null
 
       - package_name: sublime-text-4
-        app_name: Sublime Text 4
+        pretty_name: Sublime Text 4
         category: Development
         description: Sublime Text 4 Code Editor
         compatible: null
@@ -584,7 +587,7 @@ apps:
         commands: null
 
       - package_name: gedit
-        app_name: Gedit
+        pretty_name: Gedit
         category: Development
         description: Gedit Text Editor
         compatible: null
@@ -593,7 +596,7 @@ apps:
         commands: null
 
       - package_name: vim
-        app_name: Vim
+        pretty_name: Vim
         category: Development
         description: Vim Text Editor
         compatible: null
@@ -602,7 +605,7 @@ apps:
         commands: null
 
       - package_name: gh
-        app_name: GitHub CLI
+        pretty_name: GitHub CLI
         category: Development
         description: The GitHub CLI
         compatible: null
@@ -611,7 +614,7 @@ apps:
         commands: null
 
       - package_name: github-desktop-bin
-        app_name: GitHub Desktop
+        pretty_name: GitHub Desktop
         category: Development
         description: GitHub Desktop App
         compatible: null
@@ -620,7 +623,7 @@ apps:
         commands: null
 
       - package_name: python-pipx
-        app_name: Python PIPX
+        pretty_name: Python PIPX
         category: Development
         description: Python Package Installer
         compatible: null
@@ -629,7 +632,7 @@ apps:
         commands: null
 
       - package_name: python2
-        app_name: Python 2
+        pretty_name: Python 2
         category: Development
         description: Programming Language
         compatible: null
@@ -641,7 +644,7 @@ apps:
   # System
 
       - package_name: neofetch
-        app_name: Neofetch
+        pretty_name: Neofetch
         category: System
         description: Print System Information
         compatible: null
@@ -650,7 +653,7 @@ apps:
         commands: null
 
       - package_name: screenfetch
-        app_name: Screenfetch
+        pretty_name: Screenfetch
         category: System
         description: Print System Information
         compatible: null
@@ -659,7 +662,7 @@ apps:
         commands: null
 
       - package_name: s-tui
-        app_name: S-TUI
+        pretty_name: S-TUI
         category: System
         description: System Monitor
         compatible: null
@@ -668,7 +671,7 @@ apps:
         commands: null
 
       - package_name: htop
-        app_name: Htop
+        pretty_name: Htop
         category: System
         description: System Monitor
         compatible: null
@@ -677,7 +680,7 @@ apps:
         commands: null
 
       - package_name: stress
-        app_name: Stress
+        pretty_name: Stress
         category: System
         description: CPU Stress Testing Tool
         compatible: null
@@ -686,7 +689,7 @@ apps:
         commands: null
 
       - package_name: glmark2
-        app_name: GL Mark 2
+        pretty_name: GL Mark 2
         category: System
         description: OpenGL & OpenGL ES Benchmarking
         compatible: null
@@ -695,7 +698,7 @@ apps:
         commands: null
 
       - package_name: geekbench
-        app_name: Geekbench 6 
+        pretty_name: Geekbench 6 
         category: System
         description: Geekbench 6 System Benchmark (Preview build)
         compatible: null
@@ -707,7 +710,7 @@ apps:
   # Others
 
       - package_name: intel-ax210-fw
-        app_name: AX210 Firmware
+        pretty_name: AX210 Firmware
         category: Others
         description: Intel AX210 WiFi+BT Firmware (for BSP Kernel)
         compatible: null
@@ -721,7 +724,7 @@ apps:
           sudo curl -o /lib/firmware/intel/ibt-0041-0041.ddc https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/intel/ibt-0041-0041.ddc          
 
       - package_name: yay
-        app_name: Yay
+        pretty_name: Yay
         category: Others
         description: AUR Package Helper
         compatible: null
@@ -730,7 +733,7 @@ apps:
         commands: null
 
       - package_name: agr
-        app_name: AGR
+        pretty_name: AGR
         category: Others
         description: Archlinux Git Repositories Package Helper
         compatible: null
@@ -741,7 +744,7 @@ apps:
             sudo ln -s ~/.local/bin/agr /usr/local/bin/agr
 
       - package_name: gnome-terminal
-        app_name: GNOME Terminal
+        pretty_name: GNOME Terminal
         category: Others
         description: Terminal Emulator
         compatible: null
@@ -750,7 +753,7 @@ apps:
         commands: null
 
       - package_name: konsole
-        app_name: Konsole
+        pretty_name: Konsole
         category: Others
         description: Terminal Emulator
         compatible: null
@@ -759,7 +762,7 @@ apps:
         commands: null
 
       - package_name: xterm
-        app_name: Xterm
+        pretty_name: Xterm
         category: Others
         description: Terminal Emulator
         compatible: null
