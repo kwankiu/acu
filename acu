@@ -2669,7 +2669,7 @@ load_config() {
                 fi
             fi
             load_config
-            acu update
+            fetch_repositories
         else
             sudo rm -rf $HOME/.acu/cache/tmp/tmpdownload_config.yaml
             colorecho "$RED" "ERROR $NC | Failed to download new configuration file."
