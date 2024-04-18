@@ -1750,7 +1750,7 @@ install_pkg() {
         colorecho "$THEME" "INFO $NC | Looking for package: $selection_base"
 
                 # Handle Kernel Installation
-                if [[ "$selection_base" == "linux-"* ]] && [ [[ "$selection_base" != *"-headers" ]] ]; then
+                if [[ "$selection_base" == "linux-"* ]] && [[ "$selection_base" != *"-headers" ]]; then
                     # Make sure mkinitcpio.old not exist
                     sudo rm -rf /etc/mkinitcpio.old
                     # Backup mkinitcpio.old
@@ -1852,7 +1852,7 @@ install_pkg() {
                 fi
 
                 # Handle Kernel Installation
-                if [[ "$selection_base" == "linux-"* ]] && [ [[ "$selection_base" != *"-headers" ]] ]; then
+                if [[ "$selection_base" == "linux-"* ]] && [[ "$selection_base" != *"-headers" ]]; then
                     update_kernel_extlinux "$selection_base"
                 fi
     done
