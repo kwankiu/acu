@@ -118,10 +118,12 @@ clear () {
 # acu override
 acu () {
     local command=$@
-    if [ -f "/usr/bin/acu" ]; then
-        command acu "$@"
-    else
+    if [ -f "$pwd/acu" ]; then
+        colorecho "$DEBUG" "Using ACU in current directory"
         command bash $pwd/acu "$@"
+    else
+        colorecho "$DEBUG" "Using ACU in PATH"
+        command acu "$@"
     fi
 }
 
