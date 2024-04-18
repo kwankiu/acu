@@ -2770,11 +2770,10 @@ for arg in "$@"; do
             echo "  -R / remove : remove / uninstall a package from this system."
             echo "  -B / build <URL> : build / compile a package without installing. <URL> supported protocols: gh://username/repo (GitHub) OR aur://package (AUR) OR https://git_url_to_clone (or http:// or ssh://)"
             echo "  rem / rem manage : show menu for add, list or remove ACU Managed and Pacman Repositories."
-            echo "  rem fetch : fetch acu managed repositories with packages list."
-            echo "  rem list / rem show : list acu managed repositories."
+            echo "  rem fetch : fetch acu managed repositories and print all fetched packages."
+            echo "  rem list / rem show <pacman/acu> : list acu managed repositories, optional argument to list only pacman repositories or acu repositories."
             echo "  rem add / rem set <name> <url> <type> : add a repository, <type> is optional."
             echo "  rem add / rem set <name> <url> pacman <gpg_key> : add a repository to pacman."
-            echo "  rem add / rem set default : load acu default repositories."
             echo "  rem remove / rem del <name> : remove a repository from acu."
             echo "  rem remove / rem del pacman <name>: remove a repository from pacman."
             echo
