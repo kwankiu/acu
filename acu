@@ -482,7 +482,9 @@ get_ghapi_orgs() {
     done
 
     ghapi_pkg_results=()
+    ghapi_url_results=()
     for url in "${dgpkg_list[@]}"; do
+        ghapi_url_results+=("https://github.com/$url")
         selection=$(basename "$url")
         ghapi_pkg_results+=("$selection")
     done
@@ -915,7 +917,7 @@ fetch_repositories() {
     local i # declare as local variable
     for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
         if [ "$1" != "-q" ]; then
-            echo -n "${repositories_repo_name[i]}"
+            echo -n " ${repositories_repo_name[i]}"
             printf "\t\t [ ########################## ] \t"
         fi
         case ${repositories_repo_type[i]} in
@@ -948,7 +950,7 @@ fetch_repositories() {
                         agr 2>&1
                     else
                         if [ "$1" != "-q" ]; then
-                            colorecho "$THEME" "AGR   $NC | Looking up remote: ${repositories_repo_url[i]}"
+                            colorecho "$THEME" "AGR    $NC | Looking up remote: ${repositories_repo_url[i]}"
                         fi
                         agr  &> /dev/null
                     fi
@@ -956,28 +958,41 @@ fetch_repositories() {
                 ;;
             git | archive | ghorg | ghapi-orgs | ghrel | ghapi-releases)
                 if [ "$1" != "-q" ]; then
-                    if [[ "${repositories_repo_url[i]}" == "https://api.github.com/orgs"* ]]; then
+                    if [[ "${repositories_repo_url[i]}" == "https://github.com/"* && "${repositories_repo_url[i]}" != *"https://github.com/"*"/"* ]]; then
                         # Github API (Orgs/Users)
-                        colorecho "$THEME" "GHORG $NC | Looking up remote: ${repositories_repo_url[i]}"
+                        colorecho "$THEME" "GHORG  $NC | Looking up remote: ${repositories_repo_url[i]}"
                     elif [[ "${repositories_repo_url[i]}" == "https://api.github.com/repos"* ]]; then
                         # Github API (Repository)
-                        colorecho "$THEME" "GHREL $NC | Looking up remote: ${repositories_repo_url[i]}"
+                        colorecho "$THEME" "GHREL  $NC | Looking up remote: ${repositories_repo_url[i]}"
+                    elif [ "${repositories_repo_type[i]}" = "archive" ]; then
+                        # Archive Repository (Downgrade)
+                        colorecho "$THEME" "ARCHIVE$NC | Looking up remote: ${repositories_repo_url[i]}"
                     else
                         # GIT
-                        colorecho "$THEME" "GIT   $NC | Looking up remote: ${repositories_repo_url[i]}"
+                        colorecho "$THEME" "GIT    $NC | Looking up remote: ${repositories_repo_url[i]}"
                     fi
                 fi
                 # Github API (Orgs/Users)
-                if [[ "${repositories_repo_url[i]}" == "https://api.github.com/orgs"* ]]; then
-                    get_ghapi_orgs ${repositories_repo_url[i]}
-                    for pkg in "${ghapi_pkg_results[@]}"; do
+                if [[ "${repositories_repo_url[i]}" == "https://github.com/"* && "${repositories_repo_url[i]}" != *"https://github.com/"*"/"* ]]; then
+                    local ghapi_url="https://api.github.com/orgs/$(basename ${repositories_repo_url[i]})/repos"
+                    get_ghapi_orgs $ghapi_url
+                    mkdir -p $HOME/.acu/cache/db
+                    local db_file="$HOME/.acu/cache/db/${repositories_repo_name[i]}.yaml"
+                    echo "# Package database for ${repositories_repo_name[i]}" | tee "$db_file" >/dev/null
+                    echo "${repositories_repo_name[i]}:" | tee -a "$db_file" >/dev/null
+                    echo " " | tee -a "$db_file" >/dev/null
+                    local p
+                    for ((p = 0; p < ${#ghapi_pkg_results[@]}; p++)); do
+                        echo "- package_name: ${ghapi_pkg_results[p]}" | tee -a "$db_file" >/dev/null
+                        echo "  clone_url: ${ghapi_url_results[p]}" | tee -a "$db_file" >/dev/null
+                        echo " " | tee -a "$db_file" >/dev/null
                         if [ "$1" == "list" ]; then
-                            colorecho "$THEME" "      PKG$NC |     $pkg"
+                            colorecho "$GREEN" "      PKG $NC |     ${ghapi_pkg_results[p]}"
                         fi
                     done
                     if [ "$1" == "list" ]; then
-                        colorecho "$THEME" "      INFO$NC|"
-                        colorecho "$THEME" "      INFO$NC|     found ${#ghapi_pkg_results[@]} packages"
+                        colorecho "$GREEN" "      INFO$NC |"
+                        colorecho "$GREEN" "      INFO$NC |     Successfully fetched host (found ${#ghapi_pkg_results[@]} packages)"
                     fi
                 # Github API (Repository)
                 elif [[ "${repositories_repo_url[i]}" == "https://api.github.com/repos"* ]]; then
@@ -985,17 +1000,18 @@ fetch_repositories() {
                     ghapi_pkg_results=($(echo -e "n" | install_ghrel_packages .pkg.tar. | grep .pkg.tar.* | sed 's/\.pkg\..*//'))
                     for pkg in "${ghapi_pkg_results[@]}"; do
                         if [ "$1" == "list" ]; then
-                            colorecho "$THEME" "      PKG$NC |     $pkg"
+                            colorecho "$GREEN" "      PKG $NC |     $pkg"
                         fi
                     done
                     if [ "$1" == "list" ]; then
-                        colorecho "$THEME" "      INFO$NC|"
-                        colorecho "$THEME" "      INFO$NC|     found ${#ghapi_pkg_results[@]} packages"
+                        colorecho "$GREEN" "      INFO$NC |"
+                        colorecho "$GREEN" "      INFO$NC |     Successfully fetched host (found ${#ghapi_pkg_results[@]} packages)"
                     fi
                 # GIT
                 else
                     if curl -s --head ${repositories_repo_url[i]} &> /dev/null; then
                         if [ "$1" == "list" ]; then
+                            colorecho "$GREEN" "      INFO$NC |"
                             colorecho "$GREEN" "      INFO$NC |     Successfully fetched host (Packages list fetching unsupported)"
                         fi
                     else
@@ -1005,7 +1021,7 @@ fetch_repositories() {
                 ;;
             acu)
                 if [ "$1" != "-q" ]; then
-                    colorecho "$THEME" "ACU   $NC | Looking up remote: ${repositories_repo_url[i]}"
+                    colorecho "$THEME" "ACU    $NC | Looking up remote: ${repositories_repo_url[i]}"
                 fi
                 mkdir -p $HOME/.acu/cache/tmp
                 response_code=$(curl -s --write-out '%{response_code}' -L "${repositories_repo_url[i]}" -o $HOME/.acu/cache/tmp/tmpdownload.yaml)
@@ -1013,6 +1029,10 @@ fetch_repositories() {
                 if [ "$response_code" = 200 ]; then
                     mkdir -p $HOME/.acu/cache/db
                     cp -r $HOME/.acu/cache/tmp/tmpdownload.yaml $HOME/.acu/cache/db/${repositories_repo_name[i]}.yaml
+                    if [ "$1" == "list" ]; then
+                        colorecho "$GREEN" "      INFO$NC |"
+                        colorecho "$GREEN" "      INFO$NC |     Successfully fetched host (Packages list fetching unsupported)"
+                    fi
                 else
                     colorecho "$RED" "      ERROR$NC |     Failed to resolve repository."
                 fi
@@ -1020,8 +1040,7 @@ fetch_repositories() {
                 ;;
             *)
                 if [ "$1" != "-q" ]; then
-                    colorecho "$THEME" "UNKNOWN$NC | Looking up remote: ${repositories_repo_url[i]}"
-                    colorecho "$RED" "      ERROR$NC |     Invalid repository type. Valid types are: acu, agr, git and archive."
+                    colorecho "$RED" "ERROR  $NC | Invalid repository type. Valid types are: acu, agr, git and archive."
                 else
                     colorecho "$DEBUG" "$RED      ERROR$NC |     Invalid repository type. Valid types are: acu, agr, git and archive."
                 fi
