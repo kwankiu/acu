@@ -895,7 +895,7 @@ list_repositories() {
     colorecho "$GREEN" "INFO $NC | List of Pacman Repositories (Custom):"
         local pacman_repo_list=($(pacman-conf --repo-list))
         for ((i = 0; i < ${#pacman_repo_list[@]}; i++)); do
-            if [ "${pacman_repo_list[i]}" != "core" ] && [ "${pacman_repo_list[i]}" != "extra" ]; then
+            if [ "${pacman_repo_list[i]}" != "core" ] && [ "${pacman_repo_list[i]}" != "extra" ] && [ "${pacman_repo_list[i]}" != "community" ] && [ "${pacman_repo_list[i]}" != "alarm" ]; then
                 echo "  Name: ${pacman_repo_list[i]}"
                 local repo_info=$(pacman-conf --repo="${pacman_repo_list[i]}")
                 echo "  $repo_info"
