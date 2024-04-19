@@ -843,6 +843,10 @@ add_repository() {
             if [ -n "$git_branch" ]; then
                 repo_url="$repo_url:$git_branch"
             fi
+            # Remove "/" ending
+            if [[ "$repo_url" == *"/" ]]; then
+                repo_url="${repo_url%/}"
+            fi
             # Remove .git if it exist as it will be automatically added in git clone
             if [[ "$repo_url" == *".git" ]]; then
                 repo_url="${repo_url%.git}"
@@ -929,7 +933,7 @@ remove_repository() {
     for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
         # Append new repository item to YAML file
         if [ "$toremove" != "${repositories_repo_name[i]}" ]; then
-            acu rem set ${repositories_repo_name[i]} ${repositories_repo_url[i]} &> /dev/null
+            acu rem set ${repositories_repo_name[i]} ${repositories_repo_url[i]} ${repositories_repo_type[i]} &> /dev/null
         else
             if [ "${repositories_repo_type[i]}" == "agr" ]; then
                 colorecho "$THEME" "INFO $NC | Removing ${repositories_repo_name[i]} from agr ..."
@@ -1024,12 +1028,12 @@ fetch_repositories() {
                         echo "  clone_url: ${ghapi_url_results[p]}" | tee -a "$db_file" >/dev/null
                         echo " " | tee -a "$db_file" >/dev/null
                         if [ "$1" == "list" ]; then
-                            colorecho "$GREEN" "      PKG $NC |     ${ghapi_pkg_results[p]}"
+                            colorecho "$THEME" "PKG $NC |     ${ghapi_pkg_results[p]}"
                         fi
                     done
                     if [ "$1" == "list" ]; then
-                        colorecho "$GREEN" "      INFO$NC |"
-                        colorecho "$GREEN" "      INFO$NC |     Successfully fetched host (found ${#ghapi_pkg_results[@]} packages)"
+                        colorecho "$GREEN" "INFO$NC |"
+                        colorecho "$GREEN" "INFO$NC |     Successfully fetched host (found ${#ghapi_pkg_results[@]} packages)"
                     fi
                 # Github API (Repository)
                 elif [[ "${repositories_repo_url[i]}" == "https://api.github.com/repos"* ]]; then
@@ -1037,23 +1041,23 @@ fetch_repositories() {
                     ghapi_pkg_results=($(echo -e "n" | install_ghrel_packages .pkg.tar. | grep .pkg.tar.* | sed 's/\.pkg\..*//'))
                     for pkg in "${ghapi_pkg_results[@]}"; do
                         if [ "$1" == "list" ]; then
-                            colorecho "$GREEN" "      PKG $NC |     $pkg"
+                            colorecho "$THEME" "PKG $NC |     $pkg"
                         fi
                     done
                     if [ "$1" == "list" ]; then
-                        colorecho "$GREEN" "      INFO$NC |"
-                        colorecho "$GREEN" "      INFO$NC |     Successfully fetched host (found ${#ghapi_pkg_results[@]} packages)"
+                        colorecho "$GREEN" "INFO$NC |"
+                        colorecho "$GREEN" "INFO$NC |     Successfully fetched host (found ${#ghapi_pkg_results[@]} packages)"
                     fi
                 # GIT
                 else
-                    local response_code=$(curl --write-out '%{response_code}' -s "${repositories_repo_url[i]}" -o /dev/null)
+                    local response_code=$(curl --write-out '%{response_code}' -s "${repositories_repo_url[i]}/" -o /dev/null)
                     if [ "$response_code" = 200 ]; then
                         if [ "$1" == "list" ]; then
-                            colorecho "$GREEN" "      INFO$NC |"
-                            colorecho "$GREEN" "      INFO$NC |     Successfully fetched host (Packages list fetching unsupported)"
+                            colorecho "$GREEN" "INFO$NC |"
+                            colorecho "$GREEN" "INFO$NC |     Successfully fetched host (Packages list fetching unsupported)"
                         fi
                     else
-                        colorecho "$RED" "      ERROR$NC |     Failed to resolve host."
+                        colorecho "$RED" "ERROR$NC |     Failed to resolve host (error code $response_code)."
                     fi
                 fi
                 ;;
@@ -1068,11 +1072,10 @@ fetch_repositories() {
                     mkdir -p $HOME/.acu/cache/db
                     cp -r $HOME/.acu/cache/tmp/tmpdownload.yaml $HOME/.acu/cache/db/${repositories_repo_name[i]}.yaml
                     if [ "$1" == "list" ]; then
-                        colorecho "$GREEN" "      INFO$NC |"
-                        colorecho "$GREEN" "      INFO$NC |     Successfully fetched host (Packages list fetching unsupported)"
+                        apps_list
                     fi
                 else
-                    colorecho "$RED" "      ERROR$NC |     Failed to resolve repository."
+                    colorecho "$RED" "ERROR$NC |     Failed to resolve repository."
                 fi
                 rm -rf $HOME/.acu/cache/tmp/tmpdownload.yaml
                 ;;
@@ -1080,7 +1083,7 @@ fetch_repositories() {
                 if [ "$1" != "-q" ]; then
                     colorecho "$RED" "ERROR  $NC | Invalid repository type. Valid types are: acu, agr, git and archive."
                 else
-                    colorecho "$DEBUG" "$RED      ERROR$NC |     Invalid repository type. Valid types are: acu, agr, git and archive."
+                    colorecho "$DEBUG" "${RED}ERROR$NC |     Invalid repository type. Valid types are: acu, agr, git and archive."
                 fi
                 ;;
         esac
@@ -1667,11 +1670,12 @@ apps_list() {
     else
         for ((i = 0; i < ${#apps_package_name[@]}; i++)); do
             colorecho "$THEME" "PKG  $NC | ${apps_package_name[i]}"
-            colorecho "$GREEN" "INFO $NC | APP: ${apps_pretty_name[i]}, CAT: ${apps_category[i]}, DIS: ${apps_description[i]}"
+            colorecho "$DEBUG" "INFO $NC | APP: ${apps_pretty_name[i]}, CAT: ${apps_category[i]}, DIS: ${apps_description[i]}"
             colorecho "$DEBUG" "INFO $NC | Packages: ${apps_packages[i]}"
             colorecho "$DEBUG" "INFO $NC | Commands: ${apps_commands[i]}"
         done
-        colorecho "$THEME" "INFO $NC | $i packages found"
+        colorecho "$GREEN" "INFO $NC |"
+        colorecho "$GREEN" "INFO $NC | $i packages found"
     fi
 }
 
