@@ -1792,7 +1792,7 @@ pkg_lookup_git() {
     pkg_lookup_clone_repo=""
     for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
         if [ "${repositories_repo_type[i]}" = "git" ]; then
-            local lookup=$(git ls-remote "${repositories_repo_url[i]}/$pkg")
+            local lookup=$(git ls-remote "${repositories_repo_url[i]}/$pkg" 2>/dev/null)
             if [ -n "$lookup" ]; then
                 if [ -z "$repo" ]; then
                     # Lookup and match any repo
@@ -1814,6 +1814,9 @@ pkg_lookup_git() {
 # Install Packages
 install_pkg() {
     # Handle each packages installation
+    if [ -n "$use_pm" ]; then
+        local gpm=$use_pm
+    fi
     for ((i=0; i<${#selection[@]}; i++)); do
         local selection_base=$(basename ${selection[i]})
         colorecho "$THEME" "INFO $NC | Looking for package: $selection_base"
@@ -1828,6 +1831,16 @@ install_pkg() {
                 use_pm="pacman"
             elif pkg_lookup_git $selection_base "$(dirname ${selection[i]})"; then
                 pm_repo_name="$(dirname ${selection[i]})"
+                pm_repo_url="$pkg_lookup_clone_url"
+                use_pm="git"
+            else
+                colorecho "$RED" "ERROR $NC | Package $selection_base not found"
+                return 1
+            fi
+        elif [ "$use_pm" = "git" ]; then
+            if pkg_lookup_git $selection_base; then
+                # GIT
+                pm_repo_name="$pkg_lookup_clone_repo"
                 pm_repo_url="$pkg_lookup_clone_url"
                 use_pm="git"
             else
@@ -1942,8 +1955,6 @@ install_pkg() {
             else
                 agr install $selection_base --noconfirm
             fi
-        elif [ "$use_pm" = "skip" ]; then   
-            use_pm=""
         fi
 
         if [ "$fallback" = 1 ]; then 
@@ -1957,6 +1968,13 @@ install_pkg() {
         # Handle Kernel Installation
         if [[ "$selection_base" == "linux-"* ]] && [[ "$selection_base" != *"-headers" ]]; then
             update_kernel_extlinux "$selection_base"
+        fi
+
+        # Restore use_pm for next package
+        if [ -n "$gpm" ]; then
+            use_pm="$gpm"
+        else
+            use_pm=""
         fi
     done
 }
