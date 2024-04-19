@@ -985,14 +985,12 @@ fetch_repositories() {
                     else
                         agr rem set "${repositories_repo_name[i]}" "${repositories_repo_url[i]}" &> /dev/null
                     fi
+                    colorecho "$THEME" "AGR    $NC | Looking up remote: ${repositories_repo_url[i]}"
                     if [ -n "$debug_log" ]; then
-                        agr -d 2>&1
+                        agr -d 2>&1 | grep -v 'INFO' | grep -v "\---" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
                     elif [ "$1" == "list" ]; then
-                        agr 2>&1
+                        agr 2>&1 | grep -v 'INFO' | grep -v "\---" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
                     else
-                        if [ "$1" != "-q" ]; then
-                            colorecho "$THEME" "AGR    $NC | Looking up remote: ${repositories_repo_url[i]}"
-                        fi
                         agr  &> /dev/null
                     fi
                 fi
@@ -1073,6 +1071,7 @@ fetch_repositories() {
                     cp -r $HOME/.acu/cache/tmp/tmpdownload.yaml $HOME/.acu/cache/db/${repositories_repo_name[i]}.yaml
                     if [ "$1" == "list" ]; then
                         apps_list
+                        colorecho "$GREEN" "INFO$NC |     Successfully fetched host"
                     fi
                 else
                     colorecho "$RED" "ERROR$NC |     Failed to resolve repository."
