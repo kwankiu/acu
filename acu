@@ -2837,6 +2837,10 @@ load_config() {
     if [ -f "$config_file" ] || [[ "$config_file" == *"://"* ]] ; then
         eval $(load_yaml "$config_file" " ")
     elif [ ! "$(id -u)" -eq 0 ]; then
+        # Create Desktop Shortcut
+        local desktop_shortcut_file="/usr/share/applications/acu.desktop"
+        echo "Creating Desktop Icon ..."
+        echo "[Desktop Entry]\nName=$utilname\nExec=acu\nType=Application\nVersion=$release\nComment=$utilname\nCategories=System;Utility;\nTerminal=true\n" | sudo tee "$desktop_shortcut_file" >/dev/null
         # Download default configurations file
         local config_dir=$(dirname "$config_file")
         if [ -f "$config_dir/config.old" ]; then
