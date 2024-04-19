@@ -1040,6 +1040,40 @@ fetch_repositories() {
                         colorecho "$GREEN" "INFO$NC |"
                         colorecho "$GREEN" "INFO$NC |     Successfully fetched host (found ${#ghapi_pkg_results[@]} packages)"
                     fi
+                # GIT REPO (subtree)
+                elif [[ "${repositories_repo_url[i]}" == *"://"*"/"*"/"* ]]; then
+                    mkdir -p $HOME/.acu/cache/db
+                    cd $HOME/.acu/cache/db # cd for git clone
+                    rm -rf "${repositories_repo_name[i]}"
+                    # Extract the branch name using parameter expansion and pattern matching
+                    if [[ "${repositories_repo_url[i]}" == *"://"*"/"*"/"*":"* ]]; then
+                        local agr_url="${repositories_repo_url[i]%:*}"
+                        local agr_branch="${repositories_repo_url[i]##*:}"  # Remove everything up to the last ":"
+                        local success=0
+                        if git clone "$agr_url" "${repositories_repo_name[i]}" --single-branch -b "$agr_branch" --depth 1 --no-tags --recursive &> /dev/null; then
+                            success=1
+                        fi
+                    else
+                        if git clone "${repositories_repo_url[i]}" "${repositories_repo_name[i]}" --single-branch --depth 1 --no-tags --recursive &> /dev/null; then
+                            success=1
+                        fi
+                    fi
+                    if [ "$success" = 1 ]; then
+                        if [ "$1" == "list" ]; then
+                            local agr_pkg=()
+                            local count=0
+                            while IFS= read -r pkg; do
+                                agr_pkg+=("$pkg")
+                                colorecho "$THEME" "PKG $NC |     $(basename $pkg)"
+                                ((count++))
+                            done < <(find ${repositories_repo_name[i]} -type f -name PKGBUILD -exec dirname {} \; | sort -u)
+                            colorecho "$GREEN" "INFO$NC |"
+                            colorecho "$GREEN" "INFO$NC |     Successfully fetched host (found $count packages)"
+                        fi
+                    else
+                        colorecho "$RED" "ERROR$NC |     Failed to resolve git repo."
+                    fi
+                    cd $HOME # restore cd after git clone
                 # GIT
                 else
                     local response_code=$(curl --write-out '%{response_code}' -s "${repositories_repo_url[i]}/" -o /dev/null)
