@@ -1923,7 +1923,7 @@ downgrade() {
     local which_url
     for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
         if [ "${repositories_repo_type[i]}" = "archive" ]; then
-            response_code=$(curl --write-out '%{response_code}' -s "${repositories_repo_url[i]}" -o /dev/null)
+            response_code=$(curl --write-out '%{response_code}' -s "${repositories_repo_url[i]}/" -o /dev/null)
             if [ "$response_code" = 200 ]; then
                 which_url="${repositories_repo_url[i]}/packages/${dgpkgfb}/${dgpkg}/"
                 break

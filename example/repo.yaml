@@ -9,6 +9,10 @@ repositories:
 #  repo_type: git #available types are acu, agr and git.
 #  repo_url: https://example.com #url format PROTOCOL://HOST/SUBTREE:BRANCH
  
+- repo_name: apps
+  repo_type: acu
+  repo_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/apps.yaml
+ 
 - repo_name: AUR
   repo_type: git
   repo_url: https://aur.archlinux.org
@@ -17,7 +21,7 @@ repositories:
   repo_type: archive
   repo_url: https://alaa.ad24.cz
  
-- repo_name: apps
-  repo_type: acu
-  repo_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/apps.yaml
+- repo_name: AARM
+  repo_type: archive
+  repo_url: http://tardis.tiny-vps.com/aarm
  
