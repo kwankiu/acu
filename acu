@@ -1675,7 +1675,7 @@ apps_list() {
     fi
 }
 
-# Install Packages
+# ACU Apps Menu (Categories)
 apps_menu() {
     colorecho "$THEME" "INFO $NC | Loading apps list ..."
     load_apps # Load Apps List
@@ -1709,6 +1709,7 @@ apps_menu() {
     fi
 }
 
+# ACU Apps Menu (Apps of the selected category)
 apps_menu_category() {
     local catinx=$1
     local i
@@ -1742,14 +1743,14 @@ apps_menu_category() {
             fi
         fi
     done
-    options+=("Return to apps categories")
+    options+=("Return to apps categories (Select more packages / Install)")
     if [ ${#selection[@]} -gt 0 ]; then
         print_selected_pkg
     fi
     checkbox_menu=1
     select_option "${options[@]}"
     choice=$?
-    if [ "${options[choice]}" = "Return to apps categories" ]; then
+    if [ "$choice" -eq $((${#options[@]} - 1)) ]; then
         apps_menu
     else
         local si="${selinx[choice]}"
@@ -1776,6 +1777,7 @@ apps_menu_category() {
     fi
 }
 
+# Indicates all selected package
 print_selected_pkg() {
     local selected
     for ((i=0; i<${#selection[@]}; i++)); do
