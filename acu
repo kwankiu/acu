@@ -430,12 +430,8 @@ install_from_source() {
     
     # Compile & Install
     cd $pkgbase
-    if [ -n "$2" ] && [ "$2" != "--noinstall" ]; then
-        cd "$2"
-    fi
     
-    
-    if [ "$2" != "--noinstall" ] && [ "$3" != "--noinstall" ]; then
+    if [ "$2" != "--noinstall" ]; then
         colorecho "$GREEN" "Compiling & Installing Package from source ..."
         if [ -z "$no_confirm" ]; then
             makepkg -siA
@@ -454,6 +450,12 @@ install_from_source() {
         else
             makepkg -sA --noconfirm
         fi
+        # Copy Packages
+        mkdir -p $pwd/packages/$pkgbase
+        cp -r *.pkg.tar.* $pwd/packages/$pkgbase
+        colorecho "$GREEN" "INFO$NC |     Package built at $pwd/packages/$pkgbase"
+        colorecho "$GREEN" "INFO$NC |     Package sources located at $source_repo_dir/$pkgbase"
+        cd $HOME
     fi
 
 }
@@ -1878,6 +1880,10 @@ pkg_lookup_git() {
 
 # Install Packages
 install_pkg() {
+    # Handle build only
+    if [ "$1" = "--noinstall" ]; then
+        use_pm="git"
+    fi
     # Handle each packages installation
     if [ -n "$use_pm" ]; then
         local gpm=$use_pm
@@ -1952,7 +1958,7 @@ install_pkg() {
         fi
 
         # Handle Kernel Installation
-        if [[ "$selection_base" == "linux-"* ]] && [[ "$selection_base" != *"-headers" ]]; then
+        if [ "$1" != "--noinstall" ] && [[ "$selection_base" == "linux-"* ]] && [[ "$selection_base" != *"-headers" ]]; then
             # Make sure mkinitcpio.old not exist
             sudo rm -rf /etc/mkinitcpio.old
             # Backup mkinitcpio.old
@@ -2002,8 +2008,13 @@ install_pkg() {
             fi
         elif [ "$use_pm" = "git" ]; then
             #GIT
-            colorecho "$GREEN" "$pm_repo_name $NC | Compiling & Installing $selection_base"
-            install_from_source "$pm_repo_url"
+            if [ "$1" = "--noinstall" ]; then
+                colorecho "$GREEN" "$pm_repo_name $NC | Compiling $selection_base"
+                install_from_source "$pm_repo_url" --noinstall
+            else
+                 colorecho "$GREEN" "$pm_repo_name $NC | Compiling & Installing $selection_base"
+                install_from_source "$pm_repo_url"
+            fi           
         elif [ "$use_pm" = "ghrel" ]; then
             #GHREL
             colorecho "$GREEN" "GHREL $NC | Installing $selection_base"  
@@ -2031,7 +2042,7 @@ install_pkg() {
         fi
 
         # Handle Kernel Installation
-        if [[ "$selection_base" == "linux-"* ]] && [[ "$selection_base" != *"-headers" ]]; then
+        if [ "$1" != "--noinstall" ] && [[ "$selection_base" == "linux-"* ]] && [[ "$selection_base" != *"-headers" ]]; then
             update_kernel_extlinux "$selection_base"
         fi
 
@@ -3167,7 +3178,6 @@ elif [ "$1" = "install" ] || [ "$1" = "-S" ] ; then
         # Show apps menu if no packages are specified
         apps_menu
     else
-        # TODO: if install does not fetch cached list of packages on each execution, it should automatically update every 4 hours
         # Add all packages to the list
         for ((i = 2; i <= $#; i++)); do
             if [[ "${!i}" != -* ]]; then
@@ -3179,15 +3189,14 @@ elif [ "$1" = "install" ] || [ "$1" = "-S" ] ; then
     fi
 
 elif [ "$1" = "build" ] || [ "$1" = "-B" ]; then
-    if [ -z "$3" ]; then
-        install_from_source "$2" "--noinstall"
-    else
-        install_from_source "$2" "$3" "--noinstall"
-    fi
-    mkdir -p $HOME/packages/$2
-    cp -r "$source_repo_dir"/*.pkg.tar.* $HOME/packages/$2/*.pkg.tar.*
-    echo "packages built at $HOME/packages/$2"
-    echo "sources located at $source_repo_dir"
+    # Add all packages to the list
+    for ((i = 2; i <= $#; i++)); do
+        if [[ "${!i}" != -* ]]; then
+                selection+=("${!i}")
+        fi
+    done
+    # Install the packages
+    install_pkg --noinstall
 
 elif [ "$1" = "downgrade" ] || [ "$1" = "-D" ]; then
     downgrade "$2" "$3"
