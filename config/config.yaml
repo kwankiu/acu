@@ -32,7 +32,7 @@ configurations:
   # if you edited this configuration file, uncomment this to prevent ACU overwriting it during an update
   #no_config_update: 1
 
-  # load device configuration determined by tags (e.g. rock-5b)
+  # load device configuration determined by tags (e.g. radxa-rock-5b)
   #device_config: generic
 
   # do not confirm when installing a package using pacman -S / -U or makepkg -si

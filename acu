@@ -2919,6 +2919,10 @@ if [ "$system_arch" != "aarch64" ] && [ "$system_arch" != "arm64" ] && [ "$syste
     colorecho "$WARNING" "WARNING $NC | System is $system_arch, some features are unsupported"
 fi
 
+if [ -z "$device_config" ] && [ -f "/proc/device-tree/compatible" ]; then
+    device_config=$(sed 's/\x00/ /g; s/,/ /g' /proc/device-tree/compatible | awk '{print $1, $2}' | tr ' ' '-')
+fi
+
 # Debug logging
 colorecho "$DEBUG" "INFO $NC | Debug logging is enabled"
 colorecho "$DEBUG" "INFO $NC | Configuration ($config_file):"
