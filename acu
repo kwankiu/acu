@@ -46,8 +46,46 @@ system_arch=$(uname -m)
 # Note: for acu user configurations, please edit $HOME/.acu/config/config.yaml or --loadconfig
 config_file="$HOME/.acu/config/config.yaml"
 
-################################################################
-# Tools for formatting / styling
+########################################################################
+## Command override
+########################################################################
+
+# sudo override
+sudo () {
+    local command=$@
+    if [ "$(id -u)" -eq 0 ]; then
+        #echo "Running in root."
+        command "$@"
+    else
+        #echo "Running with sudo."
+        command sudo "$@"
+    fi
+}
+
+# clear override
+clear () {
+    local command=$@
+    if [ -z "$no_clear" ]; then
+        echo -e $BACKGROUND
+        command clear "$@"
+    fi
+}
+
+# acu override
+acu () {
+    local command=$@
+    if [ -f "$pwd/acu" ]; then
+        colorecho "$DEBUG" "Using ACU in current directory"
+        command bash $pwd/acu "$@"
+    else
+        colorecho "$DEBUG" "Using ACU in PATH"
+        command acu "$@"
+    fi
+}
+
+########################################################################
+## Formatting / Styling
+########################################################################
 
 # Reset to Terminal Default Colors
 TDC='\033[0m'
@@ -93,39 +131,6 @@ BGDKGREEN='42m'
 THEME=$BLUE
 WARNING=$YELLOW
 DEBUG=$LTGREY
-
-# sudo override
-sudo () {
-    local command=$@
-    if [ "$(id -u)" -eq 0 ]; then
-        #echo "Running in root."
-        command "$@"
-    else
-        #echo "Running with sudo."
-        command sudo "$@"
-    fi
-}
-
-# clear override
-clear () {
-    local command=$@
-    if [ -z "$no_clear" ]; then
-        echo -e $BACKGROUND
-        command clear "$@"
-    fi
-}
-
-# acu override
-acu () {
-    local command=$@
-    if [ -f "$pwd/acu" ]; then
-        colorecho "$DEBUG" "Using ACU in current directory"
-        command bash $pwd/acu "$@"
-    else
-        colorecho "$DEBUG" "Using ACU in PATH"
-        command acu "$@"
-    fi
-}
 
 # Option Picker
 function select_option {
@@ -308,8 +313,9 @@ title() {
   fi
 }
 
-################################################################
-# Version updates handling
+########################################################################
+## ACU Install & Update Tools
+########################################################################
 
 # Check updates
 check_util_updates() {
@@ -361,7 +367,7 @@ update_util() {
 # Create an alias of acu or another command
 add_alias() {
     # Path to the directory where the alias script will be created
-    ALIAS_SCRIPT_DIR="/usr/bin"
+    ALIAS_SCRIPT_DIR="/usr/local/bin"
 
     # Alias name
     ALIAS_NAME=$1
@@ -380,8 +386,9 @@ add_alias() {
     colorecho "$GREEN" "Command '$ALIAS_NAME' has been created."
 }
 
-################################################################
-# Packages Install Tools
+########################################################################
+## Packages Install Tools
+########################################################################
 
 install_from_source() {
     
@@ -537,7 +544,9 @@ install_ghrel_packages() {
 
 }
 
-################################################################
+########################################################################
+## ACU Parser
+########################################################################
 # ACU File Pre-Parser
 # source: https://github.com/mrbaseman/pasrse_yaml.git
 # awk : process multi-line text (handle YAML pipe) (added a space for better syntax / readability)
@@ -726,6 +735,18 @@ load_yaml() {
         fi
 }
 
+########################################################################
+## Repository Management
+########################################################################
+
+# Function to load repositories into arrays
+load_repositories() {
+    # Read repositories from YAML file
+    if [ -f "$repositories_list" ]; then
+        eval $(load_yaml $repositories_list "")
+    fi
+}
+
 # Generate repo.yaml header
 create_repo_yaml() {
     echo "#   __    ___  _  _    ____  ____  ____   __   ____  __  ____  __  ____  __  ____  ____  " | tee "$repositories_list" >/dev/null
@@ -744,7 +765,9 @@ create_repo_yaml() {
 # Function to add a repository item to the YAML file
 add_repository() {
     # Check if YAML file exists
-    if [ ! -f "$repositories_list" ]; then
+    if [ -f "$repositories_list" ]; then
+        load_repositories
+    else
         # Create folder if it doesn't exist already
         mkdir -p "$(dirname "$repositories_list")"
         create_repo_yaml
@@ -757,6 +780,21 @@ add_repository() {
         read -p "$p" repo_name
     else
         repo_name="$1"
+    fi
+
+    # Check repository name conflict
+    local i
+    local conflict=0
+    for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
+        if [ "$repo_name" = "${repositories_repo_name[i]}" ]; then
+            conflict=1
+            break
+        fi
+    done
+    if [ "$conflict" = 1 ]; then
+        colorecho "$RED" "ERROR$NC | Repository name already exist."
+        sleep 1
+        return 1
     fi
 
     # Read repository URL
@@ -832,19 +870,11 @@ add_repository() {
             colorecho "$GREEN" "INFO $NC | Repository added successfully."
             ;;
         *)
-            colorecho "$RED" "ERROR$NC | Invalid repository type. Valid types are: acu, agr, git and archive."
+            colorecho "$RED" "ERROR$NC | Invalid repository type. Valid types are: acu, agr, git, pacman and archive."
             sleep 1
             return 1
             ;;
     esac
-}
-
-# Function to load repositories into arrays
-load_repositories() {
-    # Read repositories from YAML file
-    if [ -f "$repositories_list" ]; then
-        eval $(load_yaml $repositories_list "")
-    fi
 }
 
 # Function to list repositories sorted by type
@@ -884,7 +914,7 @@ remove_repository() {
     case "$delrepoconfirm" in
         [yY])
             colorecho "$THEME" "INFO $NC | Removing repository $toremove ..."
-            sudo rm -rf $repositories_list
+            mv $repositories_list "${repositories_list}.old"
             ;;
         *)
             colorecho "$THEME" "INFO $NC | Repository will not be removed."
@@ -895,18 +925,23 @@ remove_repository() {
     # Print repositories
     colorecho "$THEME" "INFO $NC | Generating new repository configuration ..."
     create_repo_yaml
+    local removed=0
     for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
         # Append new repository item to YAML file
         if [ "$toremove" != "${repositories_repo_name[i]}" ]; then
-            acu rem set ${repositories_repo_name[i]} ${repositories_repo_url[i]}
+            acu rem set ${repositories_repo_name[i]} ${repositories_repo_url[i]} &> /dev/null
         else
             if [ "${repositories_repo_type[i]}" == "agr" ]; then
                 colorecho "$THEME" "INFO $NC | Removing ${repositories_repo_name[i]} from agr ..."
                 agr rem del ${repositories_repo_name[i]}
             fi
             colorecho "$GREEN" "INFO $NC | removed ${repositories_repo_name[i]} successfully."
+            removed=1
         fi
     done
+    if [ "$removed" = 0 ]; then
+        colorecho "$RED" "ERROR$NC | Repository $toremove does not exist."
+    fi
 }
 
 # Function to fetch packages of a repositories
@@ -1097,8 +1132,9 @@ manage_repositories() {
 
 }
 
-################################################################
-# Utility Main Menu
+########################################################################
+## Utility Main Menu
+########################################################################
 
 config_options() {
     title
@@ -1150,8 +1186,9 @@ config_options() {
 
 }
 
-################################################################
-# System Maintenance
+########################################################################
+## System Maintenance
+########################################################################
 
 # System Maintenance Main Menu
 system_maintenance() {
@@ -1195,6 +1232,7 @@ system_maintenance() {
 
 }
 
+# Fetch System Infomation
 system_info() {
     if [ "$1" == "--center" ]; then
         title "System Information"
@@ -1468,8 +1506,9 @@ move_system() {
     echo "Not implemented"
 }
 
-################################################################
-# Manage Packages
+########################################################################
+## Packages Management
+########################################################################
 
 # Manage Packages Main Menu
 manage_packages() {
@@ -1745,6 +1784,7 @@ print_selected_pkg() {
     colorecho "$GREEN" "Selected packages: ${selected}" "bottom"
 }
 
+# Install Packages
 install_pkg() {
     # Handle each packages installation
     for ((i=0; i<${#selection[@]}; i++)); do
@@ -1918,8 +1958,9 @@ downgrade() {
     fi
 }
 
-################################################################
-# Performance & Features
+########################################################################
+## Performance & Features
+########################################################################
 
 # Performance & Features Main Menu
 performance_features() {
@@ -2123,8 +2164,9 @@ hw_monitor() {
     done
 }
 
-################################################################
-# Localization
+########################################################################
+## Localization
+########################################################################
 
 # Localization Main Menu
 localization() {
@@ -2541,6 +2583,9 @@ keyboard() {
     esac
 }
 
+########################################################################
+## Settings
+########################################################################
 # ACU Settings
 settings() {
     title "ACU Settings"
@@ -2638,8 +2683,9 @@ settings() {
     
 }
 
-################################################################
-# Main Program
+########################################################################
+## Main Program
+########################################################################
 
 # NOTE that if new configurations (that arent optional / have a default value) are added, need to patch the existing user configurations file
 # Load user configurations from YAML file
@@ -3053,8 +3099,14 @@ elif [ "$1" = "alias" ]; then
     if [ "$2" = "add" ] || [ "$2" = "create" ]; then
         add_alias "${@:3}"
     elif [ "$2" = "remove" ] || [ "$2" = "del" ]; then
-        sudo rm -rf /usr/bin/$3
-        colorecho "$GREEN" "INFO $NC | Alias command $3 has been removed"
+        colorecho "$RED" "REMOVE $NC | Are you sure to remove alias command $3? [y/N]:" 
+        read -r rmaconfirm
+        if [[ "$rmaconfirm" == [Yy] ]]; then
+            sudo rm -rf /usr/local/bin/$3
+            colorecho "$GREEN" "INFO $NC | Alias command $3 has been removed"
+        else
+            colorecho "$THEME" "INFO $NC | Alias command $3 is not removed"
+        fi
     fi
 
 ### For developer / API use and debugging ###
