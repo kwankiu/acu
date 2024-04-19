@@ -27,7 +27,7 @@
 utilname="Arch (ARM) Configuration Utility"
 
 # ACU Release Version : (github tags) (or branch*)
-release="0.0.7-dev"
+release="tmp"
 
 # (DEPRECATED/OPTIONAL) ACU Build Number: utilver (YYMMDDNN)
 utilver=24031299
@@ -396,60 +396,54 @@ install_from_source() {
         colorecho "$RED" "ERROR $NC | acu is running in root or sudo, the following command can not be executed."
         exit 1
     fi
+    # Get the repository URL from the argument
+    local repo_url="$1"
+    local pkgbase=$(basename $repo_url)
     # Install required package
     sudo pacman -Sy --needed git base-devel --noconfirm
     
-    # Ensure folder doesn't exist
-    sudo rm -rf "$source_repo_dir"
-    
-    # Get the repository URL from the argument
-    repo_url="$1"
-    
-    # If the URL starts with 'aur://', modify the URL to use AUR repository
-    if [[ "$repo_url" == aur://* ]]; then
-        package_name="${repo_url#aur://}"
-        repo_url="https://aur.archlinux.org/$package_name.git"
-    # If the URL starts with 'gh://', modify the URL to use GitHub repository
-    elif [[ "$repo_url" == gh://* ]]; then
-        ghrepo_name="${repo_url#gh://}"
-        repo_url="https://github.com/$ghrepo_name.git"
-    fi
+    # Source folder
+    mkdir -p $source_repo_dir
+    cd "$source_repo_dir"
+    rm -rf "$pkgbase"
     
     # Clone repo
     colorecho "$GREEN" "Cloning Package from source ..."
 
     if [ -z "$git_branch" ]; then
-        git clone "$repo_url" "$source_repo_dir"
+        git clone "$repo_url" "$pkgbase"
     else
-        git clone "$repo_url" "$source_repo_dir" -b $git_branch
+        git clone "$repo_url" "$pkgbase" -b $git_branch
         git_branch="" # this unsets the branch variable
     fi
     
     # Compile & Install
-    cd "$source_repo_dir"
-    
-    if [ ! -z "$2" ] && [ "$2" != "--noinstall" ]; then
+    cd $pkgbase
+    if [ -n "$2" ] && [ "$2" != "--noinstall" ]; then
         cd "$2"
     fi
     
-    colorecho "$GREEN" "Compiling & Installing Package from source ..."
-    if [ -z "$no_confirm" ]; then
-        makepkg -sA
-    else
-        makepkg -sA --noconfirm
-    fi
-
+    
     if [ "$2" != "--noinstall" ] && [ "$3" != "--noinstall" ]; then
+        colorecho "$GREEN" "Compiling & Installing Package from source ..."
         if [ -z "$no_confirm" ]; then
-            sudo pacman -U *.pkg.tar.*
+            makepkg -siA
         else
-            sudo pacman -U *.pkg.tar.* --noconfirm
+            makepkg -siA --noconfirm
         fi
     
         # Clean Up
+        cd ..
+        rm -rf "$pkgbase"
         cd $HOME
-        sudo rm -rf "$source_repo_dir"
-    fi 
+    else
+        colorecho "$GREEN" "Compiling Package from source ..."
+        if [ -z "$no_confirm" ]; then
+            makepkg -sA
+        else
+            makepkg -sA --noconfirm
+        fi
+    fi
 
 }
 
@@ -1015,16 +1009,16 @@ fetch_repositories() {
                 if [[ "${repositories_repo_url[i]}" == "https://github.com/"* && "${repositories_repo_url[i]}" != *"https://github.com/"*"/"* ]]; then
                     local ghapi_url="https://api.github.com/orgs/$(basename ${repositories_repo_url[i]})/repos"
                     get_ghapi_orgs $ghapi_url
-                    mkdir -p $HOME/.acu/cache/db
-                    local db_file="$HOME/.acu/cache/db/${repositories_repo_name[i]}.yaml"
-                    echo "# Package database for ${repositories_repo_name[i]}" | tee "$db_file" >/dev/null
-                    echo "${repositories_repo_name[i]}:" | tee -a "$db_file" >/dev/null
-                    echo " " | tee -a "$db_file" >/dev/null
+                    #mkdir -p $HOME/.acu/cache/db
+                    #local db_file="$HOME/.acu/cache/db/${repositories_repo_name[i]}.yaml"
+                    #echo "# Package database for ${repositories_repo_name[i]}" | tee "$db_file" >/dev/null
+                    #echo "${repositories_repo_name[i]}:" | tee -a "$db_file" >/dev/null
+                    #echo " " | tee -a "$db_file" >/dev/null
                     local p
                     for ((p = 0; p < ${#ghapi_pkg_results[@]}; p++)); do
-                        echo "- package_name: ${ghapi_pkg_results[p]}" | tee -a "$db_file" >/dev/null
-                        echo "  clone_url: ${ghapi_url_results[p]}" | tee -a "$db_file" >/dev/null
-                        echo " " | tee -a "$db_file" >/dev/null
+                    #    echo "- package_name: ${ghapi_pkg_results[p]}" | tee -a "$db_file" >/dev/null
+                    #    echo "  clone_url: ${ghapi_url_results[p]}" | tee -a "$db_file" >/dev/null
+                    #    echo " " | tee -a "$db_file" >/dev/null
                         if [ "$1" == "list" ]; then
                             colorecho "$THEME" "PKG $NC |     ${ghapi_pkg_results[p]}"
                         fi
@@ -1793,15 +1787,24 @@ pkg_lookup_git() {
     load_repositories
     local i
     local pkg=$1
+    local repo=$2
     pkg_lookup_clone_url=""
     pkg_lookup_clone_repo=""
     for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
         if [ "${repositories_repo_type[i]}" = "git" ]; then
             local lookup=$(git ls-remote "${repositories_repo_url[i]}/$pkg")
             if [ -n "$lookup" ]; then
-                pkg_lookup_clone_url="${repositories_repo_url[i]}/$pkg"
-                pkg_lookup_clone_repo="${repositories_repo_name[i]}"
-                return 0
+                if [ -z "$repo" ]; then
+                    # Lookup and match any repo
+                    pkg_lookup_clone_url="${repositories_repo_url[i]}/$pkg"
+                    pkg_lookup_clone_repo="${repositories_repo_name[i]}"
+                    return 0
+                elif [ "$repo" = "${repositories_repo_name[i]}" ]; then
+                    # Lookup and match only the target repo
+                    pkg_lookup_clone_url="${repositories_repo_url[i]}/$pkg"
+                    pkg_lookup_clone_repo="${repositories_repo_name[i]}"
+                    return 0
+                fi
             fi
         fi
     done
@@ -1823,7 +1826,7 @@ install_pkg() {
         elif [ "$(dirname ${selection[i]})" != "." ] && [ -n "$(dirname ${selection[i]})" ]; then
             if (sudo pacman -Ssy "^$selection_base$" | grep ${selection[i]} &> /dev/null); then
                 use_pm="pacman"
-            elif pkg_lookup_git $selection_base && [ "$pkg_lookup_clone_repo" = "$(dirname ${selection[i]})" ]; then
+            elif pkg_lookup_git $selection_base "$(dirname ${selection[i]})"; then
                 pm_repo_name="$(dirname ${selection[i]})"
                 pm_repo_url="$pkg_lookup_clone_url"
                 use_pm="git"
@@ -1922,7 +1925,7 @@ install_pkg() {
         elif [ "$use_pm" = "git" ]; then
             #GIT
             colorecho "$GREEN" "$pm_repo_name $NC | Compiling & Installing $selection_base"
-            install_from_source "$selection_base"
+            install_from_source "$pm_repo_url"
         elif [ "$use_pm" = "ghrel" ]; then
             #GHREL
             colorecho "$GREEN" "GHREL $NC | Installing $selection_base"  
@@ -2874,7 +2877,7 @@ for arg in "$@"; do
             echo "  upgrade : Check & Perform Selective / Full System Upgrade."
             echo "  -D / downgrade <package> <index> : Install / Downgrade any Arch Linux Packages from Archive. <package>: package name <index>: index to show, default=15."
             echo "  -R / remove : remove / uninstall a package from this system."
-            echo "  -B / build <URL> : build / compile a package without installing. <URL> supported protocols: gh://username/repo (GitHub) OR aur://package (AUR) OR https://git_url_to_clone (or http:// or ssh://)"
+            echo "  -B / build <URL> : build / compile a package without installing. <URL>"
             echo "  rem / rem manage : show menu for add, list or remove ACU Managed and Pacman Repositories."
             echo "  rem fetch : fetch acu managed repositories and print all fetched packages."
             echo "  rem list / rem show <pacman/acu> : list acu managed repositories, optional argument to list only pacman repositories or acu repositories."
