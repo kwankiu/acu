@@ -454,7 +454,7 @@ install_from_source() {
         mkdir -p $pwd/packages/$pkgbase
         cp -r *.pkg.tar.* $pwd/packages/$pkgbase
         colorecho "$GREEN" "INFO$NC |     Package built at $pwd/packages/$pkgbase"
-        colorecho "$GREEN" "INFO$NC |     Package sources located at $source_repo_dir/$pkgbase"
+        colorecho "$GREEN" "INFO$NC |     Package sources located at $HOME/$source_repo_dir/$pkgbase"
         cd $HOME
     fi
 
