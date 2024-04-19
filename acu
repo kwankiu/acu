@@ -1796,112 +1796,130 @@ install_pkg() {
         local selection_base=$(basename ${selection[i]})
         colorecho "$THEME" "INFO $NC | Looking for package: $selection_base"
 
-                # Handle Kernel Installation
-                if [[ "$selection_base" == "linux-"* ]] && [[ "$selection_base" != *"-headers" ]]; then
-                    # Make sure mkinitcpio.old not exist
-                    sudo rm -rf /etc/mkinitcpio.old
-                    # Backup mkinitcpio.old
-                    sudo cp -r /etc/mkinitcpio.d /etc/mkinitcpio.old
-                    # Remove current mkinitcpio
-                    sudo rm -rf /etc/mkinitcpio.d/*
-                    # Remove all existing templates
-                    sudo rm -rf /boot/extlinux/extlinux.*.template
-                fi
+        # Handle URLs
+        if [[ "${selection[i]}" == *"://"* ]]; then
+            use_pm="git"
+        fi
+        # Handle fallbacks
+        if [ "$fallback" = 1 ]; then
+            if [ ! "${#selection[@]}" -eq 2 ]; then
+                colorecho "$RED" "ERROR $NC | You must specify exactly two packages when used with --fallback."
+                return 1
+            fi
+        # Skip installed packages
+        elif [ "$needed" = 1 ] && pacman -Q "${selection_base#*)}" > /dev/null 2>&1 ; then
+            colorecho "$THEME" "INFO $NC | $selection_base is installed. Skipping ..."
+            use_pm="skip"
+        fi
 
-                # Handle URLs
-                if [[ "${selection[i]}" == *"://"* ]]; then
-                    use_pm="git"
-                fi
+        # Find the package
+        if [ -z "$use_pm" ]; then
+            if [ -z "$skip_apps" ] && apps_list "$selection_base" &> /dev/null; then
+                # ACU Apps
+                use_pm="acu"
+            elif (sudo pacman -Ssy "^$selection_base$" &> /dev/null); then
+                # Pacman
+                use_pm="pacman"
+            elif aurrepo=$(git ls-remote "https://aur.archlinux.org/$selection_base") && [ -n "$aurrepo" ] ; then
+                # AUR / GIT
+                use_pm="git"
+            elif (agr 2>&1 | grep -v -E '://' | grep -v 'INFO' | grep -q "$selection_base"); then
+                # AGR
+                use_pm="agr"
+            elif fetch_repositories -q && echo -e "n" | install_ghrel_packages "$selection_base" | grep -q '.*pkg.*'; then
+                # GHREL
+                use_pm="ghrel"
+            elif [ "$fallback" != 1 ]; then
+                colorecho "$RED" "ERROR $NC | Package $selection_base not found"
+                return 1
+            fi
+        fi
 
-                # Handle fallbacks
-                if [ "$fallback" = 1 ]; then
-                    if [ ! "${#selection[@]}" -eq 2 ]; then
-                        colorecho "$RED" "ERROR $NC | You must specify exactly two packages when used with --fallback."
-                        return 1
-                    fi
-                # Skip installed packages
-                elif [ "$needed" = 1 ] && pacman -Q "${selection[i]#*)}" > /dev/null 2>&1 ; then
-                    use_pm="skip"
-                fi
+        # Handle Kernel Installation
+        if [[ "$selection_base" == "linux-"* ]] && [[ "$selection_base" != *"-headers" ]]; then
+            # Make sure mkinitcpio.old not exist
+            sudo rm -rf /etc/mkinitcpio.old
+            # Backup mkinitcpio.old
+            sudo cp -r /etc/mkinitcpio.d /etc/mkinitcpio.old
+            # Remove current mkinitcpio
+            sudo rm -rf /etc/mkinitcpio.d/*
+            # Remove all existing templates
+            sudo rm -rf /boot/extlinux/extlinux.*.template
+        fi
 
-                # Find and Install the package        
-                if [ -z "$skip_apps" ] && [ -z "$use_pm" ] && apps_list "${selection[i]}" &> /dev/null; then
-                    local index=$(apps_list "${selection[i]}" -i)
-                    colorecho "$GREEN" "APPS $NC | Installing ${selection[i]} ($index)"
-                    local package="${apps_packages[index]}"
-                    colorecho "$DEBUG" "APPS $NC | Packages: $package"
-                    if [ "$package" != "null" ]; then
-                        colorecho "$GREEN" "APPS $NC | Resolving packages ..."
-                        local j
-                        for ((j=0; j<${#package[@]}; j++)); do
-                            if [[ "${package[j]}" = "(needed)"* ]]; then
-                                acu install -y "${package[j]#"(needed)"}" --needed --skipapps
-                            elif [[ "${package[j]}" != "(fallback)"* ]] && [[ "${package[j+1]}" == "(fallback)"* ]]; then
-                                acu install -y ${package[j]} "${package[j+1]#"(fallback)"}" --fallback --skipapps
-                            else
-                                acu install -y ${package[j]} --skipapps
-                            fi
-                        done
-                    fi
-                    local commands="${apps_commands[index]}"
-                    colorecho "$DEBUG" "APPS $NC | Commands: $commands"
-                    if [ "$commands" != "null" ]; then 
-                        colorecho "$GREEN" "APPS $NC | Running Package commands ..."
-                        mkdir -p $HOME/.acu/cache
-                        echo -e $commands | tee $HOME/.acu/cache/install-${selection[i]}.sh >/dev/null
-                        bash $HOME/.acu/cache/install-${selection[i]}.sh
-                        rm $HOME/.acu/cache/install-${selection[i]}.sh
-                    fi
-                elif [ "$use_pm" = "pacman" ] || ([ -z "$use_pm" ] && sudo pacman -Ssy "^${selection[i]}$" &> /dev/null); then
-                    colorecho "$GREEN" "PACMAN $NC | Installing ${selection[i]}"  
-                    if [ -z "$no_confirm" ]; then
-                        sudo pacman -S ${selection[i]} 
+        # Install the package
+        if [ "$use_pm" = "acu" ]; then
+            # ACU Apps
+            local index=$(apps_list "$selection_base" -i)
+            colorecho "$GREEN" "APPS $NC | Installing $selection_base ($index)"
+            local package="${apps_packages[index]}"
+            colorecho "$DEBUG" "APPS $NC | Packages: $package"
+            if [ "$package" != "null" ]; then
+                colorecho "$GREEN" "APPS $NC | Resolving packages ..."
+                local j
+                for ((j=0; j<${#package[@]}; j++)); do
+                    if [[ "${package[j]}" = "(needed)"* ]]; then
+                        acu install -y "${package[j]#"(needed)"}" --needed --skipapps
+                    elif [[ "${package[j]}" != "(fallback)"* ]] && [[ "${package[j+1]}" == "(fallback)"* ]]; then
+                        acu install -y ${package[j]} "${package[j+1]#"(fallback)"}" --fallback --skipapps
                     else
-                        sudo pacman -S ${selection[i]} --noconfirm
+                        acu install -y ${package[j]} --skipapps
                     fi
-                elif [ "$use_pm" = "agr" ] || ([ -z "$use_pm" ] && agr 2>&1 | grep -v -E '://' | grep -v 'INFO' | grep -q "${selection[i]}"); then
-                    if [ "$(id -u)" -eq 0 ]; then
-                        colorecho "$RED" "ERROR $NC | acu is running in root or sudo, the following command can not be executed"
-                        exit 1
-                    fi
-                    colorecho "$GREEN" "AGR $NC | Compiling & Installing ${selection[i]}"  
-                    if [ -z "$no_confirm" ]; then
-                        agr install ${selection[i]} 
-                    else
-                        agr install ${selection[i]} --noconfirm
-                    fi
-                elif aurrepo=$(git ls-remote "https://aur.archlinux.org/${selection[i]}") && [ -n "$aurrepo" ] ; then
-                    # TODO: UPDATE THIS
-                    colorecho "$GREEN" "AUR $NC | Compiling & Installing ${selection[i]}"  
-                    install_from_source "aur://${selection[i]}"
-                elif [ "$use_pm" = "ghrel" ] || [ -z "$use_pm" ] && fetch_repositories -q && echo -e "n" | install_ghrel_packages "${selection[i]}" | grep -q '.*pkg.*'; then
-                    colorecho "$GREEN" "GHREL $NC | Installing ${selection[i]}"  
-                    install_ghrel_packages "${selection[i]}"
-                elif [ "$use_pm" = "git" ]; then
-                    colorecho "$GREEN" "MAKEPKG $NC | Compiling & Installing ${selection[i]}"
-                    install_from_source "${selection[i]}"
-                elif [ "$use_pm" = "skip" ]; then
-                    colorecho "$THEME" "INFO $NC | ${selection[i]} is installed. Skipping ..."
-                    use_pm=""
-                else
-                    if [ "$fallback" != 1 ]; then
-                        colorecho "$RED" "ERROR $NC | Package ${selection[i]} not found"
-                        return 1
-                    fi
-                fi
+                done
+            fi
+            local commands="${apps_commands[index]}"
+            colorecho "$DEBUG" "APPS $NC | Commands: $commands"
+            if [ "$commands" != "null" ]; then 
+                colorecho "$GREEN" "APPS $NC | Running Package commands ..."
+                mkdir -p $HOME/.acu/cache/pkgs
+                echo -e $commands | tee $HOME/.acu/cache/pkgs/install-$selection_base.sh >/dev/null
+                bash $HOME/.acu/cache/pkgs/install-$selection_base.sh
+                rm $HOME/.acu/cache/pkgs/install-$selection_base.sh
+            fi
+        elif [ "$use_pm" = "pacman" ]; then
+            # Pacman
+            colorecho "$GREEN" "PACMAN $NC | Installing $selection_base"  
+            if [ -z "$no_confirm" ]; then
+                sudo pacman -S $selection_base 
+            else
+                sudo pacman -S $selection_base --noconfirm
+            fi
+        elif [ "$use_pm" = "git" ]; then
+            #GIT
+            colorecho "$GREEN" "$pm_repo_name $NC | Compiling & Installing $selection_base"
+            install_from_source "$selection_base"
+        elif [ "$use_pm" = "ghrel" ]; then
+            #GHREL
+            colorecho "$GREEN" "GHREL $NC | Installing $selection_base"  
+            install_ghrel_packages "$selection_base"
+        elif [ "$use_pm" = "agr" ]; then
+            # AGR
+            if [ "$(id -u)" -eq 0 ]; then
+                colorecho "$RED" "ERROR $NC | acu is running in root or sudo, the following command can not be executed"
+                exit 1
+            fi
+            colorecho "$GREEN" "AGR $NC | Compiling & Installing $selection_base"  
+            if [ -z "$no_confirm" ]; then
+                agr install $selection_base 
+            else
+                agr install $selection_base --noconfirm
+            fi
+        elif [ "$use_pm" = "skip" ]; then   
+            use_pm=""
+        fi
 
-                if [ "$fallback" = 1 ]; then 
-                    if pacman -Q "${selection[i]#*)}" > /dev/null 2>&1 ; then
-                        return 0
-                    else
-                        colorecho "$WARNING" "WARNING $NC | ${selection[0]} is replaced with ${selection[1]}"
-                    fi 
-                fi
+        if [ "$fallback" = 1 ]; then 
+            if pacman -Q "${selection_base#*)}" > /dev/null 2>&1 ; then
+                return 0
+            else
+                colorecho "$WARNING" "WARNING $NC | ${selection[0]} is replaced with ${selection[1]}"
+            fi 
+        fi
 
-                # Handle Kernel Installation
-                if [[ "$selection_base" == "linux-"* ]] && [[ "$selection_base" != *"-headers" ]]; then
-                    update_kernel_extlinux "$selection_base"
-                fi
+        # Handle Kernel Installation
+        if [[ "$selection_base" == "linux-"* ]] && [[ "$selection_base" != *"-headers" ]]; then
+            update_kernel_extlinux "$selection_base"
+        fi
     done
 }
 
