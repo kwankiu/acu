@@ -407,14 +407,25 @@ install_from_source() {
     cd "$source_repo_dir"
     rm -rf "$pkgbase"
     
-    # Clone repo
-    colorecho "$GREEN" "Cloning Package from source ..."
+    colorecho "$DEBUG" "Clone URL / PATH: $repo_url"
+    colorecho "$DEBUG" "pkgbase: $pkgbase"
 
-    if [ -z "$git_branch" ]; then
-        git clone "$repo_url" "$pkgbase"
+    # Clone repo
+    if [[ "$repo_url" == *"://"* ]]; then
+        colorecho "$GREEN" "Cloning Package from source (git) ..."
+
+        if [ -z "$git_branch" ]; then
+            git clone "$repo_url" "$pkgbase"
+        else
+            git clone "$repo_url" "$pkgbase" -b $git_branch
+            git_branch="" # this unsets the branch variable
+        fi
+    elif [ -d "$repo_url" ]; then
+        colorecho "$GREEN" "Cloning Package from source (db) ..."
+        cp -r $repo_url .
     else
-        git clone "$repo_url" "$pkgbase" -b $git_branch
-        git_branch="" # this unsets the branch variable
+        colorecho "$RED" "ERROR $NC | failed to prepare repo for compilation. Invalid url or path."
+        exit 1
     fi
     
     # Compile & Install
@@ -820,8 +831,6 @@ add_repository() {
             if [[ "$repo_url" == "http://"* || "$repo_url" == "https://"* ]]; then
                 if [[ "$repo_url" == *".yaml" ]]; then
                     repo_type="acu"
-                elif [[ "$repo_url" == *"://"*"/"*"/"* && "$repo_url" != *"://api.github.com/"* ]]; then
-                    repo_type="agr"
                 else
                     repo_type="git"
                 fi
@@ -1826,18 +1835,40 @@ pkg_lookup_git() {
     pkg_lookup_clone_repo=""
     for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
         if [ "${repositories_repo_type[i]}" = "git" ]; then
-            local lookup=$(git ls-remote "${repositories_repo_url[i]}/$pkg" 2>/dev/null)
-            if [ -n "$lookup" ]; then
-                if [ -z "$repo" ]; then
-                    # Lookup and match any repo
-                    pkg_lookup_clone_url="${repositories_repo_url[i]}/$pkg"
-                    pkg_lookup_clone_repo="${repositories_repo_name[i]}"
-                    return 0
-                elif [ "$repo" = "${repositories_repo_name[i]}" ]; then
-                    # Lookup and match only the target repo
-                    pkg_lookup_clone_url="${repositories_repo_url[i]}/$pkg"
-                    pkg_lookup_clone_repo="${repositories_repo_name[i]}"
-                    return 0
+            if [[ "${repositories_repo_url[i]}" == *"://"*"/"*"/"* ]]; then
+                cd $HOME/.acu/cache/db
+                while IFS= read -r repo_pkg; do
+                    if [ "$pkg" = "$(basename $repo_pkg)" ]; then
+                        if [ -z "$repo" ]; then
+                            # Lookup and match any repo
+                            pkg_lookup_clone_url="$HOME/.acu/cache/db/$repo_pkg"
+                            pkg_lookup_clone_repo="${repositories_repo_name[i]}"
+                            cd $HOME
+                            return 0
+                        elif [ "$repo" = "${repositories_repo_name[i]}" ]; then
+                            # Lookup and match only the target repo
+                            pkg_lookup_clone_url="$HOME/.acu/cache/db/$repo_pkg"
+                            pkg_lookup_clone_repo="${repositories_repo_name[i]}"
+                            cd $HOME
+                            return 0
+                        fi
+                    fi
+                done < <(find ${repositories_repo_name[i]} -type f -name PKGBUILD -exec dirname {} \; | sort -u)
+                cd $HOME
+            elif [[ "${repositories_repo_url[i]}" != "https://api.github.com/repos"* ]]; then
+                local lookup=$(git ls-remote "${repositories_repo_url[i]}/$pkg" 2>/dev/null)
+                if [ -n "$lookup" ]; then
+                    if [ -z "$repo" ]; then
+                        # Lookup and match any repo
+                        pkg_lookup_clone_url="${repositories_repo_url[i]}/$pkg"
+                        pkg_lookup_clone_repo="${repositories_repo_name[i]}"
+                        return 0
+                    elif [ "$repo" = "${repositories_repo_name[i]}" ]; then
+                        # Lookup and match only the target repo
+                        pkg_lookup_clone_url="${repositories_repo_url[i]}/$pkg"
+                        pkg_lookup_clone_repo="${repositories_repo_name[i]}"
+                        return 0
+                    fi
                 fi
             fi
         fi
