@@ -1789,6 +1789,25 @@ print_selected_pkg() {
     colorecho "$GREEN" "Selected packages: ${selected}" "bottom"
 }
 
+pkg_lookup_git() {
+    load_repositories
+    local i
+    local pkg=$1
+    pkg_lookup_clone_url=""
+    pkg_lookup_clone_repo=""
+    for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
+        if [ "${repositories_repo_type[i]}" = "git" ]; then
+            local lookup=$(git ls-remote "${repositories_repo_url[i]}/$pkg")
+            if [ -n "$lookup" ]; then
+                pkg_lookup_clone_url="${repositories_repo_url[i]}/$pkg"
+                pkg_lookup_clone_repo="${repositories_repo_name[i]}"
+                return 0
+            fi
+        fi
+    done
+    return 1
+}
+
 # Install Packages
 install_pkg() {
     # Handle each packages installation
@@ -1796,10 +1815,24 @@ install_pkg() {
         local selection_base=$(basename ${selection[i]})
         colorecho "$THEME" "INFO $NC | Looking for package: $selection_base"
 
-        # Handle URLs
+        # Handle URL & REPO
         if [[ "${selection[i]}" == *"://"* ]]; then
+            pm_repo_name="GIT"
+            pm_repo_url="${selection[i]}"
             use_pm="git"
+        elif [ "$(dirname ${selection[i]})" != "." ] && [ -n "$(dirname ${selection[i]})" ]; then
+            if (sudo pacman -Ssy "^$selection_base$" | grep ${selection[i]} &> /dev/null); then
+                use_pm="pacman"
+            elif pkg_lookup_git $selection_base && [ "$pkg_lookup_clone_repo" = "$(dirname ${selection[i]})" ]; then
+                pm_repo_name="$(dirname ${selection[i]})"
+                pm_repo_url="$pkg_lookup_clone_url"
+                use_pm="git"
+            else
+                colorecho "$RED" "ERROR $NC | Package $selection_base not found"
+                return 1
+            fi
         fi
+
         # Handle fallbacks
         if [ "$fallback" = 1 ]; then
             if [ ! "${#selection[@]}" -eq 2 ]; then
@@ -1820,8 +1853,10 @@ install_pkg() {
             elif (sudo pacman -Ssy "^$selection_base$" &> /dev/null); then
                 # Pacman
                 use_pm="pacman"
-            elif aurrepo=$(git ls-remote "https://aur.archlinux.org/$selection_base") && [ -n "$aurrepo" ] ; then
-                # AUR / GIT
+            elif pkg_lookup_git $selection_base; then
+                # GIT
+                pm_repo_name="$pkg_lookup_clone_repo"
+                pm_repo_url="$pkg_lookup_clone_url"
                 use_pm="git"
             elif (agr 2>&1 | grep -v -E '://' | grep -v 'INFO' | grep -q "$selection_base"); then
                 # AGR
