@@ -3147,7 +3147,7 @@ elif [ "$1" = "remove" ] || [ "$1" = "-R" ]; then
                     ;;
             esac
         elif [[ "${!i}" == "agr" ]]; then
-            if acu rem list | grep -q "Type: agr"; then
+            if ! acu rem list acu | grep "Type: agr" &> /dev/null; then
                 colorecho "$RED" "REMOVE $NC | Are you sure to remove agr? (${RED}you wont be able to use acu again if you confirm to remove${NC}) [y/N]:" 
                 read -r rmagrconfirm
                 if [ "$rmagrconfirm" != "y" ] && [ "$rmagrconfirm" != "Y" ]; then
@@ -3156,7 +3156,10 @@ elif [ "$1" = "remove" ] || [ "$1" = "-R" ]; then
                 sudo rm -rf ~/.local/bin/agr
                 sudo rm -rf ~/.agr
                 echo "removed agr"
+            else
+                colorecho "$RED" "ERROR $NC | Some repository requires AGR, please remove the repository before removing AGR." 
             fi
+            exit 0
         fi
     done
  
