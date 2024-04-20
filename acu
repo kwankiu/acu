@@ -2850,8 +2850,9 @@ load_config() {
     elif [ ! "$(id -u)" -eq 0 ]; then
         # Create Desktop Shortcut
         local desktop_shortcut_file="/usr/share/applications/acu.desktop"
-        echo "Creating Desktop Icon ..."
-        echo -e "[Desktop Entry]\nName=$utilname\nExec=acu\nType=Application\nVersion=$release\nComment=$utilname\nCategories=System;Utility;\nTerminal=true\n" | sudo tee "$desktop_shortcut_file" >/dev/null
+        echo "Creating Desktop Shortcut and Icon ..."
+        sudo curl --write-out '%{response_code}' -L https://raw.githubusercontent.com/kwankiu/acu/$release/example/acu.png -o /usr/share/pixmaps/acu.png
+        echo -e "[Desktop Entry]\nName=$utilname\nExec=acu\nType=Application\nVersion=$release\nIcon=acu\nComment=$utilname\nCategories=System;Utility;\nTerminal=true\n" | sudo tee "$desktop_shortcut_file" >/dev/null
         # Download default configurations file
         local config_dir=$(dirname "$config_file")
         if [ -f "$config_dir/config.old" ]; then
@@ -3135,6 +3136,8 @@ elif [ "$1" = "remove" ] || [ "$1" = "-R" ]; then
             case "$rmconfirm" in
                 [yY])
                     echo "Removing acu ..."
+                    sudo rm -rf /usr/share/applications/acu.desktop
+                    sudo rm -rf /usr/share/pixmaps/acu.png
                     sudo rm -rf /usr/bin/acu
                     sudo rm -rf $HOME/.acu
                     exit 0
