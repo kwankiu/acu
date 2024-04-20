@@ -2851,7 +2851,7 @@ load_config() {
         # Create Desktop Shortcut
         local desktop_shortcut_file="/usr/share/applications/acu.desktop"
         echo "Creating Desktop Shortcut and Icon ..."
-        sudo curl --write-out '%{response_code}' -L https://raw.githubusercontent.com/kwankiu/acu/$release/example/acu.png -o /usr/share/pixmaps/acu.png
+        sudo curl -L https://raw.githubusercontent.com/kwankiu/acu/$release/example/acu.png -o /usr/share/pixmaps/acu.png
         echo -e "[Desktop Entry]\nName=$utilname\nExec=acu\nType=Application\nVersion=$release\nIcon=acu\nComment=$utilname\nCategories=System;Utility;\nTerminal=true\n" | sudo tee "$desktop_shortcut_file" >/dev/null
         # Download default configurations file
         local config_dir=$(dirname "$config_file")
