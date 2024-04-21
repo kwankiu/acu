@@ -2062,7 +2062,7 @@ install_pkg() {
         fi
 
         # Handle Kernel Installation
-        if [ "$1" != "--noinstall" ] && [[ "$selection_base" == "linux-"* ]] && [[ "$selection_base" != *"-headers" ]]; then
+        if [ "$1" != "--noinstall" ] && [[ "$selection_base" == "linux-"* ]] && [[ "$selection_base" != *"-headers" ]] && [[ "$selection_base" != "linux-firmware"* ]]; then
             update_boot_config "$selection_base"
         fi
 
