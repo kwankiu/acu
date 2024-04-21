@@ -32,7 +32,7 @@ configurations:
   # if you edited this configuration file, uncomment this to prevent ACU overwriting it during an update
   #no_config_update: 1
 
-  # load device configuration determined by tags (e.g. rock-5b)
+  # load device configuration determined by tags (e.g. radxa-rock-5b)
   #device_config: generic
 
   # do not confirm when installing a package using pacman -S / -U or makepkg -si
@@ -55,39 +55,12 @@ configurations:
 
   ## ACU Configurable Files and Path ##
 
-  # archive repo url for downgrading packages
-  # Arch Linux ARM Archive repo
-  alaa_url: https://alaa.ad24.cz
-
   # directory for storing source files
-  source_repo_dir: .acu/sources
+  source_repo_dir: .acu/cache/sources
 
   # Repositories List
-  # repositories_file - file (or url) to load repositories list
-  # repositories_url - Sync local file from url when fetching updates (optional)
-  repositories_file: .acu/config/repo.yaml
-  #repositories_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/repo.yaml
+  # repositories_list - file (or url) to load repositories list
+  # repositories_list_update - Sync local file from url when fetching updates (optional)
+  repositories_list: .acu/config/repo.yaml
+  #repositories_list_update: https://raw.githubusercontent.com/kwankiu/acu/dev/example/repo.yaml
 
-  # Tags List
-  # tags_file - file to load tags list
-  # tags_url - Sync local file from url when fetching updates (optional)
-  tags_file: .acu/config/tags.yaml
-  tags_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/tags.yaml
-
-  # Kernel List
-  # kernel_file - file to load kernel list
-  # kernel_url - Sync local file from url when fetching updates (optional)
-  kernel_file: .acu/config/kernel.yaml
-  kernel_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/kernel.yaml
-
-  # Bootloader List
-  # bootloader_file - file to load bootloader list
-  # bootloader_url - Sync local file from url when fetching updates (optional)
-  bootloader_file: .acu/config/bootloader.yaml
-  bootloader_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/bootloader.yaml
-
-  # Apps List
-  # apps_file - file to load apps list
-  # apps_url - Sync local file from url when fetching updates (optional)
-  apps_file: .acu/config/apps.yaml
-  apps_url: https://raw.githubusercontent.com/kwankiu/acu/dev/example/apps.yaml

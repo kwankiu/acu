@@ -27,9 +27,9 @@
 utilname="Arch (ARM) Configuration Utility"
 
 # ACU Release Version : (github tags) (or branch*)
-release="0.0.6-dev"
+release="0.0.7-dev"
 
-# ACU Build Number: utilver (YYMMDDNN)
+# (DEPRECATED/OPTIONAL) ACU Build Number: utilver (YYMMDDNN)
 utilver=24031299
 
 # Remote Repository for update check
@@ -46,8 +46,46 @@ system_arch=$(uname -m)
 # Note: for acu user configurations, please edit $HOME/.acu/config/config.yaml or --loadconfig
 config_file="$HOME/.acu/config/config.yaml"
 
-################################################################
-# Tools for formatting / styling
+########################################################################
+## Command override
+########################################################################
+
+# sudo override
+sudo () {
+    local command=$@
+    if [ "$(id -u)" -eq 0 ]; then
+        #echo "Running in root."
+        command "$@"
+    else
+        #echo "Running with sudo."
+        command sudo "$@"
+    fi
+}
+
+# clear override
+clear () {
+    local command=$@
+    if [ -z "$no_clear" ]; then
+        echo -e $BACKGROUND
+        command clear "$@"
+    fi
+}
+
+# acu override
+acu () {
+    local command=$@
+    if [ -f "$pwd/acu" ]; then
+        colorecho "$DEBUG" "Using ACU in current directory"
+        command bash $pwd/acu "$@"
+    else
+        colorecho "$DEBUG" "Using ACU in PATH"
+        command acu "$@"
+    fi
+}
+
+########################################################################
+## Formatting / Styling
+########################################################################
 
 # Reset to Terminal Default Colors
 TDC='\033[0m'
@@ -93,33 +131,6 @@ BGDKGREEN='42m'
 THEME=$BLUE
 WARNING=$YELLOW
 DEBUG=$LTGREY
-
-# sudo override
-sudo () {
-    local command=$@
-    if [ "$(id -u)" -eq 0 ]; then
-        #echo "Running in root."
-        command "$@"
-    else
-        #echo "Running with sudo."
-        command sudo "$@"
-    fi
-}
-
-# clear override
-clear () {
-    local command=$@
-    if [ -z "$no_clear" ]; then
-        echo -e $BACKGROUND
-        command clear "$@"
-    fi
-}
-
-# acu override (just for development use)
-#   acu () {
-#       local command=$@
-#       command bash $HOME/Documents/GitHub/acu/acu "$@"
-#   }
 
 # Option Picker
 function select_option {
@@ -302,8 +313,9 @@ title() {
   fi
 }
 
-################################################################
-# Version updates handling
+########################################################################
+## ACU Install & Update Tools
+########################################################################
 
 # Check updates
 check_util_updates() {
@@ -355,7 +367,7 @@ update_util() {
 # Create an alias of acu or another command
 add_alias() {
     # Path to the directory where the alias script will be created
-    ALIAS_SCRIPT_DIR="/usr/bin"
+    ALIAS_SCRIPT_DIR="/usr/local/bin"
 
     # Alias name
     ALIAS_NAME=$1
@@ -374,8 +386,9 @@ add_alias() {
     colorecho "$GREEN" "Command '$ALIAS_NAME' has been created."
 }
 
-################################################################
-# Packages Install Tools
+########################################################################
+## Packages Install Tools
+########################################################################
 
 install_from_source() {
     
@@ -383,60 +396,67 @@ install_from_source() {
         colorecho "$RED" "ERROR $NC | acu is running in root or sudo, the following command can not be executed."
         exit 1
     fi
-    # Install required package    
+    # Get the repository URL from the argument
+    local repo_url="$1"
+    local pkgbase=$(basename $repo_url)
+    # Install required package
     sudo pacman -Sy --needed git base-devel --noconfirm
     
-    # Ensure folder doesn't exist
-    sudo rm -rf "$source_repo_dir"
+    # Source folder
+    mkdir -p $source_repo_dir
+    cd "$source_repo_dir"
+    rm -rf "$pkgbase"
     
-    # Get the repository URL from the argument
-    repo_url="$1"
-    
-    # If the URL starts with 'aur://', modify the URL to use AUR repository
-    if [[ "$repo_url" == aur://* ]]; then
-        package_name="${repo_url#aur://}"
-        repo_url="https://aur.archlinux.org/$package_name.git"
-    # If the URL starts with 'gh://', modify the URL to use GitHub repository
-    elif [[ "$repo_url" == gh://* ]]; then
-        ghrepo_name="${repo_url#gh://}"
-        repo_url="https://github.com/$ghrepo_name.git"
-    fi
-    
-    # Clone repo
-    colorecho "$GREEN" "Cloning Package from source ..."
+    colorecho "$DEBUG" "Clone URL / PATH: $repo_url"
+    colorecho "$DEBUG" "pkgbase: $pkgbase"
 
-    if [ -z "$git_branch" ]; then
-        git clone "$repo_url" "$source_repo_dir"
+    # Clone repo
+    if [[ "$repo_url" == *"://"* ]]; then
+        colorecho "$GREEN" "Cloning Package from source (git) ..."
+
+        if [ -z "$git_branch" ]; then
+            git clone "$repo_url" "$pkgbase"
+        else
+            git clone "$repo_url" "$pkgbase" -b $git_branch
+            git_branch="" # this unsets the branch variable
+        fi
+    elif [ -d "$repo_url" ]; then
+        colorecho "$GREEN" "Cloning Package from source (db) ..."
+        cp -r $repo_url .
     else
-        git clone "$repo_url" "$source_repo_dir" -b $git_branch
-        git_branch="" # this unsets the branch variable
+        colorecho "$RED" "ERROR $NC | failed to prepare repo for compilation. Invalid url or path."
+        exit 1
     fi
     
     # Compile & Install
-    cd "$source_repo_dir"
+    cd $pkgbase
     
-    if [ ! -z "$2" ] && [ "$2" != "--noinstall" ]; then
-        cd "$2"
-    fi
-    
-    colorecho "$GREEN" "Compiling & Installing Package from source ..."
-    if [ -z "$no_confirm" ]; then
-        makepkg -sA
-    else
-        makepkg -sA --noconfirm
-    fi
-
-    if [ "$2" != "--noinstall" ] && [ "$3" != "--noinstall" ]; then
+    if [ "$2" != "--noinstall" ]; then
+        colorecho "$GREEN" "Compiling & Installing Package from source ..."
         if [ -z "$no_confirm" ]; then
-            sudo pacman -U *.pkg.tar.*
+            makepkg -siA
         else
-            sudo pacman -U *.pkg.tar.* --noconfirm
+            makepkg -siA --noconfirm
         fi
     
         # Clean Up
+        cd ..
+        rm -rf "$pkgbase"
         cd $HOME
-        sudo rm -rf "$source_repo_dir"
-    fi 
+    else
+        colorecho "$GREEN" "Compiling Package from source ..."
+        if [ -z "$no_confirm" ]; then
+            makepkg -sA
+        else
+            makepkg -sA --noconfirm
+        fi
+        # Copy Packages
+        mkdir -p $pwd/packages/$pkgbase
+        cp -r *.pkg.tar.* $pwd/packages/$pkgbase
+        colorecho "$GREEN" "INFO$NC |     Package built at $pwd/packages/$pkgbase"
+        colorecho "$GREEN" "INFO$NC |     Package sources located at $HOME/$source_repo_dir/$pkgbase"
+        cd $HOME
+    fi
 
 }
 
@@ -478,7 +498,9 @@ get_ghapi_orgs() {
     done
 
     ghapi_pkg_results=()
+    ghapi_url_results=()
     for url in "${dgpkg_list[@]}"; do
+        ghapi_url_results+=("https://github.com/$url")
         selection=$(basename "$url")
         ghapi_pkg_results+=("$selection")
     done
@@ -529,7 +551,9 @@ install_ghrel_packages() {
 
 }
 
-################################################################
+########################################################################
+## ACU Parser
+########################################################################
 # ACU File Pre-Parser
 # source: https://github.com/mrbaseman/pasrse_yaml.git
 # awk : process multi-line text (handle YAML pipe) (added a space for better syntax / readability)
@@ -598,7 +622,7 @@ load_yaml() {
 
     local target_file=$1
     local suffix=$2
-    local output_format=$3
+    local output_format=$3 # format: list (default), append, non-list
     local current_head=""
     local current_subhead=""
     local last_indent=""
@@ -634,7 +658,7 @@ load_yaml() {
                         # Without suffix
                         current_value=""
                     fi
-                    if [ "$output_format" = "list" ]; then
+                    if [ "$output_format" != "non-list" ]; then
                         found_exist=0
                         current_var=$(awk -F':' '{print $1}' <<< "${current_value}${line}")
                         for item in "${head_list[@]}"; do
@@ -643,7 +667,7 @@ load_yaml() {
                                 break
                             fi
                         done
-                        if [ "$found_exist" -eq 0 ]; then
+                        if [ "$found_exist" -eq 0 ] && [ "$output_format" != "append" ]; then
                             head_list+=("$current_var")
                             current_value="${current_value}${line//: /=(\"}\")"
                         else
@@ -654,7 +678,7 @@ load_yaml() {
                     fi
                     # Add variable closing after handling sub_items
                     if [ "$sub_item" = 2 ]; then
-                        if [ "$output_format" = "list" ]; then
+                        if [ "$output_format" != "non-list" ]; then
                             echo "\")"
                         else
                             echo "\""
@@ -678,7 +702,7 @@ load_yaml() {
                         # Without suffix
                         current_value="${current_subhead}"
                     fi
-                    if [ "$output_format" = "list" ]; then
+                    if [ "$output_format" != "non-list" ]; then
                         found_exist=0
                         for item in "${head_list[@]}"; do
                             if [ "$item" = "$current_value" ]; then
@@ -686,7 +710,7 @@ load_yaml() {
                                 break
                             fi
                         done
-                        if [ "$found_exist" -eq 0 ]; then
+                        if [ "$found_exist" -eq 0 ] && [ "$output_format" != "append" ]; then
                             head_list+=("$current_value")
                             current_value="${current_value}=(\"${line}"
                         else
@@ -710,7 +734,7 @@ load_yaml() {
         # Fix sub_item that appears on the last line
         # Add variable closing after handling sub_items
         if [ "$sub_item" = 2 ]; then
-            if [ "$output_format" = "list" ]; then
+            if [ "$output_format" != "non-list" ]; then
                     echo "\")"
             else
                     echo "\""
@@ -718,113 +742,175 @@ load_yaml() {
         fi
 }
 
+########################################################################
+## Repository Management
+########################################################################
+
+# Function to load repositories into arrays
+load_repositories() {
+    # Read repositories from YAML file
+    if [ -f "$repositories_list" ]; then
+        eval $(load_yaml $repositories_list "")
+    fi
+}
+
 # Generate repo.yaml header
 create_repo_yaml() {
-    echo "#   __    ___  _  _    ____  ____  ____   __   ____  __  ____  __  ____  __  ____  ____  " | tee "$repositories_file" >/dev/null
-    echo "#  / _\  / __)/ )( \  (  _ \(  __)(  _ \ /  \ / ___)(  )(_  _)/  \(  _ \(  )(  __)/ ___) " | tee -a "$repositories_file" >/dev/null
-    echo "# /    \( (__ ) \/ (   )   / ) _)  ) __/(  O )\___ \ )(   )( (  O ))   / )(  ) _) \___ \ " | tee -a "$repositories_file" >/dev/null
-    echo "# \_/\_/ \___)\____/  (__\_)(____)(__)   \__/ (____/(__) (__) \__/(__\_)(__)(____)(____/ " | tee -a "$repositories_file" >/dev/null
-    echo "# List of package repositories managed by acu" | tee -a "$repositories_file" >/dev/null
-    echo "repositories:" | tee -a "$repositories_file" >/dev/null
-    echo " " | tee -a "$repositories_file" >/dev/null
-    echo "#- repo_name: example" | tee -a "$repositories_file" >/dev/null
-    echo "#  repo_type: git #available types are agr, ghorg, ghrel, and git." | tee -a "$repositories_file" >/dev/null
-    echo "#  repo_url: https://example.com" | tee -a "$repositories_file" >/dev/null
-    echo " " | tee -a "$repositories_file" >/dev/null
+    echo "#   __    ___  _  _    ____  ____  ____   __   ____  __  ____  __  ____  __  ____  ____  " | tee "$repositories_list" >/dev/null
+    echo "#  / _\  / __)/ )( \  (  _ \(  __)(  _ \ /  \ / ___)(  )(_  _)/  \(  _ \(  )(  __)/ ___) " | tee -a "$repositories_list" >/dev/null
+    echo "# /    \( (__ ) \/ (   )   / ) _)  ) __/(  O )\___ \ )(   )( (  O ))   / )(  ) _) \___ \ " | tee -a "$repositories_list" >/dev/null
+    echo "# \_/\_/ \___)\____/  (__\_)(____)(__)   \__/ (____/(__) (__) \__/(__\_)(__)(____)(____/ " | tee -a "$repositories_list" >/dev/null
+    echo "# List of package repositories managed by acu" | tee -a "$repositories_list" >/dev/null
+    echo "repositories:" | tee -a "$repositories_list" >/dev/null
+    echo " " | tee -a "$repositories_list" >/dev/null
+    echo "#- repo_name: example" | tee -a "$repositories_list" >/dev/null
+    echo "#  repo_type: git #available types are acu, agr, git and archive" | tee -a "$repositories_list" >/dev/null
+    echo "#  repo_url: https://example.com #url format PROTOCOL://HOST/SUBTREE:BRANCH" | tee -a "$repositories_list" >/dev/null
+    echo " " | tee -a "$repositories_list" >/dev/null
 }
 
 # Function to add a repository item to the YAML file
 add_repository() {
     # Check if YAML file exists
-    if [ ! -f "$repositories_file" ]; then
+    if [ -f "$repositories_list" ]; then
+        load_repositories
+    else
         # Create folder if it doesn't exist already
-        mkdir -p "$(dirname "$repositories_file")"
+        mkdir -p "$(dirname "$repositories_list")"
         create_repo_yaml
     fi
+
     # Read repository name
     if [ -z "$1" ]; then
-        title "Add an ACU Managed Repository"
+        title "Add a Repository"
         local p=$(colorecho "$NC" "Enter repository name: " "" "center")
         read -p "$p" repo_name
     else
         repo_name="$1"
     fi
 
+    # Check repository name conflict
+    local i
+    local conflict=0
+    for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
+        if [ "$repo_name" = "${repositories_repo_name[i]}" ]; then
+            conflict=1
+            break
+        fi
+    done
+    if [ "$conflict" = 1 ]; then
+        colorecho "$RED" "ERROR$NC | Repository name already exist."
+        sleep 1
+        return 1
+    fi
+
     # Read repository URL
     if [ -z "$2" ] || [[ "$2" == "--"* ]]; then
-        if [ "$1" = "acu" ]; then
-            if [ -z "$git_branch" ]; then
-                git_branch="pkgbuilds"
-            fi
-            repo_url="https://github.com/kwankiu/acu"
+        if [ -z "$1" ]; then
+            local align="center"
         else
-            if [ -z "$1" ]; then
-                local align="center"
-            else
-                local align="left"
+            local align="left"
+        fi
+        local p=$(colorecho "$NC" "Enter repository URL: " "" "$align")
+        read -p "$p" repo_url
+        colorecho "$THEME" "Select a repository type: " "" "$align"
+        options=("acu" "agr" "git" "pacman" "archive")
+        select_option "${options[@]}"
+        repo_type="${options[$?]}"
+        if [ "$repo_type" = "pacman" ]; then
+            local p=$(colorecho "$NC" "Do you want to add a GPG key for $repo_name repo? [Y/n]: " "" "$align")
+            read -p "$p" add_gpg_key
+            if [[ $add_gpg_key == [Yy]* ]]; then
+                local p=$(colorecho "$NC" "Enter GPG key for $repo_name repo: " "" "$align")
+                read -p "$p" gpg_key
             fi
-            local p=$(colorecho "$NC" "Enter repository URL: " "" "$align")
-            read -p "$p" repo_url
         fi
     else
         repo_url="$2"
-    fi
-
-    # Validate and auto-detect repository type based on URL format
-    if [[ "$repo_url" == "https://api.github.com/orgs"* ]]; then
-        repo_type="ghorg"
-    elif [[ "$repo_url" == "https://api.github.com/repos"* ]]; then
-        repo_type="ghrel"
-    elif [[ "$repo_url" == "http://"*"/"*"/"* || "$repo_url" == "https://"*"/"*"/"* ]]; then
-        repo_type="agr"
-        if [ -n "$git_branch" ]; then
-            repo_url="$repo_url:$git_branch"
+        # Read repository type
+        if [ -z "$3" ] || [[ "$3" == "--"* ]]; then
+            # Validate and auto-detect repository type based on URL format
+            if [[ "$repo_url" == "http://"* || "$repo_url" == "https://"* ]]; then
+                if [[ "$repo_url" == *".yaml" ]]; then
+                    repo_type="acu"
+                else
+                    repo_type="git"
+                fi
+            fi
+        else
+            repo_type="$3"
         fi
-    elif [[ "$repo_url" == "http://"* || "$repo_url" == "https://"* ]]; then
-        repo_type="git"
-    else
-        colorecho "$RED" "ERROR $NC | Invalid repository URL format."
-        sleep 1
-        return
     fi
 
-    # Append new repository item to YAML file
-    echo "- repo_name: $repo_name" | tee -a "$repositories_file" >/dev/null
-    echo "  repo_type: $repo_type" | tee -a "$repositories_file" >/dev/null
-    echo "  repo_url: $repo_url" | tee -a "$repositories_file" >/dev/null
-    echo " " | tee -a "$repositories_file" >/dev/null
-
-    colorecho "$GREEN" "INFO $NC | Repository added successfully."
-}
-
-# Function to load repositories into arrays
-load_repositories() {
-    # Read repositories from YAML file
-    if [ -f "$repositories_file" ]; then
-        eval $(load_yaml $repositories_file "" list)
-    fi
+    case "$repo_type" in
+        acu | agr | git | archive)
+            # Apply git branch to url if exists
+            if [ -n "$git_branch" ]; then
+                repo_url="$repo_url:$git_branch"
+            fi
+            # Remove "/" ending
+            if [[ "$repo_url" == *"/" ]]; then
+                repo_url="${repo_url%/}"
+            fi
+            # Remove .git if it exist as it will be automatically added in git clone
+            if [[ "$repo_url" == *".git" ]]; then
+                repo_url="${repo_url%.git}"
+            fi
+            # Append new repository item to YAML file
+            echo "- repo_name: $repo_name" | tee -a "$repositories_list" >/dev/null
+            echo "  repo_type: $repo_type" | tee -a "$repositories_list" >/dev/null
+            echo "  repo_url: $repo_url" | tee -a "$repositories_list" >/dev/null
+            echo " " | tee -a "$repositories_list" >/dev/null
+            colorecho "$GREEN" "INFO $NC | Repository added successfully."
+            ;;
+        pacman)
+            colorecho "$GREEN" "Adding $repo_name to pacman.conf ..."
+            if [ -n "$4" ]; then
+                gpg_key="$4"
+            fi
+            if [ -z "$gpg_key" ]; then
+                echo -e "[$repo_name]\nSigLevel = Never\nServer = $repo_url" | sudo tee -a /etc/pacman.conf
+            else
+                echo -e "[$repo_name]\nServer = $repo_url" | sudo tee -a /etc/pacman.conf
+                colorecho "$GREEN" "Adding GPG keys ..."
+                sudo pacman-key --recv-keys "$gpg_key"
+                sudo pacman-key --lsign "$gpg_key"
+            fi
+            colorecho "$GREEN" "INFO $NC | Repository added successfully."
+            ;;
+        *)
+            colorecho "$RED" "ERROR$NC | Invalid repository type. Valid types are: acu, agr, git, pacman and archive."
+            sleep 1
+            return 1
+            ;;
+    esac
 }
 
 # Function to list repositories sorted by type
 list_repositories() {
     load_repositories
 
-    # Print repositories
-    colorecho "$GREEN" "INFO $NC | List of ACU Managed Repositories:"
-    for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
-        echo "  Name: ${repositories_repo_name[i]}"
-        echo "  Type: ${repositories_repo_type[i]}"
-        echo "  URL: ${repositories_repo_url[i]}"
-    done
+    # Print acu managed repositories
+    if [ "$1" != "pacman" ]; then
+        colorecho "$GREEN" "INFO $NC | List of ACU Managed Repositories:"
+        for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
+            echo "  Name: ${repositories_repo_name[i]}"
+            echo "  Type: ${repositories_repo_type[i]}"
+            echo "  URL: ${repositories_repo_url[i]}"
+        done
+    fi
+    # Print pacman repositories
+    if [ "$1" != "acu" ]; then
     colorecho "$GREEN" "INFO $NC | List of Pacman Repositories (Custom):"
         local pacman_repo_list=($(pacman-conf --repo-list))
         for ((i = 0; i < ${#pacman_repo_list[@]}; i++)); do
-            if [ "${pacman_repo_list[i]}" != "core" ] && [ "${pacman_repo_list[i]}" != "extra" ]; then
+            if [ "${pacman_repo_list[i]}" != "core" ] && [ "${pacman_repo_list[i]}" != "extra" ] && [ "${pacman_repo_list[i]}" != "community" ] && [ "${pacman_repo_list[i]}" != "alarm" ]; then
                 echo "  Name: ${pacman_repo_list[i]}"
                 local repo_info=$(pacman-conf --repo="${pacman_repo_list[i]}")
                 echo "  $repo_info"
             fi
         done
+    fi
 }
 
 # Function to list repositories sorted by type
@@ -837,7 +923,7 @@ remove_repository() {
     case "$delrepoconfirm" in
         [yY])
             colorecho "$THEME" "INFO $NC | Removing repository $toremove ..."
-            sudo rm -rf $repositories_file
+            mv $repositories_list "${repositories_list}.old"
             ;;
         *)
             colorecho "$THEME" "INFO $NC | Repository will not be removed."
@@ -848,18 +934,23 @@ remove_repository() {
     # Print repositories
     colorecho "$THEME" "INFO $NC | Generating new repository configuration ..."
     create_repo_yaml
+    local removed=0
     for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
         # Append new repository item to YAML file
         if [ "$toremove" != "${repositories_repo_name[i]}" ]; then
-            acu rem set ${repositories_repo_name[i]} ${repositories_repo_url[i]}
+            acu rem set ${repositories_repo_name[i]} ${repositories_repo_url[i]} ${repositories_repo_type[i]} &> /dev/null
         else
             if [ "${repositories_repo_type[i]}" == "agr" ]; then
                 colorecho "$THEME" "INFO $NC | Removing ${repositories_repo_name[i]} from agr ..."
                 agr rem del ${repositories_repo_name[i]}
             fi
             colorecho "$GREEN" "INFO $NC | removed ${repositories_repo_name[i]} successfully."
+            removed=1
         fi
     done
+    if [ "$removed" = 0 ]; then
+        colorecho "$RED" "ERROR$NC | Repository $toremove does not exist."
+    fi
 }
 
 # Function to fetch packages of a repositories
@@ -872,7 +963,7 @@ fetch_repositories() {
     local i # declare as local variable
     for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
         if [ "$1" != "-q" ]; then
-            echo -n "${repositories_repo_name[i]}"
+            echo -n " ${repositories_repo_name[i]}"
             printf "\t\t [ ########################## ] \t"
         fi
         case ${repositories_repo_type[i]} in
@@ -899,67 +990,138 @@ fetch_repositories() {
                     else
                         agr rem set "${repositories_repo_name[i]}" "${repositories_repo_url[i]}" &> /dev/null
                     fi
+                    colorecho "$THEME" "AGR    $NC | Looking up remote: ${repositories_repo_url[i]}"
                     if [ -n "$debug_log" ]; then
-                        agr -d 2>&1
+                        agr -d 2>&1 | grep -v 'INFO' | grep -v "\---" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
                     elif [ "$1" == "list" ]; then
-                        agr 2>&1
+                        agr 2>&1 | grep -v 'INFO' | grep -v "\---" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
                     else
-                        if [ "$1" != "-q" ]; then
-                            colorecho "$THEME" "AGR   $NC | Looking up remote: ${repositories_repo_url[i]}"
-                        fi
                         agr  &> /dev/null
                     fi
                 fi
                 ;;
-            ghorg | ghapi-orgs)
+            git | archive | ghorg | ghapi-orgs | ghrel | ghapi-releases)
                 if [ "$1" != "-q" ]; then
-                    colorecho "$THEME" "GHORG $NC | Looking up remote: ${repositories_repo_url[i]}"
-                fi
-                get_ghapi_orgs ${repositories_repo_url[i]}
-                for pkg in "${ghapi_pkg_results[@]}"; do
-                    if [ "$1" == "list" ]; then
-                        colorecho "$THEME" "      PKG$NC |     $pkg"
+                    if [[ "${repositories_repo_url[i]}" == "https://github.com/"* && "${repositories_repo_url[i]}" != *"https://github.com/"*"/"* ]]; then
+                        # Github API (Orgs/Users)
+                        colorecho "$THEME" "GHORG  $NC | Looking up remote: ${repositories_repo_url[i]}"
+                    elif [[ "${repositories_repo_url[i]}" == "https://api.github.com/repos"* ]]; then
+                        # Github API (Repository)
+                        colorecho "$THEME" "GHREL  $NC | Looking up remote: ${repositories_repo_url[i]}"
+                    elif [ "${repositories_repo_type[i]}" = "archive" ]; then
+                        # Archive Repository (Downgrade)
+                        colorecho "$THEME" "ARCHIVE$NC | Looking up remote: ${repositories_repo_url[i]}"
+                    else
+                        # GIT
+                        colorecho "$THEME" "GIT    $NC | Looking up remote: ${repositories_repo_url[i]}"
                     fi
-                done
-                if [ "$1" == "list" ]; then
-                    colorecho "$THEME" "      INFO$NC|"
-                    colorecho "$THEME" "      INFO$NC|     found ${#ghapi_pkg_results[@]} packages"
+                fi
+                # Github API (Orgs/Users)
+                if [[ "${repositories_repo_url[i]}" == "https://github.com/"* && "${repositories_repo_url[i]}" != *"https://github.com/"*"/"* ]]; then
+                    local ghapi_url="https://api.github.com/orgs/$(basename ${repositories_repo_url[i]})/repos"
+                    get_ghapi_orgs $ghapi_url
+                    #mkdir -p $HOME/.acu/cache/db
+                    #local db_file="$HOME/.acu/cache/db/${repositories_repo_name[i]}.yaml"
+                    #echo "# Package database for ${repositories_repo_name[i]}" | tee "$db_file" >/dev/null
+                    #echo "${repositories_repo_name[i]}:" | tee -a "$db_file" >/dev/null
+                    #echo " " | tee -a "$db_file" >/dev/null
+                    local p
+                    for ((p = 0; p < ${#ghapi_pkg_results[@]}; p++)); do
+                    #    echo "- package_name: ${ghapi_pkg_results[p]}" | tee -a "$db_file" >/dev/null
+                    #    echo "  clone_url: ${ghapi_url_results[p]}" | tee -a "$db_file" >/dev/null
+                    #    echo " " | tee -a "$db_file" >/dev/null
+                        if [ "$1" == "list" ]; then
+                            colorecho "$THEME" "PKG $NC |     ${ghapi_pkg_results[p]}"
+                        fi
+                    done
+                    if [ "$1" == "list" ]; then
+                        colorecho "$GREEN" "INFO$NC |"
+                        colorecho "$GREEN" "INFO$NC |     Successfully fetched host (found ${#ghapi_pkg_results[@]} packages)"
+                    fi
+                # Github API (Repository)
+                elif [[ "${repositories_repo_url[i]}" == "https://api.github.com/repos"* ]]; then
+                    ghrel_url+=("${repositories_repo_url[i]}")
+                    ghapi_pkg_results=($(echo -e "n" | install_ghrel_packages .pkg.tar. | grep .pkg.tar.* | sed 's/\.pkg\..*//'))
+                    for pkg in "${ghapi_pkg_results[@]}"; do
+                        if [ "$1" == "list" ]; then
+                            colorecho "$THEME" "PKG $NC |     $pkg"
+                        fi
+                    done
+                    if [ "$1" == "list" ]; then
+                        colorecho "$GREEN" "INFO$NC |"
+                        colorecho "$GREEN" "INFO$NC |     Successfully fetched host (found ${#ghapi_pkg_results[@]} packages)"
+                    fi
+                # GIT REPO (subtree)
+                elif [[ "${repositories_repo_url[i]}" == *"://"*"/"*"/"* ]]; then
+                    mkdir -p $HOME/.acu/cache/db
+                    cd $HOME/.acu/cache/db # cd for git clone
+                    rm -rf "${repositories_repo_name[i]}"
+                    # Extract the branch name using parameter expansion and pattern matching
+                    if [[ "${repositories_repo_url[i]}" == *"://"*"/"*"/"*":"* ]]; then
+                        local agr_url="${repositories_repo_url[i]%:*}"
+                        local agr_branch="${repositories_repo_url[i]##*:}"  # Remove everything up to the last ":"
+                        local success=0
+                        if git clone "$agr_url" "${repositories_repo_name[i]}" --single-branch -b "$agr_branch" --depth 1 --no-tags --recursive &> /dev/null; then
+                            success=1
+                        fi
+                    else
+                        if git clone "${repositories_repo_url[i]}" "${repositories_repo_name[i]}" --single-branch --depth 1 --no-tags --recursive &> /dev/null; then
+                            success=1
+                        fi
+                    fi
+                    if [ "$success" = 1 ]; then
+                        if [ "$1" == "list" ]; then
+                            local agr_pkg=()
+                            local count=0
+                            while IFS= read -r pkg; do
+                                agr_pkg+=("$pkg")
+                                colorecho "$THEME" "PKG $NC |     $(basename $pkg)"
+                                ((count++))
+                            done < <(find ${repositories_repo_name[i]} -type f -name PKGBUILD -exec dirname {} \; | sort -u)
+                            colorecho "$GREEN" "INFO$NC |"
+                            colorecho "$GREEN" "INFO$NC |     Successfully fetched host (found $count packages)"
+                        fi
+                    else
+                        colorecho "$RED" "ERROR$NC |     Failed to resolve git repo."
+                    fi
+                    cd $HOME # restore cd after git clone
+                # GIT
+                else
+                    local response_code=$(curl --write-out '%{response_code}' -s "${repositories_repo_url[i]}/" -o /dev/null)
+                    if [ "$response_code" = 200 ]; then
+                        if [ "$1" == "list" ]; then
+                            colorecho "$GREEN" "INFO$NC |"
+                            colorecho "$GREEN" "INFO$NC |     Successfully fetched host (Packages list fetching unsupported)"
+                        fi
+                    else
+                        colorecho "$RED" "ERROR$NC |     Failed to resolve host (error code $response_code)."
+                    fi
                 fi
                 ;;
-            ghrel | ghapi-releases)
+            acu)
                 if [ "$1" != "-q" ]; then
-                    colorecho "$THEME" "GHREL $NC | Looking up remote: ${repositories_repo_url[i]}"
+                    colorecho "$THEME" "ACU    $NC | Looking up remote: ${repositories_repo_url[i]}"
                 fi
-                ghrel_url+=("${repositories_repo_url[i]}")
-                ghapi_pkg_results=($(echo -e "n" | install_ghrel_packages .pkg.tar. | grep .pkg.tar.* | sed 's/\.pkg\..*//'))
-                for pkg in "${ghapi_pkg_results[@]}"; do
+                mkdir -p $HOME/.acu/cache/tmp
+                response_code=$(curl -s --write-out '%{response_code}' -L "${repositories_repo_url[i]}" -o $HOME/.acu/cache/tmp/tmpdownload.yaml)
+                colorecho "$DEBUG" "CURL Response code: $response_code"
+                if [ "$response_code" = 200 ]; then
+                    mkdir -p $HOME/.acu/cache/db
+                    cp -r $HOME/.acu/cache/tmp/tmpdownload.yaml $HOME/.acu/cache/db/${repositories_repo_name[i]}.yaml
                     if [ "$1" == "list" ]; then
-                        colorecho "$THEME" "      PKG$NC |     $pkg"
-                    fi
-                done
-                if [ "$1" == "list" ]; then
-                    colorecho "$THEME" "      INFO$NC|"
-                    colorecho "$THEME" "      INFO$NC|     found ${#ghapi_pkg_results[@]} packages"
-                fi
-                ;;
-            git)
-                if [ "$1" != "-q" ]; then
-                    colorecho "$THEME" "GIT   $NC | Looking up remote: ${repositories_repo_url[i]}"
-                fi
-                if curl -s --head ${repositories_repo_url[i]} &> /dev/null; then
-                    if [ "$1" == "list" ]; then
-                        colorecho "$GREEN" "      INFO$NC |     Successfully fetched host (Packages list fetching unsupported)"
+                        apps_list
+                        colorecho "$GREEN" "INFO$NC |     Successfully fetched host"
                     fi
                 else
-                    colorecho "$RED" "      ERROR$NC |     Failed to resolve host."
+                    colorecho "$RED" "ERROR$NC |     Failed to resolve repository."
                 fi
+                rm -rf $HOME/.acu/cache/tmp/tmpdownload.yaml
                 ;;
             *)
                 if [ "$1" != "-q" ]; then
-                    colorecho "$THEME" "UNKNOWN$NC | Looking up remote: ${repositories_repo_url[i]}"
-                    colorecho "$RED" "      ERROR$NC |     Invalid repository type. Valid types are: agr, ghorg, ghrel, git."
+                    colorecho "$RED" "ERROR  $NC | Invalid repository type. Valid types are: acu, agr, git and archive."
                 else
-                    colorecho "$DEBUG" "$RED      ERROR$NC |     Invalid repository type. Valid types are: agr, ghorg, ghrel, git."
+                    colorecho "$DEBUG" "${RED}ERROR$NC |     Invalid repository type. Valid types are: acu, agr, git and archive."
                 fi
                 ;;
         esac
@@ -970,8 +1132,7 @@ manage_repositories() {
     title "Manage Repositories"
     list_repositories
     options=()
-    options+=("Add an ACU Managed Repository")
-    options+=("Add a Pacman Repository")
+    options+=("Add a Repository")
     options+=("Remove an ACU Managed Repository")
     options+=("Edit Pacman Configurations")
     options+=("Return to Manage Packages Menu")
@@ -985,13 +1146,10 @@ manage_repositories() {
     case $choice in
         0)
             add_repository
+            acu update
             manage_repositories
             ;;
         1)
-            add_repo
-            manage_repositories
-            ;;
-        2)
             title "Remove an ACU Managed Repository"
             echo
             colorecho "$GREEN" "Select a repository to remove: " "" "center"
@@ -1001,7 +1159,7 @@ manage_repositories() {
             remove_repository "${repositories_repo_name[choice]}"
             manage_repositories
             ;;
-        3)
+        2)
             colorecho "$GREEN" "INFO $NC | When you finish, press Ctrl+O to save then press Ctrl+X to exit the editor." "bottom" "center" "-a"
             sleep 2
             sudo nano /etc/pacman.conf
@@ -1015,8 +1173,9 @@ manage_repositories() {
 
 }
 
-################################################################
-# Utility Main Menu
+########################################################################
+## Utility Main Menu
+########################################################################
 
 config_options() {
     title
@@ -1068,8 +1227,9 @@ config_options() {
 
 }
 
-################################################################
-# System Maintenance
+########################################################################
+## System Maintenance
+########################################################################
 
 # System Maintenance Main Menu
 system_maintenance() {
@@ -1113,6 +1273,7 @@ system_maintenance() {
 
 }
 
+# Fetch System Infomation
 system_info() {
     if [ "$1" == "--center" ]; then
         title "System Information"
@@ -1311,74 +1472,112 @@ flash_uboot() {
 
 }
 
-# Re-install Kernel
-update_kernel_extlinux() {
+# Update boot config (extlinux/grub)
+update_boot_config() {
 
-    # Update extlinux.conf
-    colorecho "$THEME" "INFO  $NC | Generate extlinux.conf for $1 ..."
+    local pkgname=$1
 
-    if ! sudo pacman -Q "$1" > /dev/null 2>&1 ; then
-        colorecho "$RED" "ERROR $NC | Package $1 is not installed"
-        colorecho "$THEME" "INFO  $NC | extlinux.conf will not be updated"
-        sudo cp -r /etc/mkinitcpio.old/* /etc/mkinitcpio.d
-        sudo rm -rf /etc/mkinitcpio.old
-        exit 1
-    fi
-
-    if found_file=$(sudo ls -1 /boot/extlinux/extlinux.*.template 2>/dev/null); then
-        colorecho "$THEME" "INFO  $NC | Using package provided template: $found_file"
-        sudo mv "$found_file" /boot/extlinux/extlinux.conf
-    elif [ -n "$device_config" ] && [ -e /boot/vmlinuz-$1 ]; then
-        # Kernel does not provide template, get sbc template
-        colorecho "$GREEN" "  ->  Downloading extlinux template for ${device_config}"
-        curl -LRO https://github.com/kwankiu/archlinux-installer-rock5/releases/download/kernel/${device_config}.extlinux.template
-        sudo mv ${device_config}.extlinux.template /boot/extlinux/extlinux.conf
+    # Make sure package is installed and get kernel infomation
+    if sudo pacman -Q "$pkgname" > /dev/null 2>&1 ; then
+        local pkgbase="$(sudo pacman -Ql "$pkgname" | grep pkgbase | awk '{print $2}')"
+        if [ -n "$pkgbase" ]; then
+            pkgbase="$(cat $pkgbase)"
+        else
+            colorecho "$RED" "ERROR $NC | Can not determine pkgbase, Package $pkgname may not be a kernel"
+            return 1
+        fi
+        colorecho "$THEME" "INFO  $NC | Updating boot config for $pkgbase ..."
     else
-        colorecho "$THEME" "INFO  $NC | No available template, skipping ..."
-        colorecho "$WARNING" "WARNING  $NC | You may need to update extlinux.conf before booting into the new kernel"
-        exit 0
-    fi        
-
-    colorecho "$THEME" "INFO  $NC | Getting rootfs UUID ..."
-    # Get rootfs partition from the current mount point "/"
-    rootfs_partition=$(mount | grep "on / " | awk '{print $1}')
-
-    # Find the UUIDs of the root partition
-    root_uuid=$(sudo blkid $rootfs_partition | awk '{print $2}' | tr -d '"')
-    colorecho "$DEBUG" "Root partition UUID: $root_uuid"
-
-    colorecho "$THEME" "INFO  $NC | Updating extlinux.conf ..."
-
-    # Change pkgbase for extlinux.conf
-    if sudo test ! -e "/boot/dtbs/$1"; then 
-        sudo sed -i "s|/dtbs/%PKGBASE%|/dtbs|" /boot/extlinux/extlinux.conf
+        colorecho "$RED" "ERROR $NC | Package $pkgname is not installed"
+        return 1
     fi
 
-    # fix rockchip overlay directory name
-    if sudo test -e "/boot/dtbs/$1/rockchip/overlay"; then
-        sudo sed -i "s|/rockchip/overlays|/rockchip/overlay|" /boot/extlinux/extlinux.conf
-    fi
+    # EFI System
+    if sudo test -f /boot/EFI/BOOT/BOOT*.EFI; then
+        colorecho "$THEME" "INFO  $NC | EFI System detected, only extlinux is supported, skipping ..."
+        colorecho "$WARNING" "WARNING  $NC | You need to manually update your EFI / Grub config."
+        return 1
+    # Update extlinux from booted config
+    elif sudo test -f "/boot/extlinux/extlinux.conf"; then
+        colorecho "$THEME" "INFO  $NC | Creating a backup of extlinux.conf at extlinux.conf.bak ..."
+        sudo rm -rf /boot/extlinux/extlinux.conf.bak
+        sudo mv /boot/extlinux/extlinux.conf /boot/extlinux/extlinux.conf.bak
+        colorecho "$THEME" "INFO  $NC | Generating new extlinux.conf ..."
+        # Kernel
+        echo "# This extlinux.conf is auto-generated by ACU" | sudo tee "/boot/extlinux/extlinux.conf" >/dev/null
+        echo " " | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        echo "label ${pkgbase}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        echo "    kernel /vmlinuz-${pkgbase}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        echo "    initrd /initramfs-${pkgbase}.img" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        # DTB dir
+        if sudo test -d "/boot/dtbs/${pkgbase}"; then
+            echo "    devicetreedir /dtbs/${pkgbase}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        else
+            # Mainline kernel
+            echo "    devicetreedir /dtbs" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        fi
+        # DTB file (ftd)
+        local ftdline
+        if ftdline="$(cat /boot/extlinux/extlinux.conf.bak | grep -m 1 'ftd ')"; then
+            # Add dtb fdt file
+            echo "${ftdline}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        fi
+        # Overlays
+        local overlaysline
+        if overlaysline="$(cat /boot/extlinux/extlinux.conf.bak | grep -m 1 'fdtoverlays ')"; then
+            local overlaylist=($overlaysline)
+            local i
+            local dtbolist
+            for ((i = 1; i < ${#overlaylist[@]}; i++)); do
+                local target_dtbo=$(basename ${overlaylist[i]})
+                local found_dtbo
+                if found_dtbo=$(find /boot/dtbs/${pkgbase} -type f -name $target_dtbo -exec dirname {} \; | head -n 1); then
+                    dtbolist+=("${found_dtbo}/${target_dtbo}")
+                elif found_dtbo=$(find /boot/dtbs -type f -name $target_dtbo -exec dirname {} \; | head -n 1); then
+                    dtbolist+=("${found_dtbo}/${target_dtbo}")
+                elif sudo test -e "$target_dtbo" || sudo test -e "/boot/$target_dtbo"; then
+                    dtbolist+=("$target_dtbo")
+                fi
+            done
+            if [ -n "$dtbolist" ]; then
+                echo "    fdtoverlays ${dtbolist[@]}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+            fi
+        fi
+        # Append (cmdline)
+        local appendline
+        if appendline="$(cat /boot/extlinux/extlinux.conf.bak | grep -m 1 'append ')"; then
+            # Use cmdline from the backup extlinux.conf
+            echo "${appendline}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        elif sudo test -f "/proc/cmdline"; then
+            # Use cmdline from booted cmdline
+            local cmdline="$(cat /proc/cmdline)"
+            echo "    append   ${cmdline}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        else
+            # Get rootfs partition from the current mount point "/"
+            rootfs_partition=$(mount | grep "on / " | awk '{print $1}')
+            # Find the UUIDs of the root partition
+            root_uuid=$(sudo blkid $rootfs_partition | awk '{print $2}' | tr -d '"')
+            colorecho "$DEBUG" "Root partition UUID: $root_uuid"
+            # Use default cmdline
+            echo "    append   root=UUID=${root_uuid} rw quiet splash" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        fi
 
-    sudo sed -i "s|%PKGBASE%|$1|" /boot/extlinux/extlinux.conf
-
-    # Change UUID for extlinux.conf   
-    sudo sed -i "s|UUID=\\*\\*CHANGEME\\*\\*|$root_uuid|" /boot/extlinux/extlinux.conf
-    sudo sed -i "s|UUID=CHANGEME|$root_uuid|" /boot/extlinux/extlinux.conf
-
-    # Check if /boot is mounted as a partition or directory
-    if mountpoint -q /boot; then
-        colorecho "$DEBUG" "INFO  $NC | /boot is mounted as a partition"
+        # Check if /boot is mounted as a partition or directory
+        if mountpoint -q /boot; then
+            colorecho "$DEBUG" "INFO  $NC | /boot is mounted as a partition"
+        else
+            colorecho "$DEBUG" "INFO  $NC | /boot is mounted as a directory"
+            colorecho "$THEME" "INFO  $NC | Updating paths for extlinux.conf ..."
+            sudo sed -i "s| /vmlinuz| /boot/vmlinuz|" /boot/extlinux/extlinux.conf
+            sudo sed -i "s| /initramfs| /boot/initramfs|" /boot/extlinux/extlinux.conf
+            sudo sed -i "s| /initrd| /boot/initrd|" /boot/extlinux/extlinux.conf
+            sudo sed -i "s| /dtbs| /boot/dtbs|" /boot/extlinux/extlinux.conf
+            sudo sed -i "s| /dtbo| /boot/dtbo|" /boot/extlinux/extlinux.conf
+        fi
     else
-        colorecho "$DEBUG" "INFO  $NC | /boot is mounted as a directory"
-        colorecho "$THEME" "INFO  $NC | Updating paths for extlinux.conf ..."
-        sudo sed -i "s| /vmlinuz| /boot/vmlinuz|" /boot/extlinux/extlinux.conf
-        sudo sed -i "s| /initramfs| /boot/initramfs|" /boot/extlinux/extlinux.conf
-        sudo sed -i "s| /initrd| /boot/initrd|" /boot/extlinux/extlinux.conf
-        sudo sed -i "s| /dtbs| /boot/dtbs|" /boot/extlinux/extlinux.conf
-        sudo sed -i "s| /dtbo| /boot/dtbo|" /boot/extlinux/extlinux.conf
+        colorecho "$RED" "ERROR  $NC | Boot Config can not be updated."
+        return 1
     fi
-
-    sudo rm -rf /etc/mkinitcpio.old
 }
 
 # Move Arch Linux
@@ -1386,8 +1585,9 @@ move_system() {
     echo "Not implemented"
 }
 
-################################################################
-# Manage Packages
+########################################################################
+## Packages Management
+########################################################################
 
 # Manage Packages Main Menu
 manage_packages() {
@@ -1496,17 +1696,36 @@ package_update() {
 
 }
 
+# Load Apps List
+load_apps() {
+    if [ -z "$apps_category_name" ]; then
+        load_repositories
+        local i
+        local isfirst=0
+        for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
+            if [ "${repositories_repo_type[i]}" = "acu" ]; then
+                if [ "$isfirst" = 0 ]; then
+                    eval $(load_yaml "$HOME/.acu/cache/db/${repositories_repo_name[i]}.yaml" "apps")
+                    isfirst=1
+                else
+                    eval $(load_yaml "$HOME/.acu/cache/db/${repositories_repo_name[i]}.yaml" "apps" append)
+                fi
+                # For apps list of ACU 0.0.6 or below
+                if [ -n "$apps_app_name" ]; then
+                    for item in "${apps_app_name[@]}"; do
+                        apps_pretty_name+=("$item")
+                    done
+                fi
+            fi
+        done
+    fi
+}
+
 apps_list() {
     local target=$1
     local arg=$2
     local i
-    # Load apps.yaml if not already loaded
-    if [ -z "$apps_category_name" ]; then
-        if [ "$arg" != "-i" ]; then
-            colorecho "$THEME" "INFO $NC | Loading apps list ..."
-        fi
-        eval $(load_yaml $apps_file "" list)
-    fi
+    load_apps # Load Apps List
     if [ -n "$target" ]; then
         for ((i = 0; i < ${#apps_package_name[@]}; i++)); do
             if [ "${apps_package_name[i]}" = "$target" ]; then
@@ -1515,7 +1734,7 @@ apps_list() {
                     return 0
                 else
                     colorecho "$THEME" "PKG  $NC | ${apps_package_name[i]}"
-                    colorecho "$GREEN" "INFO $NC | APP: ${apps_app_name[i]}, CAT: ${apps_category[i]}, DIS: ${apps_description[i]}"
+                    colorecho "$GREEN" "INFO $NC | APP: ${apps_pretty_name[i]}, CAT: ${apps_category[i]}, DIS: ${apps_description[i]}"
                     colorecho "$DEBUG" "INFO $NC | Packages: ${apps_packages[i]}"
                     colorecho "$DEBUG" "INFO $NC | Commands: ${apps_commands[i]}"
                     return 0
@@ -1527,22 +1746,19 @@ apps_list() {
     else
         for ((i = 0; i < ${#apps_package_name[@]}; i++)); do
             colorecho "$THEME" "PKG  $NC | ${apps_package_name[i]}"
-            colorecho "$GREEN" "INFO $NC | APP: ${apps_app_name[i]}, CAT: ${apps_category[i]}, DIS: ${apps_description[i]}"
+            colorecho "$DEBUG" "INFO $NC | APP: ${apps_pretty_name[i]}, CAT: ${apps_category[i]}, DIS: ${apps_description[i]}"
             colorecho "$DEBUG" "INFO $NC | Packages: ${apps_packages[i]}"
             colorecho "$DEBUG" "INFO $NC | Commands: ${apps_commands[i]}"
         done
-        colorecho "$THEME" "INFO $NC | $i packages found"
+        colorecho "$GREEN" "INFO $NC |"
+        colorecho "$GREEN" "INFO $NC | $i packages found"
     fi
 }
 
-# Install Packages
+# ACU Apps Menu (Categories)
 apps_menu() {
-    # Load apps.yaml if not already loaded
-    if [ -z "$apps_category_name" ]; then
-        colorecho "$THEME" "INFO $NC | Loading apps list ..."
-        eval $(load_yaml $apps_file "" list)
-    fi
-
+    colorecho "$THEME" "INFO $NC | Loading apps list ..."
+    load_apps # Load Apps List
     title "Apps - Categories"
     echo
     colorecho "$GREEN" "\t Category \t\t Description" "" "center" "-a"
@@ -1573,6 +1789,7 @@ apps_menu() {
     fi
 }
 
+# ACU Apps Menu (Apps of the selected category)
 apps_menu_category() {
     local catinx=$1
     local i
@@ -1589,7 +1806,7 @@ apps_menu_category() {
     checkbox_menu_checked=()
     for ((i = 0; i < ${#apps_package_name[@]}; i++)); do
         if [ "${apps_category[i]}" = "${apps_category_name[catinx]}" ]; then
-            padded_name=$(printf "%-20s" "${apps_app_name[i]}")
+            padded_name=$(printf "%-20s" "${apps_pretty_name[i]}")
             options+=("$padded_name \t ${apps_description[i]}")
             selinx+=("$i")
             found=0
@@ -1606,14 +1823,14 @@ apps_menu_category() {
             fi
         fi
     done
-    options+=("Return to apps categories")
+    options+=("Return to apps categories (Select more packages / Install)")
     if [ ${#selection[@]} -gt 0 ]; then
         print_selected_pkg
     fi
     checkbox_menu=1
     select_option "${options[@]}"
     choice=$?
-    if [ "${options[choice]}" = "Return to apps categories" ]; then
+    if [ "$choice" -eq $((${#options[@]} - 1)) ]; then
         apps_menu
     else
         local si="${selinx[choice]}"
@@ -1640,6 +1857,7 @@ apps_menu_category() {
     fi
 }
 
+# Indicates all selected package
 print_selected_pkg() {
     local selected
     for ((i=0; i<${#selection[@]}; i++)); do
@@ -1648,123 +1866,218 @@ print_selected_pkg() {
     colorecho "$GREEN" "Selected packages: ${selected}" "bottom"
 }
 
-install_pkg() {
-    # Handle each packages installation
-    for ((i=0; i<${#selection[@]}; i++)); do
-        colorecho "$THEME" "INFO $NC | Looking for package: ${selection[i]}"
-                # Handle Kernel Installation
-                if [[ "${selection[i]}" == "linux-"* ]] || [[ "${selection[i]}" == *"://linux-"* ]] || [[ "${selection[i]}" == *"://"*"/linux-"* ]]; then
-                    # Make sure mkinitcpio.old not exist
-                    sudo rm -rf /etc/mkinitcpio.old
-                    # Backup mkinitcpio.old
-                    sudo cp -r /etc/mkinitcpio.d /etc/mkinitcpio.old
-                    # Remove current mkinitcpio
-                    sudo rm -rf /etc/mkinitcpio.d/*
-                    # Remove all existing templates
-                    sudo rm -rf /boot/extlinux/extlinux.*.template
-                fi
-
-                # Handle URLs
-                if [[ "${selection[i]}" == *"://"* ]]; then
-                    use_pm="git"
-                fi
-
-                # Handle fallbacks
-                if [ "$fallback" = 1 ]; then
-                    if [ ! "${#selection[@]}" -eq 2 ]; then
-                        colorecho "$RED" "ERROR $NC | You must specify exactly two packages when used with --fallback."
-                        return 1
+pkg_lookup_git() {
+    load_repositories
+    local i
+    local pkg=$1
+    local repo=$2
+    pkg_lookup_clone_url=""
+    pkg_lookup_clone_repo=""
+    for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
+        if [ "${repositories_repo_type[i]}" = "git" ]; then
+            if [[ "${repositories_repo_url[i]}" == *"://"*"/"*"/"* ]]; then
+                cd $HOME/.acu/cache/db
+                while IFS= read -r repo_pkg; do
+                    if [ "$pkg" = "$(basename $repo_pkg)" ]; then
+                        if [ -z "$repo" ]; then
+                            # Lookup and match any repo
+                            pkg_lookup_clone_url="$HOME/.acu/cache/db/$repo_pkg"
+                            pkg_lookup_clone_repo="${repositories_repo_name[i]}"
+                            cd $HOME
+                            return 0
+                        elif [ "$repo" = "${repositories_repo_name[i]}" ]; then
+                            # Lookup and match only the target repo
+                            pkg_lookup_clone_url="$HOME/.acu/cache/db/$repo_pkg"
+                            pkg_lookup_clone_repo="${repositories_repo_name[i]}"
+                            cd $HOME
+                            return 0
+                        fi
                     fi
-                # Skip installed packages
-                elif [ "$needed" = 1 ] && pacman -Q "${selection[i]#*)}" > /dev/null 2>&1 ; then
-                    use_pm="skip"
-                fi
-
-                # Find and Install the package        
-                if [ -z "$skip_apps" ] && [ -z "$use_pm" ] && apps_list "${selection[i]}" &> /dev/null; then
-                    local index=$(apps_list "${selection[i]}" -i)
-                    colorecho "$GREEN" "APPS $NC | Installing ${selection[i]} ($index)"
-                    local package="${apps_packages[index]}"
-                    colorecho "$DEBUG" "APPS $NC | Packages: $package"
-                    if [ "$package" != "null" ]; then
-                        colorecho "$GREEN" "APPS $NC | Resolving packages ..."
-                        local j
-                        for ((j=0; j<${#package[@]}; j++)); do
-                            if [[ "${package[j]}" = "(needed)"* ]]; then
-                                acu install -y "${package[j]#"(needed)"}" --needed --skipapps
-                            elif [[ "${package[j]}" != "(fallback)"* ]] && [[ "${package[j+1]}" == "(fallback)"* ]]; then
-                                acu install -y ${package[j]} "${package[j+1]#"(fallback)"}" --fallback --skipapps
-                            else
-                                acu install -y ${package[j]} --skipapps
-                            fi
-                        done
-                    fi
-                    local commands="${apps_commands[index]}"
-                    colorecho "$DEBUG" "APPS $NC | Commands: $commands"
-                    if [ "$commands" != "null" ]; then 
-                        colorecho "$GREEN" "APPS $NC | Running Package commands ..."
-                        mkdir -p $HOME/.acu/cache
-                        echo -e $commands | tee $HOME/.acu/cache/install-${selection[i]}.sh >/dev/null
-                        bash $HOME/.acu/cache/install-${selection[i]}.sh
-                        rm $HOME/.acu/cache/install-${selection[i]}.sh
-                    fi
-                elif [ "$use_pm" = "pacman" ] || ([ -z "$use_pm" ] && sudo pacman -Ssy "^${selection[i]}$" &> /dev/null); then
-                    colorecho "$GREEN" "PACMAN $NC | Installing ${selection[i]}"  
-                    if [ -z "$no_confirm" ]; then
-                        sudo pacman -S ${selection[i]} 
-                    else
-                        sudo pacman -S ${selection[i]} --noconfirm
-                    fi
-                elif [ "$use_pm" = "agr" ] || ([ -z "$use_pm" ] && agr 2>&1 | grep -v -E '://' | grep -v 'INFO' | grep -q "${selection[i]}"); then
-                    if [ "$(id -u)" -eq 0 ]; then
-                        colorecho "$RED" "ERROR $NC | acu is running in root or sudo, the following command can not be executed"
-                        exit 1
-                    fi
-                    colorecho "$GREEN" "AGR $NC | Compiling & Installing ${selection[i]}"  
-                    if [ -z "$no_confirm" ]; then
-                        agr install ${selection[i]} 
-                    else
-                        agr install ${selection[i]} --noconfirm
-                    fi
-                elif aurrepo=$(git ls-remote "https://aur.archlinux.org/${selection[i]}") && [ -n "$aurrepo" ] ; then
-                    # TODO: UPDATE THIS
-                    colorecho "$GREEN" "AUR $NC | Compiling & Installing ${selection[i]}"  
-                    install_from_source "aur://${selection[i]}"
-                elif [ "$use_pm" = "ghrel" ] || [ -z "$use_pm" ] && fetch_repositories -q && echo -e "n" | install_ghrel_packages "${selection[i]}" | grep -q '.*pkg.*'; then
-                    colorecho "$GREEN" "GHREL $NC | Installing ${selection[i]}"  
-                    install_ghrel_packages "${selection[i]}"
-                elif [ "$use_pm" = "git" ]; then
-                    colorecho "$GREEN" "MAKEPKG $NC | Compiling & Installing ${selection[i]}"
-                    install_from_source "${selection[i]}"
-                elif [ "$use_pm" = "skip" ]; then
-                    colorecho "$THEME" "INFO $NC | ${selection[i]} is installed. Skipping ..."
-                    use_pm=""
-                else
-                    if [ "$fallback" != 1 ]; then
-                        colorecho "$RED" "ERROR $NC | Package ${selection[i]} not found"
-                        return 1
-                    fi
-                fi
-
-                if [ "$fallback" = 1 ]; then 
-                    if pacman -Q "${selection[i]#*)}" > /dev/null 2>&1 ; then
+                done < <(find ${repositories_repo_name[i]} -type f -name PKGBUILD -exec dirname {} \; | sort -u)
+                cd $HOME
+            elif [[ "${repositories_repo_url[i]}" != "https://api.github.com/repos"* ]]; then
+                local lookup=$(git ls-remote "${repositories_repo_url[i]}/$pkg" 2>/dev/null)
+                if [ -n "$lookup" ]; then
+                    if [ -z "$repo" ]; then
+                        # Lookup and match any repo
+                        pkg_lookup_clone_url="${repositories_repo_url[i]}/$pkg"
+                        pkg_lookup_clone_repo="${repositories_repo_name[i]}"
                         return 0
-                    else
-                        colorecho "$WARNING" "WARNING $NC | ${selection[0]} is replaced with ${selection[1]}"
-                    fi 
+                    elif [ "$repo" = "${repositories_repo_name[i]}" ]; then
+                        # Lookup and match only the target repo
+                        pkg_lookup_clone_url="${repositories_repo_url[i]}/$pkg"
+                        pkg_lookup_clone_repo="${repositories_repo_name[i]}"
+                        return 0
+                    fi
                 fi
+            fi
+        fi
+    done
+    return 1
+}
 
-                # Handle Kernel Installation
-                if [[ "${selection[i]}" == "linux-"* ]]; then
-                    # Case 1: If it starts with "linux-", use it as is
-                    update_kernel_extlinux "${selection[i]}"
-                elif [[ "${selection[i]}" == *"://linux-"* ]]; then
-                    # Case 2: If it contains "://linux-", remove everything before "://"
-                    update_kernel_extlinux "${selection[i]##*://}"
-                elif [[ "${selection[i]}" == *"://"*"/linux-"* ]]; then
-                    # Case 3: If it contains "://" and "/linux-", take the part after "/linux-" and prepend "linux-"
-                    update_kernel_extlinux "linux-${selection[i]#*"/linux-"}"
-                fi
+# Install Packages
+install_pkg() {
+    # Handle build only
+    if [ "$1" = "--noinstall" ]; then
+        use_pm="git"
+    fi
+    # Handle each packages installation
+    if [ -n "$use_pm" ]; then
+        local gpm=$use_pm
+    fi
+    for ((i=0; i<${#selection[@]}; i++)); do
+        local selection_base=$(basename ${selection[i]})
+        colorecho "$THEME" "INFO $NC | Looking for package: $selection_base"
+
+        # Handle URL & REPO
+        if [[ "${selection[i]}" == *"://"* ]]; then
+            pm_repo_name="GIT"
+            pm_repo_url="${selection[i]}"
+            use_pm="git"
+        elif [ "$(dirname ${selection[i]})" != "." ] && [ -n "$(dirname ${selection[i]})" ]; then
+            if (sudo pacman -Ssy "^$selection_base$" | grep ${selection[i]} &> /dev/null); then
+                use_pm="pacman"
+            elif pkg_lookup_git $selection_base "$(dirname ${selection[i]})"; then
+                pm_repo_name="$(dirname ${selection[i]})"
+                pm_repo_url="$pkg_lookup_clone_url"
+                use_pm="git"
+            else
+                colorecho "$RED" "ERROR $NC | Package $selection_base not found"
+                return 1
+            fi
+        elif [ "$use_pm" = "git" ]; then
+            if pkg_lookup_git $selection_base; then
+                # GIT
+                pm_repo_name="$pkg_lookup_clone_repo"
+                pm_repo_url="$pkg_lookup_clone_url"
+                use_pm="git"
+            else
+                colorecho "$RED" "ERROR $NC | Package $selection_base not found"
+                return 1
+            fi
+        fi
+
+        # Handle fallbacks
+        if [ "$fallback" = 1 ]; then
+            if [ ! "${#selection[@]}" -eq 2 ]; then
+                colorecho "$RED" "ERROR $NC | You must specify exactly two packages when used with --fallback."
+                return 1
+            fi
+        # Skip installed packages
+        elif [ "$needed" = 1 ] && pacman -Q "${selection_base#*)}" > /dev/null 2>&1 ; then
+            colorecho "$THEME" "INFO $NC | $selection_base is installed. Skipping ..."
+            use_pm="skip"
+        fi
+
+        # Find the package
+        if [ -z "$use_pm" ]; then
+            if [ -z "$skip_apps" ] && apps_list "$selection_base" &> /dev/null; then
+                # ACU Apps
+                use_pm="acu"
+            elif (sudo pacman -Ssy "^$selection_base$" &> /dev/null); then
+                # Pacman
+                use_pm="pacman"
+            elif pkg_lookup_git $selection_base; then
+                # GIT
+                pm_repo_name="$pkg_lookup_clone_repo"
+                pm_repo_url="$pkg_lookup_clone_url"
+                use_pm="git"
+            elif (agr 2>&1 | grep -v -E '://' | grep -v 'INFO' | grep -q "$selection_base"); then
+                # AGR
+                use_pm="agr"
+            elif fetch_repositories -q && echo -e "n" | install_ghrel_packages "$selection_base" | grep -q '.*pkg.*'; then
+                # GHREL
+                use_pm="ghrel"
+            elif [ "$fallback" != 1 ]; then
+                colorecho "$RED" "ERROR $NC | Package $selection_base not found"
+                return 1
+            fi
+        fi
+
+        # Install the package
+        if [ "$use_pm" = "acu" ]; then
+            # ACU Apps
+            local index=$(apps_list "$selection_base" -i)
+            colorecho "$GREEN" "APPS $NC | Installing $selection_base ($index)"
+            local package="${apps_packages[index]}"
+            colorecho "$DEBUG" "APPS $NC | Packages: $package"
+            if [ "$package" != "null" ]; then
+                colorecho "$GREEN" "APPS $NC | Resolving packages ..."
+                local j
+                for ((j=0; j<${#package[@]}; j++)); do
+                    if [[ "${package[j]}" = "(needed)"* ]]; then
+                        acu install -y "${package[j]#"(needed)"}" --needed --skipapps
+                    elif [[ "${package[j]}" != "(fallback)"* ]] && [[ "${package[j+1]}" == "(fallback)"* ]]; then
+                        acu install -y ${package[j]} "${package[j+1]#"(fallback)"}" --fallback --skipapps
+                    else
+                        acu install -y ${package[j]} --skipapps
+                    fi
+                done
+            fi
+            local commands="${apps_commands[index]}"
+            colorecho "$DEBUG" "APPS $NC | Commands: $commands"
+            if [ "$commands" != "null" ]; then 
+                colorecho "$GREEN" "APPS $NC | Running Package commands ..."
+                mkdir -p $HOME/.acu/cache/pkgs
+                echo -e $commands | tee $HOME/.acu/cache/pkgs/install-$selection_base.sh >/dev/null
+                bash $HOME/.acu/cache/pkgs/install-$selection_base.sh
+                rm $HOME/.acu/cache/pkgs/install-$selection_base.sh
+            fi
+        elif [ "$use_pm" = "pacman" ]; then
+            # Pacman
+            colorecho "$GREEN" "PACMAN $NC | Installing $selection_base"  
+            if [ -z "$no_confirm" ]; then
+                sudo pacman -S $selection_base 
+            else
+                sudo pacman -S $selection_base --noconfirm
+            fi
+        elif [ "$use_pm" = "git" ]; then
+            #GIT
+            if [ "$1" = "--noinstall" ]; then
+                colorecho "$GREEN" "$pm_repo_name $NC | Compiling $selection_base"
+                install_from_source "$pm_repo_url" --noinstall
+            else
+                 colorecho "$GREEN" "$pm_repo_name $NC | Compiling & Installing $selection_base"
+                install_from_source "$pm_repo_url"
+            fi           
+        elif [ "$use_pm" = "ghrel" ]; then
+            #GHREL
+            colorecho "$GREEN" "GHREL $NC | Installing $selection_base"  
+            install_ghrel_packages "$selection_base"
+        elif [ "$use_pm" = "agr" ]; then
+            # AGR
+            if [ "$(id -u)" -eq 0 ]; then
+                colorecho "$RED" "ERROR $NC | acu is running in root or sudo, the following command can not be executed"
+                exit 1
+            fi
+            colorecho "$GREEN" "AGR $NC | Compiling & Installing $selection_base"  
+            if [ -z "$no_confirm" ]; then
+                agr install $selection_base 
+            else
+                agr install $selection_base --noconfirm
+            fi
+        fi
+
+        if [ "$fallback" = 1 ]; then 
+            if pacman -Q "${selection_base#*)}" > /dev/null 2>&1 ; then
+                return 0
+            else
+                colorecho "$WARNING" "WARNING $NC | ${selection[0]} is replaced with ${selection[1]}"
+            fi 
+        fi
+
+        # Handle Kernel Installation
+        if [ "$1" != "--noinstall" ] && [[ "$selection_base" == "linux-"* ]] && [[ "$selection_base" != *"-headers" ]] && [[ "$selection_base" != "linux-firmware"* ]]; then
+            update_boot_config "$selection_base"
+        fi
+
+        # Restore use_pm for next package
+        if [ -n "$gpm" ]; then
+            use_pm="$gpm"
+        else
+            use_pm=""
+        fi
     done
 }
 
@@ -1784,77 +2097,51 @@ downgrade() {
     else
         nopkg=$2
     fi
-    
 
     dgpkgfb=$(echo $dgpkg | cut -b 1)
-    which_url="${alaa_url}/packages/${dgpkgfb}/${dgpkg}/"
-    colorecho "$GREEN" "Fetching $which_url ..." "" "center"
-    echo
-    response_code=$(curl --write-out '%{response_code}' -s "$which_url" -o /dev/null)
-    if [ "$response_code" != 200 ]; then
-        colorecho "$RED" "ERROR $response_code | No result found" "center" "center"
+    load_repositories
+    local i
+    local which_url
+    for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
+        if [ "${repositories_repo_type[i]}" = "archive" ]; then
+            response_code=$(curl --write-out '%{response_code}' -s "${repositories_repo_url[i]}/" -o /dev/null)
+            if [ "$response_code" = 200 ]; then
+                which_url="${repositories_repo_url[i]}/packages/${dgpkgfb}/${dgpkg}/"
+                break
+            fi
+        fi
+    done
+
+    if [ -n "$which_url" ]; then
+        colorecho "$GREEN" "Fetching $which_url ..." "" "center"
+        echo
+        response_code=$(curl --write-out '%{response_code}' -s "$which_url" -o /dev/null)
+        if [ "$response_code" != 200 ]; then
+            colorecho "$RED" "ERROR $response_code | No result found" "" "center"
+            select_option "Return to Manage Packages Menu"
+        else
+            dgpkg_list=$(curl -s "$which_url" | grep -v '.sig' | grep -o 'href="[^"]*"' | sed 's/href="//;s/"$//' | grep -o ${dgpkg}.*-aarch64.pkg.tar.xz)
+            dgpkg_date=$(curl -s "$which_url" | grep -v '.sig' | grep -o "${dgpkg}.*-aarch64.pkg.tar.xz.*<td class=\"date\">.*</td>" | grep -o "<td class=\"date\">.*</td>" | awk -F'<td class="date">|</td>' '{print $2}')
+            dgpkg_list=($(paste -d ' ' <(echo "$dgpkg_list") <(echo "$dgpkg_date") | sort -k 2,2 -r | awk '{print $1}' | head -n $nopkg))
+            select_option "${dgpkg_list[@]}" "Return to Manage Packages Menu"
+            choice=$?
+        fi
+        if [ "$choice" -lt "${#dgpkg_list[@]}" ]; then
+            download_pkg_from_url "${which_url}${dgpkg_list[choice]}"
+            install_local_pkg "${which_url}${dgpkg_list[choice]}"
+        else
+            manage_packages
+        fi
+    else
+        colorecho "$RED" "ERROR $response_code | Archive repository unavailable or missing." "" "center"
         select_option "Return to Manage Packages Menu"
-    else
-        dgpkg_list=$(curl -s "$which_url" | grep -v '.sig' | grep -o 'href="[^"]*"' | sed 's/href="//;s/"$//' | grep -o ${dgpkg}.*-aarch64.pkg.tar.xz)
-        dgpkg_date=$(curl -s "$which_url" | grep -v '.sig' | grep -o "${dgpkg}.*-aarch64.pkg.tar.xz.*<td class=\"date\">.*</td>" | grep -o "<td class=\"date\">.*</td>" | awk -F'<td class="date">|</td>' '{print $2}')
-        dgpkg_list=($(paste -d ' ' <(echo "$dgpkg_list") <(echo "$dgpkg_date") | sort -k 2,2 -r | awk '{print $1}' | head -n $nopkg))
-        select_option "${dgpkg_list[@]}" "Return to Manage Packages Menu"
-        choice=$?
-    fi
-    if [ "$choice" -lt "${#dgpkg_list[@]}" ]; then
-        download_pkg_from_url "${which_url}${dgpkg_list[choice]}"
-        install_local_pkg "${which_url}${dgpkg_list[choice]}"
-    else
         manage_packages
     fi
 }
 
-add_repo() {
-    if [ -z "$1" ]; then
-        title "Add Pacman Repo"
-        local p=$(colorecho "$NC" "Enter repo name: " "" "center")
-        read -p "$p" repo_name
-        local p=$(colorecho "$NC" "Enter server URL for $repo_name repo: " "" "center")
-        read -p "$p" server_url
-        local p=$(colorecho "$NC" "Do you want to add a GPG key for $repo_name repo? [Y/n]: " "" "center")
-        read -p "$p" add_gpg_key
-        if [[ $add_gpg_key == [Yy]* ]]; then
-            local p=$(colorecho "$NC" "Enter GPG key for $repo_name repo: " "" "center")
-            read -p "$p" gpg_key
-        fi
-    elif [ "$1" = "7Ji" ] && [ -z "$2" ]; then
-        server_url="https://github.com/7Ji/archrepo/releases/download/\$arch"
-        gpg_key="BA27F219383BB875"
-    elif [ "$1" = "Experimental" ] && [ -z "$2" ]; then
-        server_url="https://github.com/kwankiu/archlinux-installer-rock5/releases/download/experimental"
-        gpg_key="B669E3B56B3DC918"
-    else
-        colorecho "$RED" "ERROR $NC | Invalid repo name. Aborting."
-        return 1
-    fi
-
-    if [ -z "$repo_name" ]; then
-        repo_name="$1"
-    fi
-
-    colorecho "$GREEN" "Adding $repo_name to pacman.conf ..."
-
-    if [ -z "$gpg_key" ]; then
-        echo -e "[$repo_name]\nSigLevel = Never\nServer = $server_url" | sudo tee -a /etc/pacman.conf
-    else
-        echo -e "[$repo_name]\nServer = $server_url" | sudo tee -a /etc/pacman.conf
-        colorecho "$GREEN" "Adding GPG keys ..."
-        sudo pacman-key --recv-keys "$gpg_key"
-        sudo pacman-key --lsign "$gpg_key"
-    fi
-
-    colorecho "$GREEN" "Updating repo ..."
-    sudo pacman -Syy --noconfirm
-    colorecho "$GREEN" "Done"
-}
-
-################################################################
-# Performance & Features
+########################################################################
+## Performance & Features
+########################################################################
 
 # Performance & Features Main Menu
 performance_features() {
@@ -2058,8 +2345,9 @@ hw_monitor() {
     done
 }
 
-################################################################
-# Localization
+########################################################################
+## Localization
+########################################################################
 
 # Localization Main Menu
 localization() {
@@ -2476,6 +2764,9 @@ keyboard() {
     esac
 }
 
+########################################################################
+## Settings
+########################################################################
 # ACU Settings
 settings() {
     title "ACU Settings"
@@ -2549,27 +2840,19 @@ settings() {
             title "Load Default ACU Configurations"
 
             if [ -z "$no_confirm" ]; then
-                local p=$(colorecho "$RED" "ACU $NC | Confirm to load default ACU Configurations? (This will overwrite your existing ACU configurations) [y/N]:")
+                local p=$(colorecho "$RED" "ACU $NC | Confirm to load default ACU Configurations? (This will remove all existing data of ACU) [y/N]:")
                 read -p "$p" resetconfig
             else
                 resetconfig="y"
             fi
 
             if [[ "$resetconfig" == [Yy]* ]]; then
-                echo "Downloading new configuration file ..."
-                # Download default configurations file
-                local config_dir=$(dirname "$config_file")
-                mkdir -p "$config_dir"
-                response_code=$(curl --write-out '%{response_code}' -L https://raw.githubusercontent.com/kwankiu/acu/$release/config/config.yaml -o tmpdownload_config.yaml)
-                if [ "$response_code" = 200 ]; then
-                    cp -r tmpdownload_config.yaml $HOME/.acu/config/config.yaml
-                    sudo rm -rf tmpdownload_config.yaml
-                    load_config
-                    settings
-                else
-                    sudo rm -rf tmpdownload_config.yaml
-                    colorecho "$RED" "ERROR $NC | Failed to load default ACU Configurations." 
-                fi
+                echo "Removing configurations and cache ..."
+                sudo rm -rf $HOME/.acu/config
+                sudo rm -rf $HOME/.acu/cache
+                echo "Loading default configuration ..."
+                load_config
+                settings
             else
                 settings
             fi
@@ -2581,8 +2864,9 @@ settings() {
     
 }
 
-################################################################
-# Main Program
+########################################################################
+## Main Program
+########################################################################
 
 # NOTE that if new configurations (that arent optional / have a default value) are added, need to patch the existing user configurations file
 # Load user configurations from YAML file
@@ -2590,6 +2874,11 @@ load_config() {
     if [ -f "$config_file" ] || [[ "$config_file" == *"://"* ]] ; then
         eval $(load_yaml "$config_file" " ")
     elif [ ! "$(id -u)" -eq 0 ]; then
+        # Create Desktop Shortcut
+        local desktop_shortcut_file="/usr/share/applications/acu.desktop"
+        echo "Creating Desktop Shortcut and Icon ..."
+        sudo curl -L https://raw.githubusercontent.com/kwankiu/acu/$release/example/acu.png -o /usr/share/pixmaps/acu.png
+        echo -e "[Desktop Entry]\nName=$utilname\nExec=acu\nType=Application\nVersion=$release\nIcon=acu\nComment=$utilname\nCategories=System;Utility;\nTerminal=true\n" | sudo tee "$desktop_shortcut_file" >/dev/null
         # Download default configurations file
         local config_dir=$(dirname "$config_file")
         if [ -f "$config_dir/config.old" ]; then
@@ -2598,13 +2887,27 @@ load_config() {
             echo "No configuration file found, downloading configuration file ..."
         fi
         mkdir -p "$config_dir"
-        response_code=$(curl --write-out '%{response_code}' -L https://raw.githubusercontent.com/kwankiu/acu/$release/config/config.yaml -o tmpdownload_config.yaml)
+        mkdir -p $HOME/.acu/cache/tmp
+        response_code=$(curl --write-out '%{response_code}' -L https://raw.githubusercontent.com/kwankiu/acu/$release/config/config.yaml -o $HOME/.acu/cache/tmp/tmpdownload_config.yaml)
         if [ "$response_code" = 200 ]; then
-            cp -r tmpdownload_config.yaml $HOME/.acu/config/config.yaml
-            sudo rm -rf tmpdownload_config.yaml
+            cp -r $HOME/.acu/cache/tmp/tmpdownload_config.yaml $HOME/.acu/config/config.yaml
+            sudo rm -rf $HOME/.acu/cache/tmp/tmpdownload_config.yaml
+            if [ ! -f "$config_dir/config.old" ]; then
+                response_code=$(curl --write-out '%{response_code}' -L https://raw.githubusercontent.com/kwankiu/acu/$release/example/repo.yaml -o $HOME/.acu/cache/tmp/tmpdownload_repo.yaml)
+                if [ "$response_code" = 200 ]; then
+                    cp -r $HOME/.acu/cache/tmp/tmpdownload_repo.yaml $HOME/.acu/config/repo.yaml
+                    sudo rm -rf $HOME/.acu/cache/tmp/tmpdownload_repo.yaml
+                else
+                    sudo rm -rf $HOME/.acu/cache/tmp/tmpdownload_repo.yaml
+                    colorecho "$RED" "ERROR $NC | Failed to download new repository file."
+                fi
+            fi
             load_config
+            acu update
         else
-            sudo rm -rf tmpdownload_config.yaml
+            sudo rm -rf $HOME/.acu/cache/tmp/tmpdownload_config.yaml
+            colorecho "$RED" "ERROR $NC | Failed to download new configuration file."
+            exit 1
         fi
     fi
 }
@@ -2617,18 +2920,9 @@ print_config_values() {
     echo "No Clear: ${no_clear:-"(unset)"}"
     echo "Debug Log: ${debug_log:-"(unset)"}"
     echo "Auto Update: ${auto_update:-"(unset)"}"
-    echo "ALAA URL: ${alaa_url:-"(unset)"}"
     echo "Source Repo Dir: $HOME/${source_repo_dir:-"(unset)"}"
-    echo "Repositories File: ${repositories_file:-"(unset)"}"
-    echo "Repositories URL: ${repositories_url:-"(unset)"}"
-    echo "Tags File: ${tags_file:-"(unset)"}"
-    echo "Tags URL: ${tags_url:-"(unset)"}"
-    echo "Kernel File: ${kernel_file:-"(unset)"}"
-    echo "Kernel URL: ${kernel_url:-"(unset)"}"
-    echo "Bootloader File: ${bootloader_file:-"(unset)"}"
-    echo "Bootloader URL: ${bootloader_url:-"(unset)"}"
-    echo "Apps File: ${apps_file:-"(unset)"}"
-    echo "Apps URL: ${apps_url:-"(unset)"}"
+    echo "Repositories List: ${repositories_list:-"(unset)"}"
+    echo "Repositories Update URL: ${repositories_list_update:-"(unset)"}"
 }
 # Handle load config argument
 for arg in "$@"; do
@@ -2677,7 +2971,7 @@ for arg in "$@"; do
             echo "  --skipapps : Skip looking up apps list when using the install command"
             echo "  --needed : Skip already installed package when using the install command"
             echo "  --fallback : Install an alternative package if the first one fails when using the install command"
-            echo "  --device=<tag> : Specify target device tag. <device> options are determined by the tags_file set in acu config."
+            echo "  --device=<tag> : Specify target device tag. By default if not set, ACU will auto detect it from /proc/device-tree/compatitble."
             echo "  --branch=<branch> : Specify a git branch for setting or cloning from remote repository."
             echo "  --noconfirm : Do not ask for confirmation when resolving dependencies and installing packages managed by pacman / makepkg."
             echo "  --nowarning : Do not show warning messages."
@@ -2696,6 +2990,7 @@ for arg in "$@"; do
             echo "  sysinfo : Print infomation of this system / device."
             echo "  alias add / create : add an alias / shortcut of a command."
             echo "  alias remove / del : remove an alias created by acu."
+            echo "  update-boot-config <pkgname> : Update boot config for booting to a new kernel."
             echo
             colorecho "$THEME" "Manage Packages"
             echo
@@ -2708,13 +3003,12 @@ for arg in "$@"; do
             echo "  upgrade : Check & Perform Selective / Full System Upgrade."
             echo "  -D / downgrade <package> <index> : Install / Downgrade any Arch Linux Packages from Archive. <package>: package name <index>: index to show, default=15."
             echo "  -R / remove : remove / uninstall a package from this system."
-            echo "  -B / build <URL> : build / compile a package without installing. <URL> supported protocols: gh://username/repo (GitHub) OR aur://package (AUR) OR https://git_url_to_clone (or http:// or ssh://)"
+            echo "  -B / build <URL> : build / compile a package without installing. <URL>"
             echo "  rem / rem manage : show menu for add, list or remove ACU Managed and Pacman Repositories."
-            echo "  rem fetch : fetch acu managed repositories with packages list."
-            echo "  rem list / rem show : list acu managed repositories."
-            echo "  rem add / rem set <name> <url> : add a repository to acu (pacman and default are reserved name, do not use)."
-            echo "  rem add / rem set pacman <name> <url> <gpg_key> : add a repository to acu."
-            echo "  rem add / rem set default : load acu default repositories."
+            echo "  rem fetch : fetch acu managed repositories and print all fetched packages."
+            echo "  rem list / rem show <pacman/acu> : list acu managed repositories, optional argument to list only pacman repositories or acu repositories."
+            echo "  rem add / rem set <name> <url> <type> : add a repository, <type> is optional."
+            echo "  rem add / rem set <name> <url> pacman <gpg_key> : add a repository to pacman."
             echo "  rem remove / rem del <name> : remove a repository from acu."
             echo "  rem remove / rem del pacman <name>: remove a repository from pacman."
             echo
@@ -2810,6 +3104,10 @@ if [ "$system_arch" != "aarch64" ] && [ "$system_arch" != "arm64" ] && [ "$syste
     colorecho "$WARNING" "WARNING $NC | System is $system_arch, some features are unsupported"
 fi
 
+if [ -z "$device_config" ] && [ -f "/proc/device-tree/compatible" ]; then
+    device_config=$(sed 's/\x00/ /g; s/,/ /g' /proc/device-tree/compatible | awk '{print $1, $2}' | tr ' ' '-')
+fi
+
 # Debug logging
 colorecho "$DEBUG" "INFO $NC | Debug logging is enabled"
 colorecho "$DEBUG" "INFO $NC | Configuration ($config_file):"
@@ -2829,6 +3127,7 @@ if [ -n "$argupdate" ] || [ -n "$auto_update" ]; then
 fi
 
 # make sure it is in a working directory
+pwd=$(pwd)
 cd $HOME
 
 ### Features - Manage Packages ###
@@ -2839,65 +3138,18 @@ elif [ "$1" = "update" ]; then
     # Fetch pacman repositories updates
     sudo pacman -Syy --noconfirm
     # Update ACU repositories list
-    if [ -n "$repositories_file" ] && [ -n "$repositories_url" ]; then
+    if [ -n "$repositories_list" ] && [ -n "$repositories_list_update" ]; then
         echo ":: Updating ACU repositories list ..."
-        response_code=$(curl -s --write-out '%{response_code}' -L "$repositories_url" -o tmpdownload.yaml)
+        mkdir -p $HOME/.acu/cache/tmp
+        response_code=$(curl -s --write-out '%{response_code}' -L "$repositories_list_update" -o $HOME/.acu/cache/tmp/tmpdownload.yaml)
         colorecho "$DEBUG" "CURL Response code: $response_code"
         if [ "$response_code" = 200 ]; then
-            cp -r tmpdownload.yaml $repositories_file
+            cp -r $HOME/.acu/cache/tmp/tmpdownload.yaml $repositories_list
         else
             colorecho "$RED" "ERROR $NC | failed to update repositories list."
         fi
-        rm -rf tmpdownload.yaml
+        sudo rm -rf $HOME/.acu/cache/tmp/tmpdownload.yaml
     fi
-    # Update ACU tags list
-    if [ -n "$tags_file" ] && [ -n "$tags_url" ]; then
-        echo ":: Updating ACU tags list ..."
-        response_code=$(curl -s --write-out '%{response_code}' -L "$tags_url" -o tmpdownload.yaml)
-        colorecho "$DEBUG" "CURL Response code: $response_code"
-        if [ "$response_code" = 200 ]; then
-            cp -r tmpdownload.yaml $tags_file
-        else
-            colorecho "$RED" "ERROR $NC | failed to update tags list."
-        fi
-        rm -rf tmpdownload.yaml
-    fi
-    # Update ACU kernel list
-    if [ -n "$kernel_file" ] && [ -n "$kernel_url" ]; then
-        echo ":: Updating ACU kernel list ..."
-        response_code=$(curl -s --write-out '%{response_code}' -L "$kernel_url" -o tmpdownload.yaml)
-        colorecho "$DEBUG" "CURL Response code: $response_code"
-        if [ "$response_code" = 200 ]; then
-            cp -r tmpdownload.yaml $kernel_file
-        else
-            colorecho "$RED" "ERROR $NC | failed to update kernel list."
-        fi
-        rm -rf tmpdownload.yaml
-    fi
-    # Update ACU bootloader list
-    #if [ -n "$bootloader_file" ] && [ -n "$bootloader_url" ]; then
-    #    echo ":: Updating ACU bootloader list ..."
-    #    response_code=$(curl -s --write-out '%{response_code}' -L "$bootloader_url" -o tmpdownload.yaml)
-    #    colorecho "$DEBUG" "CURL Response code: $response_code"
-    #    if [ "$response_code" = 200 ]; then
-    #        cp -r tmpdownload.yaml $bootloader_file
-    #    else
-    #        colorecho "$RED" "ERROR $NC | failed to update bootloader list."
-    #    fi
-    #    rm -rf tmpdownload.yaml
-    #fi
-    # Update ACU apps list
-    if [ -n "$apps_file" ] && [ -n "$apps_url" ]; then
-        echo ":: Updating ACU apps list ..."
-        response_code=$(curl -s --write-out '%{response_code}' -L "$apps_url" -o tmpdownload.yaml)
-        colorecho "$DEBUG" "CURL Response code: $response_code"
-        if [ "$response_code" = 200 ]; then
-            cp -r tmpdownload.yaml $apps_file
-        else
-            colorecho "$RED" "ERROR $NC | failed to update apps list."
-        fi
-        rm -rf tmpdownload.yaml
-    fi    
     # Fetch ACU repositories packages
     fetch_repositories
 
@@ -2911,6 +3163,8 @@ elif [ "$1" = "remove" ] || [ "$1" = "-R" ]; then
             case "$rmconfirm" in
                 [yY])
                     echo "Removing acu ..."
+                    sudo rm -rf /usr/share/applications/acu.desktop
+                    sudo rm -rf /usr/share/pixmaps/acu.png
                     sudo rm -rf /usr/bin/acu
                     sudo rm -rf $HOME/.acu
                     exit 0
@@ -2920,7 +3174,7 @@ elif [ "$1" = "remove" ] || [ "$1" = "-R" ]; then
                     ;;
             esac
         elif [[ "${!i}" == "agr" ]]; then
-            if acu rem list | grep -q "Type: agr"; then
+            if ! acu rem list acu | grep "Type: agr" &> /dev/null; then
                 colorecho "$RED" "REMOVE $NC | Are you sure to remove agr? (${RED}you wont be able to use acu again if you confirm to remove${NC}) [y/N]:" 
                 read -r rmagrconfirm
                 if [ "$rmagrconfirm" != "y" ] && [ "$rmagrconfirm" != "Y" ]; then
@@ -2929,7 +3183,10 @@ elif [ "$1" = "remove" ] || [ "$1" = "-R" ]; then
                 sudo rm -rf ~/.local/bin/agr
                 sudo rm -rf ~/.agr
                 echo "removed agr"
+            else
+                colorecho "$RED" "ERROR $NC | Some repository requires AGR, please remove the repository before removing AGR." 
             fi
+            exit 0
         fi
     done
  
@@ -2954,7 +3211,6 @@ elif [ "$1" = "install" ] || [ "$1" = "-S" ] ; then
         # Show apps menu if no packages are specified
         apps_menu
     else
-        # TODO: if install does not fetch cached list of packages on each execution, it should automatically update every 4 hours
         # Add all packages to the list
         for ((i = 2; i <= $#; i++)); do
             if [[ "${!i}" != -* ]]; then
@@ -2966,15 +3222,14 @@ elif [ "$1" = "install" ] || [ "$1" = "-S" ] ; then
     fi
 
 elif [ "$1" = "build" ] || [ "$1" = "-B" ]; then
-    if [ -z "$3" ]; then
-        install_from_source "$2" "--noinstall"
-    else
-        install_from_source "$2" "$3" "--noinstall"
-    fi
-    mkdir -p $HOME/packages/$2
-    cp -r "$source_repo_dir"/*.pkg.tar.* $HOME/packages/$2/*.pkg.tar.*
-    echo "packages built at $HOME/packages/$2"
-    echo "sources located at $HOME/.acu/sources"
+    # Add all packages to the list
+    for ((i = 2; i <= $#; i++)); do
+        if [[ "${!i}" != -* ]]; then
+                selection+=("${!i}")
+        fi
+    done
+    # Install the packages
+    install_pkg --noinstall
 
 elif [ "$1" = "downgrade" ] || [ "$1" = "-D" ]; then
     downgrade "$2" "$3"
@@ -2986,28 +3241,9 @@ elif [ "$1" = "rem" ] || [ "$1" = "remote" ]; then
         # fetch repositories and list all packages
         fetch_repositories list
     elif [ "$2" = "list" ] || [ "$2" = "show" ]; then
-        list_repositories
+        list_repositories "$3"
     elif [ "$2" = "set" ] || [ "$2" = "add" ]; then
-        if [ "$3" = "pacman" ]; then
-            add_repo "$4" "$5" "$6"
-        elif [ "$3" = "default" ]; then
-            if [ -f "$repositories_file" ]; then
-                colorecho "$RED" "REPO $NC | Load default repositories file? (This will replace your existing repositories configuration) [y/N]:" 
-                read -r resetrepoyaml
-            else
-                resetrepoyaml="y"
-            fi
-            if [[ "$resetrepoyaml" == [Yy]* ]]; then
-                    sudo rm -rf $HOME/.acu/config/repo.yaml
-                    acu rem set acu
-                    #acu rem set adrepo https://api.github.com/repos/kwankiu/archlinux-installer-rock5/releases/tags/kernel
-                    acu rem set aur https://aur.archlinux.org
-            else
-                echo "No action will be performed."
-            fi
-        else
-            add_repository "$3" "$4"
-        fi
+        add_repository "$3" "$4" "$5" "$6"
     elif [ "$2" = "del" ] || [ "$2" = "remove" ]; then
         if [ "$3" = "pacman" ]; then
             colorecho "$GREEN" "INFO $NC | Auto removing a pacman repo is not yet supported. But you can edit pacman.conf manually, hold on, I will bring you there."
@@ -3022,6 +3258,9 @@ elif [ "$1" = "rem" ] || [ "$1" = "remote" ]; then
 ### Features - System Maintenance ###
 elif [ "$1" = "bootloader" ]; then
     flash_uboot "$2"
+
+elif [ "$1" = "update-boot-config" ]; then
+    update_boot_config "$2"
 
 ### Features - Performance & Features ###
 elif [ "$1" = "soc" ]; then
@@ -3057,18 +3296,24 @@ elif [ "$1" = "alias" ]; then
     if [ "$2" = "add" ] || [ "$2" = "create" ]; then
         add_alias "${@:3}"
     elif [ "$2" = "remove" ] || [ "$2" = "del" ]; then
-        sudo rm -rf /usr/bin/$3
-        colorecho "$GREEN" "INFO $NC | Alias command $3 has been removed"
+        colorecho "$RED" "REMOVE $NC | Are you sure to remove alias command $3? [y/N]:" 
+        read -r rmaconfirm
+        if [[ "$rmaconfirm" == [Yy] ]]; then
+            sudo rm -rf /usr/local/bin/$3
+            colorecho "$GREEN" "INFO $NC | Alias command $3 has been removed"
+        else
+            colorecho "$THEME" "INFO $NC | Alias command $3 is not removed"
+        fi
     fi
 
-### For developer and debugging ###
+### For developer / API use and debugging ###
 elif [ "$1" = "parse" ]; then
     if [ -z "$no_color_echo" ]; then
         clear
         colorecho "$BLUE" "ACU $NC| Parsed output of $2"
         colorecho "$BLUE" "ACU $NC| $3"
     fi
-    load_yaml "$2" "$3" list
+    load_yaml "$2" "$3" "$4"
 
 ### CLI ###
 elif [ "$1" = "cli" ]; then
