@@ -85,7 +85,7 @@ load_yaml() {
 
     local target_file=$1
     local suffix=$2
-    local output_format=$3
+    local output_format=$3 # format: list (default), append, non-list
     local current_head=""
     local current_subhead=""
     local last_indent=""
@@ -93,6 +93,7 @@ load_yaml() {
     local head_list=()
     local occurrence
     local found_exist
+    local i
 
     # Pre-Parse the file or url and generate the formatted YAML output
     target_file="$(pre_parser "$target_file")"
@@ -105,6 +106,8 @@ load_yaml() {
                 local indentation=$(expr "$line" : '^ *' / 2)
                 # Remove indent spaces
                 line="${line#"${line%%[![:space:]]*}"}"
+                # Handle double quotes
+                line="${line//\"/\\\"}"
                 if [ "$indentation" = 0 ]; then
                     current_head="${line/:/}"
                 elif [[ "$line" == *":"* ]]; then
@@ -118,7 +121,7 @@ load_yaml() {
                         # Without suffix
                         current_value=""
                     fi
-                    if [ "$output_format" = "list" ]; then
+                    if [ "$output_format" != "non-list" ]; then
                         found_exist=0
                         current_var=$(awk -F':' '{print $1}' <<< "${current_value}${line}")
                         for item in "${head_list[@]}"; do
@@ -127,7 +130,7 @@ load_yaml() {
                                 break
                             fi
                         done
-                        if [ "$found_exist" -eq 0 ]; then
+                        if [ "$found_exist" -eq 0 ] && [ "$output_format" != "append" ]; then
                             head_list+=("$current_var")
                             current_value="${current_value}${line//: /=(\"}\")"
                         else
@@ -138,7 +141,7 @@ load_yaml() {
                     fi
                     # Add variable closing after handling sub_items
                     if [ "$sub_item" = 2 ]; then
-                        if [ "$output_format" = "list" ]; then
+                        if [ "$output_format" != "non-list" ]; then
                             echo "\")"
                         else
                             echo "\""
@@ -162,7 +165,7 @@ load_yaml() {
                         # Without suffix
                         current_value="${current_subhead}"
                     fi
-                    if [ "$output_format" = "list" ]; then
+                    if [ "$output_format" != "non-list" ]; then
                         found_exist=0
                         for item in "${head_list[@]}"; do
                             if [ "$item" = "$current_value" ]; then
@@ -170,7 +173,7 @@ load_yaml() {
                                 break
                             fi
                         done
-                        if [ "$found_exist" -eq 0 ]; then
+                        if [ "$found_exist" -eq 0 ] && [ "$output_format" != "append" ]; then
                             head_list+=("$current_value")
                             current_value="${current_value}=(\"${line}"
                         else
@@ -194,7 +197,7 @@ load_yaml() {
         # Fix sub_item that appears on the last line
         # Add variable closing after handling sub_items
         if [ "$sub_item" = 2 ]; then
-            if [ "$output_format" = "list" ]; then
+            if [ "$output_format" != "non-list" ]; then
                     echo "\")"
             else
                     echo "\""
