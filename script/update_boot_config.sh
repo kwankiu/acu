@@ -23,7 +23,13 @@ update_boot_config() {
 
     # Make sure package is installed and get kernel infomation
     if sudo pacman -Q "$pkgname" > /dev/null 2>&1 ; then
-        local pkgbase="$(cat $(sudo pacman -Ql "$pkgname" | grep pkgbase | awk '{print $2}'))"
+        local pkgbase="$(sudo pacman -Ql "$pkgname" | grep pkgbase | awk '{print $2}')"
+        if [ -n "$pkgbase" ]; then
+            pkgbase="$(cat $pkgbase)"
+        else
+            colorecho "$RED" "ERROR $NC | Can not determine pkgbase, Package $pkgname may not be a kernel"
+            return 1
+        fi
         colorecho "$THEME" "INFO  $NC | Updating boot config for $pkgbase ..."
     else
         colorecho "$RED" "ERROR $NC | Package $pkgname is not installed"
