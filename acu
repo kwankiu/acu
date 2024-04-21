@@ -1511,20 +1511,23 @@ update_boot_config() {
             echo "    devicetreedir /dtbs" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
         fi
         # DTB file (ftd)
-        if local ftdline="$(cat /boot/extlinux/extlinux.conf.bak | grep -m 1 'ftd ')"; then
+        local ftdline
+        if ftdline="$(cat /boot/extlinux/extlinux.conf.bak | grep -m 1 'ftd ')"; then
             # Add dtb fdt file
             echo "${ftdline}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
         fi
         # Overlays
-        if local overlaysline="$(cat /boot/extlinux/extlinux.conf.bak | grep -m 1 'fdtoverlays ')"; then
+        local overlaysline
+        if overlaysline="$(cat /boot/extlinux/extlinux.conf.bak | grep -m 1 'fdtoverlays ')"; then
             local overlaylist=($overlaysline)
             local i
             local dtbolist
             for ((i = 1; i < ${#overlaylist[@]}; i++)); do
                 local target_dtbo=$(basename ${overlaylist[i]})
-                if local found_dtbo=$(find /boot/dtbs/${pkgbase} -type f -name $target_dtbo -exec dirname {} \; | head -n 1); then
+                local found_dtbo
+                if found_dtbo=$(find /boot/dtbs/${pkgbase} -type f -name $target_dtbo -exec dirname {} \; | head -n 1); then
                     dtbolist+=("${found_dtbo}/${target_dtbo}")
-                elif local found_dtbo=$(find /boot/dtbs -type f -name $target_dtbo -exec dirname {} \; | head -n 1); then
+                elif found_dtbo=$(find /boot/dtbs -type f -name $target_dtbo -exec dirname {} \; | head -n 1); then
                     dtbolist+=("${found_dtbo}/${target_dtbo}")
                 elif sudo test -e "$target_dtbo" || sudo test -e "/boot/$target_dtbo"; then
                     dtbolist+=("$target_dtbo")
@@ -1535,11 +1538,12 @@ update_boot_config() {
             fi
         fi
         # Append (cmdline)
+        local appendline
         if sudo test -f "/proc/cmdline" && [ "$config_cmdline" != "old" ]; then
             # Use cmdline from booted config
             local cmdline="$(cat /proc/cmdline)"
             echo "    append ${cmdline}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
-        elif local appendline="$(cat /boot/extlinux/extlinux.conf.bak | grep -m 1 'append ')"; then
+        elif appendline="$(cat /boot/extlinux/extlinux.conf.bak | grep -m 1 'append ')"; then
             # Use cmdline from old extlinux.conf
             echo "${appendline}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
         else
