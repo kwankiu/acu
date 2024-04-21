@@ -83,13 +83,13 @@ update_boot_config() {
         fi
         # Append (cmdline)
         local appendline
-        if sudo test -f "/proc/cmdline" && [ "$config_cmdline" != "old" ]; then
-            # Use cmdline from booted config
-            local cmdline="$(cat /proc/cmdline)"
-            echo "    append ${cmdline}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
-        elif appendline="$(cat /boot/extlinux/extlinux.conf.bak | grep -m 1 'append ')"; then
-            # Use cmdline from old extlinux.conf
+        if appendline="$(cat /boot/extlinux/extlinux.conf.bak | grep -m 1 'append ')"; then
+            # Use cmdline from the backup extlinux.conf
             echo "${appendline}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        elif sudo test -f "/proc/cmdline"; then
+            # Use cmdline from booted cmdline
+            local cmdline="$(cat /proc/cmdline)"
+            echo "    append   ${cmdline}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
         else
             # Get rootfs partition from the current mount point "/"
             rootfs_partition=$(mount | grep "on / " | awk '{print $1}')

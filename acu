@@ -1539,13 +1539,13 @@ update_boot_config() {
         fi
         # Append (cmdline)
         local appendline
-        if sudo test -f "/proc/cmdline" && [ "$config_cmdline" != "old" ]; then
-            # Use cmdline from booted config
-            local cmdline="$(cat /proc/cmdline)"
-            echo "    append ${cmdline}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
-        elif appendline="$(cat /boot/extlinux/extlinux.conf.bak | grep -m 1 'append ')"; then
-            # Use cmdline from old extlinux.conf
+        if appendline="$(cat /boot/extlinux/extlinux.conf.bak | grep -m 1 'append ')"; then
+            # Use cmdline from the backup extlinux.conf
             echo "${appendline}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        elif sudo test -f "/proc/cmdline"; then
+            # Use cmdline from booted cmdline
+            local cmdline="$(cat /proc/cmdline)"
+            echo "    append   ${cmdline}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
         else
             # Get rootfs partition from the current mount point "/"
             rootfs_partition=$(mount | grep "on / " | awk '{print $1}')
@@ -2966,8 +2966,6 @@ for arg in "$@"; do
             echo "  --needed : Skip already installed package when using the install command"
             echo "  --fallback : Install an alternative package if the first one fails when using the install command"
             echo "  --device=<tag> : Specify target device tag. By default if not set, ACU will auto detect it from /proc/device-tree/compatitble."
-            echo "  --cmdline=<option> : Config how cmdline is determined for generating extlinux when installing a kernel. options: old"
-            #Set this to old to get cmdline from the existing extlinux.conf instead of the booted cmdline.
             echo "  --branch=<branch> : Specify a git branch for setting or cloning from remote repository."
             echo "  --noconfirm : Do not ask for confirmation when resolving dependencies and installing packages managed by pacman / makepkg."
             echo "  --nowarning : Do not show warning messages."
@@ -2986,6 +2984,7 @@ for arg in "$@"; do
             echo "  sysinfo : Print infomation of this system / device."
             echo "  alias add / create : add an alias / shortcut of a command."
             echo "  alias remove / del : remove an alias created by acu."
+            echo "  update-boot-config <pkgname> : Update boot config for booting to a new kernel."
             echo
             colorecho "$THEME" "Manage Packages"
             echo
@@ -3079,9 +3078,6 @@ for arg in "$@"; do
         ;;
         --usepm=*)
             use_pm="${arg#*=}"
-        ;;
-        --cmdline=*)
-            config_cmdline="${arg#*=}"
         ;;
         -*)
             case "$arg" in
@@ -3256,6 +3252,9 @@ elif [ "$1" = "rem" ] || [ "$1" = "remote" ]; then
 ### Features - System Maintenance ###
 elif [ "$1" = "bootloader" ]; then
     flash_uboot "$2"
+
+elif [ "$1" = "update-boot-config" ]; then
+    update_boot_config "$2"
 
 ### Features - Performance & Features ###
 elif [ "$1" = "soc" ]; then
