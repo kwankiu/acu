@@ -486,8 +486,8 @@ apps:
         commands: |
           echo "Installing Wine (64-Bit with WoW64) ..."
           cd ~/.acu/cache
-          url="https://github.com/kwankiu/archlinux-installer-rock5/releases/download/experimental"
-          pkg="wine-9.5-exp-wow64-amd64"
+          url="https://github.com/kwankiu/PKGBUILDs/releases/download/wine"
+          pkg="wine-9.7-exp-wow64-amd64"
           curl -LJO \${url}/\${pkg}.tar.xz
           tar -xf \${pkg}.tar.xz
           sudo mkdir -p /usr/local/lib/wine
