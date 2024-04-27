@@ -1472,10 +1472,20 @@ flash_uboot() {
 
 }
 
-# Update boot config (extlinux/grub)
+# Update boot config (extlinux/grub/systemd-boot)
 update_boot_config() {
 
     local pkgname=$1
+
+    # If not specified then look for the mainline stable kernel
+    if [ -z "$pkgname" ]; then
+        if [ "$system_arch" = "aarch64" ]; then
+            pkgname="linux-aarch64"
+        else
+            pkgname="linux"
+        fi
+        colorecho "$THEME" "INFO  $NC | pkgbase is not specified, looking for default kernel $pkgname ..."
+    fi
 
     # Make sure package is installed and get kernel infomation
     if sudo pacman -Q "$pkgname" > /dev/null 2>&1 ; then
@@ -1483,20 +1493,35 @@ update_boot_config() {
         if [ -n "$pkgbase" ]; then
             pkgbase="$(cat $pkgbase)"
         else
-            colorecho "$RED" "ERROR $NC | Can not determine pkgbase, Package $pkgname may not be a kernel"
+            colorecho "$RED" "ERROR $NC | Boot Config can not be updated. (Can not determine pkgbase, Package $pkgname may not be a kernel)"
             return 1
         fi
         colorecho "$THEME" "INFO  $NC | Updating boot config for $pkgbase ..."
     else
-        colorecho "$RED" "ERROR $NC | Package $pkgname is not installed"
+        colorecho "$RED" "ERROR $NC | Boot Config can not be updated. (Package $pkgname is not installed)"
         return 1
     fi
 
     # EFI System
     if sudo test -f /boot/EFI/BOOT/BOOT*.EFI; then
-        colorecho "$THEME" "INFO  $NC | EFI System detected, only extlinux is supported, skipping ..."
-        colorecho "$WARNING" "WARNING  $NC | You need to manually update your EFI / Grub config."
-        return 1
+        colorecho "$THEME" "INFO  $NC | UEFI System detected."
+        
+        # Detect EFI Bootloader
+        if sudo test -d /boot/grub && command -v grub-install &> /dev/null; then
+            # Grub
+            colorecho "$THEME" "INFO  $NC | Updating grub.cfg ..."
+            sudo grub-mkconfig -o /boot/grub/grub.cfg
+        elif sudo test -f /boot/EFI/systemd/systemd-boot*.efi; then
+            # Systemd-boot
+            colorecho "$THEME" "INFO  $NC | Updating systemd-boot ..."
+            sudo bootctl update
+            colorecho "$THEME" "INFO  $NC | You may need to update the configurations at /boot/loader/entries/ ..."
+        else
+            # Unsupported
+            colorecho "$RED" "ERROR $NC | Boot Config can not be updated. (Unsupported bootloader method)"
+            return 1
+        fi
+
     # Update extlinux from booted config
     elif sudo test -f "/boot/extlinux/extlinux.conf"; then
         colorecho "$THEME" "INFO  $NC | Creating a backup of extlinux.conf at extlinux.conf.bak ..."
@@ -1575,7 +1600,7 @@ update_boot_config() {
             sudo sed -i "s| /dtbo| /boot/dtbo|" /boot/extlinux/extlinux.conf
         fi
     else
-        colorecho "$RED" "ERROR  $NC | Boot Config can not be updated."
+        colorecho "$RED" "ERROR  $NC | Boot Config can not be updated. (Unable to detect boot firmware)"
         return 1
     fi
 }
