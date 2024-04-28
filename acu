@@ -2902,7 +2902,7 @@ load_config() {
         # Create Desktop Shortcut
         local desktop_shortcut_file="/usr/share/applications/acu.desktop"
         echo "Creating Desktop Shortcut and Icon ..."
-        sudo curl -L https://raw.githubusercontent.com/kwankiu/acu/$release/example/acu.png -o /usr/share/pixmaps/acu.png
+        sudo curl -L https://raw.githubusercontent.com/kwankiu/acu/$release/examples/acu.png -o /usr/share/pixmaps/acu.png
         echo -e "[Desktop Entry]\nName=$utilname\nExec=acu\nType=Application\nVersion=$release\nIcon=acu\nComment=$utilname\nCategories=System;Utility;\nTerminal=true\n" | sudo tee "$desktop_shortcut_file" >/dev/null
         # Download default configurations file
         local config_dir=$(dirname "$config_file")
@@ -2918,7 +2918,7 @@ load_config() {
             cp -r $HOME/.acu/cache/tmp/tmpdownload_config.yaml $HOME/.acu/config/config.yaml
             sudo rm -rf $HOME/.acu/cache/tmp/tmpdownload_config.yaml
             if [ ! -f "$config_dir/config.old" ]; then
-                response_code=$(curl --write-out '%{response_code}' -L https://raw.githubusercontent.com/kwankiu/acu/$release/example/repo.yaml -o $HOME/.acu/cache/tmp/tmpdownload_repo.yaml)
+                response_code=$(curl --write-out '%{response_code}' -L https://raw.githubusercontent.com/kwankiu/acu/$release/examples/repo.yaml -o $HOME/.acu/cache/tmp/tmpdownload_repo.yaml)
                 if [ "$response_code" = 200 ]; then
                     cp -r $HOME/.acu/cache/tmp/tmpdownload_repo.yaml $HOME/.acu/config/repo.yaml
                     sudo rm -rf $HOME/.acu/cache/tmp/tmpdownload_repo.yaml
