@@ -1,8 +1,7 @@
 # ACU (A Configuration Utility for Arch Linux ARM)
 ### Warning: ACU is still experimental. 
-### Some feature may not be usable and commands may change without further notices
 
-![alt ACU Screenshot](https://i.imgur.com/0bMi2Lh.png)
+![alt ACU Screenshot](https://i.imgur.com/DyaNIfv.png)
 
 ## What is acu?
 
