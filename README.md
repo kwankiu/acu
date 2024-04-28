@@ -1,146 +1,87 @@
-# ACU (A Configuration Utility for Arch Linux ARM)
-### Warning: ACU is still experimental. 
+# Arch Linux Installer for ARM (Aarch64)
 
-![alt ACU Screenshot](https://i.imgur.com/DyaNIfv.png)
+![alt archlinux-arm logo](https://archlinuxarm.org/public/images/alarm.png)
 
-## What is acu?
+a community-built Arch Linux Installer for ARM (Aarch64) based devices.
 
-- **Supported Platform**:  ACU is a community-built tool designed for managing configurations and packages on Arch Linux ARM (Aarch64). While primarily tailored for ARM architectures, it can be used on x86_64 platforms as well, although with limitations due to ARM/SBC-specific features. However, it is important to note that ACU is not fully supported on x86_64 platforms. Currently, ACU is optimized for the Rockchip RK3588 (Radxa Rock 5B), serving as a comprehensive utility for ARM Single Board Computers (SBCs).
+### Supported devices:
+- Radxa Rock 5 series (Rock 5A and Rock 5B)
+- (Testing) Radxa Zero 3 Series (Zero 3E and Zero 3W)
+- Orange Pi 5 series (Orange Pi 5, 5 Plus and 5B)
+- Khadas Edge 2
+- (Testing) Raspberry Pi (Pi 4B, 5B, Zero 2W, and other aarch64 model)
+- (Testing) Asahi (Apple Silicon Macs)
 
-- **Configuration Utility**: ACU offers functionalities akin to popular configuration tools such as [armbian-config](https://github.com/armbian/config) or [raspi-config](https://www.raspberrypi.com/documentation/computers/configuration.html) or [rsetup](https://docs.radxa.com/en/radxa-os/rsetup/rsetup-tool) but for Arch Linux.
+![alt neofetch screenshot](https://i.imgur.com/3ynZCthl.png)
 
-- **Packages Management**: Serving as a package manager helper, ACU consolidates various package management tasks into a single, intuitive interface. It streamlines processes like selective package upgrades, downgrading to specific versions, installing packages from GitHub releases or URLs, as well as compiling and installing packages from source (PKGBUILD), including those from AUR or other Git repositories.
+# Get the installer
 
-- **Introducing ACU Apps**: ACU introduces an "App Store" like [pi-apps](https://github.com/Botspot/pi-apps), offering a curated collection of applications for Arch Linux ARM and ARM Single Board Computers (SBCs).
+## Flashing images (Recommended)
 
-- **System Infomation**: ACU provides system information akin to [Neofetch](https://github.com/dylanaraps/neofetch) but with enhanced ARM support. While standard system information tools may struggle with ARM SoC details, ACU ensures comprehensive reporting.
+### Radxa Rock 5 series
 
-- **Customization**: 
-ACU facilitates extensive customization through configuration files like `config.yaml`, `repo.yaml`, and `apps.yaml` (in `~/.acu/config`). These files empower users to tailor configurations, manage repositories, and creating your own or modifying app lists for ACU Apps. Moreover, users can load configurations from local paths or URLs using the `--loadconfig` option, allowing for seamless customization upstream or locally.
+Images for Radxa Rock 5 series are available on the [RPI Imager repository](https://forum.radxa.com/t/i-made-a-community-images-repository-for-rpi-imager/20080).
 
-## Sounds cool. How do I Install it?
+### Khadas Edge 2
 
-The configuration utility is pre-installed with Arch Linux installed and provided by this [archlinux-installer](https://github.com/kwankiu/archlinux-installer)
+Images for Khadas Edge 2 are available on [OOWOW](https://docs.khadas.com/software/oowow/getting-started) (coming soon).
 
-### New Install :
-```
-bash <(curl -fsSL https://raw.githubusercontent.com/kwankiu/acu/0.0.5-dev/acu) -u
-```
-(Notes: ACU automatically installs the latest version available using the -u command)
+### For other devices
+Our [prebuilt image](https://github.com/kwankiu/archlinux-installer-rock5/releases/latest) are available for downloads, you can flash it (using [RPI Imager](https://www.raspberrypi.com/software/), [balenaEtcher](https://etcher.balena.io/), etc) to your storage device.
 
-## Tips
+  More details can be found at our [wiki](https://github.com/kwankiu/archlinux-installer-rock5/wiki/Get-the-installer).
 
-### Updating repositories database
-Notes: To make sure the repositories and apps list is up-to-date, you should run `acu update` regularly, ACU will also sync pacman repositories database for you.
+## The `create-installation-media` tool (Advanced)
 
-```
-acu update
-```
+You can build your own image or flash the Installer to your disk directly by executing the following command:
 
-### Updating ACU
-To update ACU itself, when there is an update available, there will be an option shows up when you run `acu`. Alternatively, you may also update ACU manually using:
-```
-acu -u
-```
-To update to a specific version or channel:
-```
-acu --update=0.0.5-dev
-```
+```bash
 
-### Removing ACU
-
-To uninstall ACU:
-```
-acu remove acu
-```
-If AGR is installed, you may want to remove AGR before removing ACU:
-```
-acu remove agr
-```
-
-### Install command
-To install a package:
-```
-acu install <package>
-```
-is same as
-```
-acu -S <package>
-```
-To install a package with a specific package manager / helper:
-```
-acu install <package> --usepm=<pm>
-# <pm> options: pacman, agr, git, ghrel.
-```
-To Install a new kernel:
+bash  <(curl  -fsSL https://raw.githubusercontent.com/kwankiu/archlinux-installer-rock5/main/create-installation-media)
 
 ```
-acu install <package>
+
+  More details can be found at our [wiki](https://github.com/kwankiu/archlinux-installer-rock5/wiki/Advanced).
+
+# Installation
+
+1. Power ON your Device with the **Storage Device** and **Ethernet Cable (or WiFi Adapter)** plugged in .  
+- If your first boot shows a user login screen instead, login to root/root and run `installer`.
+
+2. The installer will run some setups and you should be prompted to create a user account. Follow the instructions and it should automatically reboot and login to the newly created user account.
+- If it does not log in automatically, log in to your newly created user account. 
+- If the installer does not start automatically, run `installer` to start it.
+
+3. The installer will guide you through the installation of Arch Linux with your desired Settings, Kernel, Desktop Environment, and Software, Enjoy!
+
+More details can be found at our [wiki](https://github.com/kwankiu/archlinux-installer-rock5/wiki/Installation).
+
+# Troubleshooting
+
+1. If you get stuck while rebooting, unplug the power and power it on manually.
+
+2. For WiFi support, please refer to mainline linux firmware and armbian firmware (for rockchip SBCs) for supported WiFi adapter.
+
+3. After the inital setup, the device will reboot, and you may need to connect to WiFi again after a reboot.
+
+4. After the installation, you will need to connect to WiFi again.
+
+  More details can be found at our [wiki](https://github.com/kwankiu/archlinux-installer-rock5/wiki/General#troubleshooting).
+
+# Arch Rock Configuration Utility (experimental)
+
+We have created a configuration utility `arch-rock-config` just like [armbian-config](https://github.com/armbian/config), [rsetup](https://docs.radxa.com/en/radxa-os/rsetup/rsetup-tool), or [raspi-config](https://www.raspberrypi.com/documentation/computers/configuration.html) but for Arch Linux running on Rock 5 / RK3588.
+
+Note: I am creating a new configuration utility called [acu](https://github.com/kwankiu/acu) which is based on this utility. This utility will be replaced by [acu](https://github.com/kwankiu/acu) once it is ready for use.
+
+![alt Arch Rock Configuration Utility](https://i.imgur.com/bccc10d.png)
+
+### Note that this configuration utility is work-in-progress.
+
+  To launch the configuration utility:
+
+```
+arch-rock-config
 ```
 
-Install a package from source (git repository):
-1. Add a repository:
-```
-acu rem set <repo_name> <repo_url> <repo_type_(optional)> <gpg_key_(optional and for pacman only)>
-```
-2. Update / fetch the repository database:
-```
-acu update
-```
-3. Install a package:
-```
-acu install <package>
-```
-
-### Remove command
-```
-acu remove <package>
-```
-is same as
-```
-acu -R <package>
-```
-
-### Downgrade command
-```
-acu downgrade <package>
-```
-is same as
-```
-acu -D <package>
-```
-
-### Remote / Repositories command
-List ACU managed repositories
-```
-acu rem list
-```
-is same as
-```
-acu rem show
-```
-
-Fetch ACU managed repositories and list all packages
-```
-acu rem
-```
-is same as
-```
-acu rem fetch
-```
-
-More detailed documentation will be available on [wiki](https://github.com/kwankiu/acu/wiki)
-
-## Contributing
-
-Contributions to ACU are welcome! Whether you're interested in fixing bugs, adding features, or improving documentation, your contributions help enhance the utility for the community. Feel free to submit pull requests (PRs) with your changes.
-
-## Support
-
-For assistance, bug reports, or feature requests, please [open a Discussion](https://github.com/kwankiu/acu/discussions) on the ACU GitHub repository. Our community is here to help! Discussions are preferred for general inquiries, feature requests, or broader discussions. However, if you encounter a bug or have a specific issue, feel free to [open an issue](https://github.com/kwankiu/acu/issues).
-
-For real-time discussions about ACU, you can also join our Discord server [here](https://discord.gg/yY3F9b7hSK).
-
-## License
-
-ACU is licensed under the GPL v3 License, granting users the freedom to use, modify, and distribute the software.
+More details can be found at our [wiki](https://github.com/kwankiu/archlinux-installer-rock5/wiki/General#troubleshooting).
