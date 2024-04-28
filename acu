@@ -1,0 +1,3417 @@
+#!/bin/bash
+
+################################################################
+                  ##                     __   ____  _  _    
+                 ####                   / _\ (  _ \( \/ )    
+                ######                 /    \ )   // \/ \ 
+               ########                \_/\_/(__\_)\_)(_/   
+              ##########          ___  __   __ _  ____  __  ___ 
+             ############        / __)/  \ (  ( \(  __)(  )/ __)
+            ##############      ( (__(  O )/    / ) _)  )(( (_ \
+           ################      \___)\__/ \_)__)(__)  (__)\___/
+          ######      ######           _  _  ____  __  __   
+         #######      #######         / )( \(_  _)(  )(  )  
+       #######         #######        ) \/ (  )(   )( / (_/\ 
+      ######             ######       \____/ (__) (__)\____/ 
+     ###                     ###    
+################################################################
+# arch(arm)-config-util (acu) is a configuration utility for Arch Linux ARM (Aarch64) 
+# currently with main focus on the Radxa Rock 5 and RK3588
+# acu provides some similar features with armbian-config or raspi-config or rsetup but for Arch Linux
+# acu provides a pacman (and other package manager) wrapper with additional features (such as installing packages from a github release based repo, from URL, compiling and installing packages from source (PKGBUILD), etc.)
+################################################################
+# acu release configurations (FOR DEVELOPERS ONLY, DO NOT MODIFY)
+
+# utilname
+# name of this utility (used for title)
+utilname="Arch (ARM) Configuration Utility"
+
+# ACU Release Version : (github tags) (or branch*)
+release="0.0.8"
+
+# (DEPRECATED/OPTIONAL) ACU Build Number: utilver (YYMMDDNN)
+utilver=24031299
+
+# Remote Repository for update check
+remote_repo="https://github.com/kwankiu/acu"
+
+# update_available
+# acu uses this variable to determine whether to show the "update available" menu option
+# note: you should never set this to true
+update_available=false
+
+# for detecting system architecture
+system_arch=$(uname -m)
+
+# Note: for acu user configurations, please edit $HOME/.acu/config/config.yaml or --loadconfig
+config_file="$HOME/.acu/config/config.yaml"
+
+########################################################################
+## Command override
+########################################################################
+
+# sudo override
+sudo () {
+    local command=$@
+    if [ "$(id -u)" -eq 0 ]; then
+        #echo "Running in root."
+        command "$@"
+    else
+        #echo "Running with sudo."
+        command sudo "$@"
+    fi
+}
+
+# clear override
+clear () {
+    local command=$@
+    if [ -z "$no_clear" ]; then
+        echo -e $BACKGROUND
+        command clear "$@"
+    fi
+}
+
+# acu override
+acu () {
+    local command=$@
+    if [ -f "$pwd/acu" ]; then
+        colorecho "$DEBUG" "Using ACU in current directory"
+        command bash $pwd/acu "$@"
+    else
+        colorecho "$DEBUG" "Using ACU in PATH"
+        command acu "$@"
+    fi
+}
+
+########################################################################
+## Formatting / Styling
+########################################################################
+
+# Reset to Terminal Default Colors
+TDC='\033[0m'
+NC=$TDC
+
+# Terminal text colors
+BLACK='\033[30m'
+GREY='\033[90m'
+RED='\033[91m'
+GREEN='\033[92m'
+YELLOW='\033[33m'
+ORANGE='\033[93m'
+BLUE='\033[34m'
+DKBLUE='\033[94m'
+MAGENTA='\033[35m'
+CYAN='\033[96m'
+WHITE='\033[97m'
+LTMAGENTA='\033[95m'
+LTBLUE='\033[36m'
+LTGREY='\033[37m'
+DKRED='\033[31m'
+DKGREEN='\033[32m'
+
+# Terminal background colors
+BGBLACK='40m'
+BGGREY='100m'
+BGRED='101m'
+BGGREEN='102m'
+BGYELLOW='43m'
+BGORANGE='103m'
+BGBLUE='44m'
+BGDKBLUE='104m'
+BGMAGENTA='45m'
+BGCYAN='106m'
+BGWHITE='107m'
+BGLTMAGENTA='105m'
+BGLTBLUE='46m'
+BGLTGREY='47m'
+BGDKRED='41m'
+BGDKGREEN='42m'
+
+# Default Theme color
+THEME=$BLUE
+WARNING=$YELLOW
+DEBUG=$LTGREY
+
+# Option Picker
+function select_option {
+
+    # Little helpers for terminal print control and key input
+    ESC=$( printf "\033")
+    cursor_blink_on()  { printf "$ESC[?25h"; }
+    cursor_blink_off() { printf "$ESC[?25l"; }
+    cursor_to()        { printf "$ESC[$1;${2:-1}H"; }
+    print_option()     { local COLS=$(tput cols);
+                         local LEN=${#1}
+                         hposition=$(( (COLS - LEN) / 2 ));
+                         printf "$ESC[${hposition}G$1";}
+    print_selected()     { local COLS=$(tput cols);
+                         local LEN=${#1}
+                         hposition=$(( (COLS - LEN) / 2 ));
+                         printf "$ESC[7m$ESC[${hposition}G$1$ESC[27m";}
+    get_cursor_row()   { IFS=';' read -sdR -p $'\E[6n' ROW COL; echo ${ROW#*[}; }
+    key_input()        { read -s -n3 key 2>/dev/null >&2
+                         if [[ $key = $ESC[A ]]; then echo up;    fi
+                         if [[ $key = $ESC[B ]]; then echo down;  fi
+                         if [[ $key = ""     ]]; then echo enter; fi; }
+
+    # Initially print empty new lines (scroll down if at bottom of screen)
+    for opt; do printf "\n"; done
+
+    # Determine current screen position for overwriting the options
+    local lastrow=`get_cursor_row`
+    local startrow=$(($lastrow - $#))
+
+    # Ensure cursor and input echoing back on upon a ctrl+c during read -s
+    trap "cursor_blink_on; stty echo; printf '\n'; tset; exit" 2
+    cursor_blink_off
+
+    local selected=0
+    while true; do
+        # Print options by overwriting the last lines
+        local idx=0
+        local formatted_opt
+        local LEN
+        for opt; do
+            cursor_to $(($startrow + $idx))
+            if [ "$checkbox_menu" = 1 ]; then
+                formatted_opt=" [${checkbox_menu_checked[idx]}] \t $opt"
+            else
+                formatted_opt=" $((idx + 1)) \t $opt"
+            fi
+            LEN=$(($(tput cols) - 20))
+            if [ "$LEN" -gt 100 ]; then
+                LEN=100
+            fi
+            formatted_opt=$(echo "$formatted_opt" | cut -c1-$(echo ${LEN}))
+            formatted_opt=$(printf "%-${LEN}s" "$formatted_opt")
+            if [ $idx -eq $selected ]; then
+                print_selected "$formatted_opt"
+            else
+                print_option "$formatted_opt"
+            fi
+            ((idx++))
+        done
+
+        # User key control
+        case `key_input` in
+            enter) checkbox_menu=0; break;;
+            up)    ((selected--));
+                   if [ $selected -lt 0 ]; then selected=$(($# - 1)); fi;;
+            down)  ((selected++));
+                   if [ $selected -ge $# ]; then selected=0; fi;;
+        esac
+    done
+
+    # Cursor position back to normal
+    cursor_to $lastrow
+    printf "\n"
+    cursor_blink_on
+
+    return $selected
+}
+
+# Echo with colors (and optionally positions)
+colorecho() {
+    local color="$1"
+    local text="$2"
+
+    if [ -n "$no_color_echo" ]; then
+        text=$(echo -e ${text} | sed 's/\x1b\[[0-9;]*m//g')
+        [ -n "$no_warning" ] && [ "$color" = "$WARNING" ] || [ "$color" = "$DEBUG" ] && [ -z "$debug_log" ] || echo -e "${text}"
+    else
+        local vposition="$3"
+        local hposition="$4"
+        local arg="$5"
+        local LINES=$(tput lines)
+        local COLS=$(tput cols)
+        local LEN
+        tput sc # Save cursor position
+
+        if [[ "$arg" == "-a" ]]; then
+                LEN=$(($(tput cols) - 2))
+                if [ "$LEN" -gt 100 ]; then
+                    LEN=100
+                fi
+                text=$(printf "%-${LEN}s" "     $text" | cut -c1-$(echo ${LEN}))
+        fi
+        
+        if [ "$vposition" = "top" ]; then
+            vposition=0
+        elif [ "$vposition" = "bottom" ]; then
+            vposition=$((LINES - 2))
+        elif [ "$vposition" = "center" ]; then
+            vposition=$((LINES / 2))
+        fi
+
+        if [ "$hposition" = "left" ]; then
+            hposition=0
+        elif [ "$hposition" = "right" ]; then
+            hposition=$((COLS - 2))
+        elif [ "$hposition" = "center" ]; then
+            text_length=${#text}
+            hposition=$(( (COLS - text_length) / 2 ))
+        fi
+
+        if [ -n "$vposition" ] && [ -n "$hposition" ]; then
+            tput cup $vposition $hposition
+        elif [ -n "$vposition" ]; then
+            tput cup $vposition
+        elif [ -n "$hposition" ]; then
+            text="\033[${hposition}G${text}"
+        fi
+        
+        [ -n "$no_warning" ] && [ "$color" = "$WARNING" ] || [ "$color" = "$DEBUG" ] && [ -z "$debug_log" ] || echo -e "${color}${text}${NC}"
+        
+        if [ "$arg" = "-n" ]; then
+            tput cup $vposition ${#text}
+        else
+            if [ -n "$vposition" ] || ([ -n "$vposition" ] && [ -n "$hposition" ]); then
+                tput rc # Restore cursor position
+            fi
+        fi
+    fi
+}
+
+# Title / Heading
+title() {
+  if [ "$3" != "noclear" ]; then
+    if [ -n "$BACKGROUND" ] && [ "$BACKGROUND" != "$THEME" ]; then
+        BACKGROUND="${THEME%?};${BACKGROUND}"
+        THEME=$BACKGROUND
+        NC=$BACKGROUND
+    fi
+    clear
+  fi
+
+  if [ "$2" = "left" ]; then
+    local align="left"
+  elif [ "$2" = "right" ]; then
+    local align="right"
+  else
+    local align="center"
+  fi
+
+  colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
+  colorecho "$THEME" "                  ##                     __   ____  _  _         " "" "$align"
+  colorecho "$THEME" "                 ####                   / _\ (  _ \( \/ )        " "" "$align"
+  colorecho "$THEME" "                ######                 /    \ )   // \/ \        " "" "$align"
+  colorecho "$THEME" "               ########                \_/\_/(__\_)\_)(_/        " "" "$align"
+  colorecho "$THEME" "              ##########          ___  __   __ _  ____  __  ___  " "" "$align"
+  colorecho "$THEME" "             ############        / __)/  \ (  ( \(  __)(  )/ __) " "" "$align"
+  colorecho "$THEME" "            ##############      ( (__(  O )/    / ) _)  )(( (_ \ " "" "$align"
+  colorecho "$THEME" "           ################      \___)\__/ \_)__)(__)  (__)\___/ " "" "$align"
+  colorecho "$THEME" "          ######      ######           _  _  ____  __  __        " "" "$align"
+  colorecho "$THEME" "         #######      #######         / )( \(_  _)(  )(  )       " "" "$align"
+  colorecho "$THEME" "       #######         #######        ) \/ (  )(   )( / (_/\     " "" "$align"
+  colorecho "$THEME" "      ######             ######       \____/ (__) (__)\____/     " "" "$align"
+  colorecho "$THEME" "     ###                     ###                                 " "" "$align"
+  colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
+  if [ -n "$1" ]; then
+    text="$1"
+    colorecho "$THEME" "${text}" "" "$align"
+    colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
+  fi
+}
+
+########################################################################
+## ACU Install & Update Tools
+########################################################################
+
+# Check updates
+check_util_updates() {
+    # Install git if not installed
+    if ! command -v git &> /dev/null; then
+        colorecho "$WARNING" "Installing git ..."
+        sudo pacman -S git --needed --noconfirm
+    fi
+    if [ "$release" == "dev" ]; then
+        remote_release="dev"
+    elif [[ "$release" == *"-dev"* ]]; then
+        remote_release=$(git ls-remote --tags $remote_repo | sort -Vr -k2 | grep -Po -m 1 "tags/\K.*..*..*")
+    else
+        remote_release=$(git ls-remote --tags $remote_repo | grep -v "dev" | sort -Vr -k2 | grep -Po -m 1 "tags/\K.*..*..*")
+    fi
+    if [ "$(echo "$remote_release" | sed 's/-.*//' | tr -d '.')" -gt "$(echo "$release" | sed 's/-.*//' | tr -d '.')" ]; then
+        update_available=true
+    fi
+}
+
+# Install / Update Utility to PATH
+update_util() {
+    if [ "$update_available" = true ] || [ -n "$argupdate" ]; then
+        title
+        colorecho "$GREEN" "Installing / Updating $utilname ..."
+        local response_code=$(sudo curl --write-out '%{response_code}' -o /usr/bin/acu -L "https://raw.githubusercontent.com/kwankiu/acu/$remote_release/acu")
+        sudo chmod +x /usr/bin/acu
+        if [ "$response_code" = 200 ]; then
+            local config_dir=$(dirname "$config_file")
+            if [ -z "$no_config_update" ]; then
+                colorecho "$DEBUG" "Renaming existing config.yaml to config.old ..."
+                mv "$config_file" "$config_dir/config.old"
+            fi
+        else
+            colorecho "$RED" "ERROR $NC | failed to install / update $utilname. Check your internet or user permissions."
+            exit 1
+        fi
+        args=("$@")
+        for ((i = 0; i < ${#args[@]}; i++)); do
+            if [[ "${args[i]}" == "-u" || "${args[i]}" == "--update" || "${args[i]}" == "--update="* ]]; then
+                unset 'args[i]'  # Remove -y or --yes from the arguments
+            fi
+        done
+        acu "${args[@]}"
+        exit 0
+    fi
+}
+
+# Create an alias of acu or another command
+add_alias() {
+    # Path to the directory where the alias script will be created
+    ALIAS_SCRIPT_DIR="/usr/local/bin"
+
+    # Alias name
+    ALIAS_NAME=$1
+
+    # Command to run
+    if [ -z "$2" ]; then
+        COMMAND_TO_RUN="acu"
+    else
+        COMMAND_TO_RUN="${@:2}"
+    fi
+
+    # Create the alias script
+    sudo bash -c "echo '#!/bin/bash' > $ALIAS_SCRIPT_DIR/$ALIAS_NAME"
+    sudo bash -c "echo '$COMMAND_TO_RUN \"\$@\"' >> $ALIAS_SCRIPT_DIR/$ALIAS_NAME"
+    sudo chmod +x $ALIAS_SCRIPT_DIR/$ALIAS_NAME
+    colorecho "$GREEN" "Command '$ALIAS_NAME' has been created."
+}
+
+########################################################################
+## Packages Install Tools
+########################################################################
+
+install_from_source() {
+    
+    if [ "$(id -u)" -eq 0 ]; then
+        colorecho "$RED" "ERROR $NC | acu is running in root or sudo, the following command can not be executed."
+        exit 1
+    fi
+    # Get the repository URL from the argument
+    local repo_url="$1"
+    local pkgbase=$(basename $repo_url)
+    # Install required package
+    sudo pacman -Sy --needed git base-devel --noconfirm
+    
+    # Source folder
+    mkdir -p $source_repo_dir
+    cd "$source_repo_dir"
+    rm -rf "$pkgbase"
+    
+    colorecho "$DEBUG" "Clone URL / PATH: $repo_url"
+    colorecho "$DEBUG" "pkgbase: $pkgbase"
+
+    # Clone repo
+    if [[ "$repo_url" == *"://"* ]]; then
+        colorecho "$GREEN" "Cloning Package from source (git) ..."
+
+        if [ -z "$git_branch" ]; then
+            git clone "$repo_url" "$pkgbase"
+        else
+            git clone "$repo_url" "$pkgbase" -b $git_branch
+            git_branch="" # this unsets the branch variable
+        fi
+    elif [ -d "$repo_url" ]; then
+        colorecho "$GREEN" "Cloning Package from source (db) ..."
+        cp -r $repo_url .
+    else
+        colorecho "$RED" "ERROR $NC | failed to prepare repo for compilation. Invalid url or path."
+        exit 1
+    fi
+    
+    # Compile & Install
+    cd $pkgbase
+    
+    if [ "$2" != "--noinstall" ]; then
+        colorecho "$GREEN" "Compiling & Installing Package from source ..."
+        if [ -z "$no_confirm" ]; then
+            makepkg -siA
+        else
+            makepkg -siA --noconfirm
+        fi
+    
+        # Clean Up
+        cd ..
+        rm -rf "$pkgbase"
+        cd $HOME
+    else
+        colorecho "$GREEN" "Compiling Package from source ..."
+        if [ -z "$no_confirm" ]; then
+            makepkg -sA
+        else
+            makepkg -sA --noconfirm
+        fi
+        # Copy Packages
+        mkdir -p $pwd/packages/$pkgbase
+        cp -r *.pkg.tar.* $pwd/packages/$pkgbase
+        colorecho "$GREEN" "INFO$NC |     Package built at $pwd/packages/$pkgbase"
+        colorecho "$GREEN" "INFO$NC |     Package sources located at $HOME/$source_repo_dir/$pkgbase"
+        cd $HOME
+    fi
+
+}
+
+# Install Single Packages from any URL
+download_pkg_from_url() {
+    ipkgname=$(basename $1)
+    colorecho "$GREEN" "  -> $NC Downloading $ipkgname ..."
+    colorecho "$DEBUG" "  CURL URL: $1"
+    curl -LJO $1
+}
+
+install_local_pkg() {
+    ipkgname=$(basename $1)
+    colorecho "$GREEN" "  -> $NC Installing $ipkgname ..."
+    if [ -z "$no_confirm" ]; then
+        sudo pacman -U $ipkgname
+    else
+        sudo pacman -U $ipkgname --noconfirm
+    fi
+    colorecho "$DEBUG" "  -> Removing installed package file $ipkgname"
+    sudo rm -rf $ipkgname
+}
+
+# Get available repo of GitHub Organizations
+get_ghapi_orgs() {
+    local selection
+    if [ -z "$1" ]; then
+        colorecho "$RED" "ERROR $NC | No url specified."
+        exit 1
+    else
+        apiurl=$1
+    fi
+    
+    ghrel_url=("$apiurl")
+    dgpkg_list=()
+
+    for which_url in "${ghrel_url[@]}"; do
+      dgpkg_list+=($(curl -s "${which_url}?per_page=100" | grep -oP '"full_name": "(?!.*/\.)\K[^"]+'))
+    done
+
+    ghapi_pkg_results=()
+    ghapi_url_results=()
+    for url in "${dgpkg_list[@]}"; do
+        ghapi_url_results+=("https://github.com/$url")
+        selection=$(basename "$url")
+        ghapi_pkg_results+=("$selection")
+    done
+}
+
+# Download Packages from a GitHub Release Repo
+install_ghrel_packages() {
+    local selection
+    if [ -z "$1" ]; then
+        colorecho "$RED" "ERROR $NC | No package specified."
+        exit 1
+    else
+        dgpkg=$1
+    fi
+    
+    dgpkg_list=()
+
+    for which_url in "${ghrel_url[@]}"; do
+      colorecho "$THEME" "GHREL $NC | Looking up remote: $which_url"
+      dgpkg_list+=($(curl -s "$which_url" | grep -v '.sig' | grep -B 1 ${dgpkg} | grep -oP '"browser_download_url": "\K[^"]+'))
+    done
+
+    colorecho "$THEME" "GHREL $NC |"
+    colorecho "$THEME" "GHREL $NC | Packages"
+    echo
+    for url in "${dgpkg_list[@]}"; do
+        selection=$(basename "$url")
+        echo "$selection"
+    done
+    echo
+    if [ -z "$no_confirm" ]; then
+        echo -ne $"${BLUE}GHREL $NC | Download the packages? [Y/n]: "
+        read answer
+    else
+        answer="y"
+    fi
+
+    if [[ "$answer" == [Yy]* ]]; then
+        colorecho "$THEME" "GHREL $NC | Downloading Packages"
+        for url in "${dgpkg_list[@]}"; do
+            download_pkg_from_url "$url"
+        done
+        colorecho "$THEME" "GHREL $NC | Installing Packages"
+        for url in "${dgpkg_list[@]}"; do
+            install_local_pkg "$url"
+        done
+    fi
+
+}
+
+########################################################################
+## ACU Parser
+########################################################################
+# ACU File Pre-Parser
+# source: https://github.com/mrbaseman/pasrse_yaml.git
+# awk : process multi-line text (handle YAML pipe) (added a space for better syntax / readability)
+# sed : replace '-' with a space
+pre_parser() {
+    local indexfix=-1
+    local target_file=$1
+
+    # Handle URL
+    if [[ "$target_file" == *"://"* ]]; then
+        local temp_file=$(mktemp)
+        curl -s "$target_file" > "$temp_file"
+        target_file="$temp_file"
+    fi
+
+    # Detect awk flavor
+    if awk --version 2>&1 | grep -q "GNU Awk" ; then
+        # GNU Awk detected
+        indexfix=-1
+    elif awk -Wv 2>&1 | grep -q "mawk" ; then
+        # mawk detected
+        indexfix=0
+    fi
+
+    local s='[[:space:]]*' sm='[ \t]*' w='[a-zA-Z0-9_.]*' fs=${fs:-$(echo @|tr @ '\034')} i=${i:-  }
+
+    cat $target_file | \
+    awk -F$fs "{multi=0;
+        if(match(\$0,/$sm\|$sm$/)){multi=1; sub(/$sm\|$sm$/,\" \");}
+        if(match(\$0,/$sm>$sm$/)){multi=2; sub(/$sm>$sm$/,\" \");}
+        while(multi>0){
+            str=\$0; gsub(/^$sm/,\"\", str);
+            indent=index(\$0,str);
+            indentstr=substr(\$0, 0, indent+$indexfix) \"$i\";
+            obuf=\$0;
+            getline;
+            while(index(\$0,indentstr)){
+                obuf=obuf substr(\$0, length(indentstr)+1);
+                if (multi==1){obuf=obuf \"\\\\n\";}
+                if (multi==2){
+                    if(match(\$0,/^$sm$/))
+                        obuf=obuf \"\\\\n\";
+                        else obuf=obuf \" \";
+                }
+                getline;
+            }
+            sub(/$sm$/,\"\",obuf);
+            print obuf;
+            multi=0;
+            if(match(\$0,/$sm\|$sm$/)){multi=1; sub(/$sm\|$sm$/,\"\");}
+            if(match(\$0,/$sm>$sm$/)){multi=2; sub(/$sm>$sm$/,\"\");}
+        }
+    print}" | \
+    sed 's/^\( *\)-/\1 /'
+
+    # Remove the temporary file if it was created
+    if [[ -n $temp_file ]]; then
+        rm "$temp_file"
+    fi
+}
+
+# ACU File Parser
+# Limitation: this is not a full YAML parser, it is only designed to properly handle upto two sub-tree (subhead)
+# Limitation: an unnecessary space at line ending can potentially cause issues
+load_yaml() {
+
+    local target_file=$1
+    local suffix=$2
+    local output_format=$3 # format: list (default), append, non-list
+    local current_head=""
+    local current_subhead=""
+    local last_indent=""
+    local sub_item
+    local head_list=()
+    local occurrence
+    local found_exist
+    local i
+
+    # Pre-Parse the file or url and generate the formatted YAML output
+    target_file="$(pre_parser "$target_file")"
+
+    # Parse the data into variables format
+        while IFS= read -r line; do
+            # Ignore comments and empty lines
+            if ! [[ $line =~ ^[[:space:]]*($|#) ]]; then
+                # Count indentation
+                local indentation=$(expr "$line" : '^ *' / 2)
+                # Remove indent spaces
+                line="${line#"${line%%[![:space:]]*}"}"
+                # Handle double quotes
+                line="${line//\"/\\\"}"
+                if [ "$indentation" = 0 ]; then
+                    current_head="${line/:/}"
+                elif [[ "$line" == *":"* ]]; then
+                    if [ -z "$suffix" ]; then
+                        # Use current head as suffix
+                        current_value="${current_head}_"
+                    elif [ "$suffix" != " " ]; then
+                        # Use user specified suffix
+                        current_value="${suffix}_"
+                    else
+                        # Without suffix
+                        current_value=""
+                    fi
+                    if [ "$output_format" != "non-list" ]; then
+                        found_exist=0
+                        current_var=$(awk -F':' '{print $1}' <<< "${current_value}${line}")
+                        for item in "${head_list[@]}"; do
+                            if [ "$item" = "$current_var" ]; then
+                                found_exist=1
+                                break
+                            fi
+                        done
+                        if [ "$found_exist" -eq 0 ] && [ "$output_format" != "append" ]; then
+                            head_list+=("$current_var")
+                            current_value="${current_value}${line//: /=(\"}\")"
+                        else
+                            current_value="${current_value}${line//: /+=(\"}\")"
+                        fi
+                    else
+                        current_value="${current_value}${line//: /=\"}\""
+                    fi
+                    # Add variable closing after handling sub_items
+                    if [ "$sub_item" = 2 ]; then
+                        if [ "$output_format" != "non-list" ]; then
+                            echo "\")"
+                        else
+                            echo "\""
+                        fi
+                    fi
+                    if [[ "$current_value" != *":\"" ]] && [[ "$current_value" != *":\")" ]]; then
+                        echo "$current_value"
+                        sub_item=0
+                    else
+                        current_subhead="${line/:/}"
+                        sub_item=1
+                    fi
+                elif [ "$indentation" -gt "$last_indent" ] || [ "$indentation" == "$last_indent" ]; then
+                    if [ -z "$suffix" ]; then
+                        # Use current head as suffix
+                        current_value="${current_head}_${current_subhead}"
+                    elif [ "$suffix" != " " ]; then
+                        # Use user specified suffix
+                        current_value="${suffix}_${current_subhead}"
+                    else
+                        # Without suffix
+                        current_value="${current_subhead}"
+                    fi
+                    if [ "$output_format" != "non-list" ]; then
+                        found_exist=0
+                        for item in "${head_list[@]}"; do
+                            if [ "$item" = "$current_value" ]; then
+                                found_exist=1
+                                break
+                            fi
+                        done
+                        if [ "$found_exist" -eq 0 ] && [ "$output_format" != "append" ]; then
+                            head_list+=("$current_value")
+                            current_value="${current_value}=(\"${line}"
+                        else
+                            current_value="${current_value}+=(\"${line}"
+                        fi
+                    else
+                        current_value="${current_value}=\"${line}"
+                    fi
+                    if [ "$sub_item" = 1 ]; then
+                        echo -n "$current_value"
+                        sub_item=2
+                    else
+                        echo -n " $line"
+                    fi
+                else
+                    colorecho "$DEBUG" "Indent: $indentation, Unhandled Line: $line"
+                fi
+                last_indent=$indentation
+            fi
+        done <<< "$target_file"
+        # Fix sub_item that appears on the last line
+        # Add variable closing after handling sub_items
+        if [ "$sub_item" = 2 ]; then
+            if [ "$output_format" != "non-list" ]; then
+                    echo "\")"
+            else
+                    echo "\""
+            fi
+        fi
+}
+
+########################################################################
+## Repository Management
+########################################################################
+
+# Function to load repositories into arrays
+load_repositories() {
+    # Read repositories from YAML file
+    if [ -f "$repositories_list" ]; then
+        eval $(load_yaml $repositories_list "")
+    fi
+}
+
+# Generate repo.yaml header
+create_repo_yaml() {
+    echo "#   __    ___  _  _    ____  ____  ____   __   ____  __  ____  __  ____  __  ____  ____  " | tee "$repositories_list" >/dev/null
+    echo "#  / _\  / __)/ )( \  (  _ \(  __)(  _ \ /  \ / ___)(  )(_  _)/  \(  _ \(  )(  __)/ ___) " | tee -a "$repositories_list" >/dev/null
+    echo "# /    \( (__ ) \/ (   )   / ) _)  ) __/(  O )\___ \ )(   )( (  O ))   / )(  ) _) \___ \ " | tee -a "$repositories_list" >/dev/null
+    echo "# \_/\_/ \___)\____/  (__\_)(____)(__)   \__/ (____/(__) (__) \__/(__\_)(__)(____)(____/ " | tee -a "$repositories_list" >/dev/null
+    echo "# List of package repositories managed by acu" | tee -a "$repositories_list" >/dev/null
+    echo "repositories:" | tee -a "$repositories_list" >/dev/null
+    echo " " | tee -a "$repositories_list" >/dev/null
+    echo "#- repo_name: example" | tee -a "$repositories_list" >/dev/null
+    echo "#  repo_type: git #available types are acu, agr, git and archive" | tee -a "$repositories_list" >/dev/null
+    echo "#  repo_url: https://example.com #url format PROTOCOL://HOST/SUBTREE:BRANCH" | tee -a "$repositories_list" >/dev/null
+    echo " " | tee -a "$repositories_list" >/dev/null
+}
+
+# Function to add a repository item to the YAML file
+add_repository() {
+    # Check if YAML file exists
+    if [ -f "$repositories_list" ]; then
+        load_repositories
+    else
+        # Create folder if it doesn't exist already
+        mkdir -p "$(dirname "$repositories_list")"
+        create_repo_yaml
+    fi
+
+    # Read repository name
+    if [ -z "$1" ]; then
+        title "Add a Repository"
+        local p=$(colorecho "$NC" "Enter repository name: " "" "center")
+        read -p "$p" repo_name
+    else
+        repo_name="$1"
+    fi
+
+    # Check repository name conflict
+    local i
+    local conflict=0
+    for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
+        if [ "$repo_name" = "${repositories_repo_name[i]}" ]; then
+            conflict=1
+            break
+        fi
+    done
+    if [ "$conflict" = 1 ]; then
+        colorecho "$RED" "ERROR$NC | Repository name already exist."
+        sleep 1
+        return 1
+    fi
+
+    # Read repository URL
+    if [ -z "$2" ] || [[ "$2" == "--"* ]]; then
+        if [ -z "$1" ]; then
+            local align="center"
+        else
+            local align="left"
+        fi
+        local p=$(colorecho "$NC" "Enter repository URL: " "" "$align")
+        read -p "$p" repo_url
+        colorecho "$THEME" "Select a repository type: " "" "$align"
+        options=("acu" "agr" "git" "pacman" "archive")
+        select_option "${options[@]}"
+        repo_type="${options[$?]}"
+        if [ "$repo_type" = "pacman" ]; then
+            local p=$(colorecho "$NC" "Do you want to add a GPG key for $repo_name repo? [Y/n]: " "" "$align")
+            read -p "$p" add_gpg_key
+            if [[ $add_gpg_key == [Yy]* ]]; then
+                local p=$(colorecho "$NC" "Enter GPG key for $repo_name repo: " "" "$align")
+                read -p "$p" gpg_key
+            fi
+        fi
+    else
+        repo_url="$2"
+        # Read repository type
+        if [ -z "$3" ] || [[ "$3" == "--"* ]]; then
+            # Validate and auto-detect repository type based on URL format
+            if [[ "$repo_url" == "http://"* || "$repo_url" == "https://"* ]]; then
+                if [[ "$repo_url" == *".yaml" ]]; then
+                    repo_type="acu"
+                else
+                    repo_type="git"
+                fi
+            fi
+        else
+            repo_type="$3"
+        fi
+    fi
+
+    case "$repo_type" in
+        acu | agr | git | archive)
+            # Apply git branch to url if exists
+            if [ -n "$git_branch" ]; then
+                repo_url="$repo_url:$git_branch"
+            fi
+            # Remove "/" ending
+            if [[ "$repo_url" == *"/" ]]; then
+                repo_url="${repo_url%/}"
+            fi
+            # Remove .git if it exist as it will be automatically added in git clone
+            if [[ "$repo_url" == *".git" ]]; then
+                repo_url="${repo_url%.git}"
+            fi
+            # Append new repository item to YAML file
+            echo "- repo_name: $repo_name" | tee -a "$repositories_list" >/dev/null
+            echo "  repo_type: $repo_type" | tee -a "$repositories_list" >/dev/null
+            echo "  repo_url: $repo_url" | tee -a "$repositories_list" >/dev/null
+            echo " " | tee -a "$repositories_list" >/dev/null
+            colorecho "$GREEN" "INFO $NC | Repository added successfully."
+            ;;
+        pacman)
+            colorecho "$GREEN" "Adding $repo_name to pacman.conf ..."
+            if [ -n "$4" ]; then
+                gpg_key="$4"
+            fi
+            if [ -z "$gpg_key" ]; then
+                echo -e "[$repo_name]\nSigLevel = Never\nServer = $repo_url" | sudo tee -a /etc/pacman.conf
+            else
+                echo -e "[$repo_name]\nServer = $repo_url" | sudo tee -a /etc/pacman.conf
+                colorecho "$GREEN" "Adding GPG keys ..."
+                sudo pacman-key --recv-keys "$gpg_key"
+                sudo pacman-key --lsign "$gpg_key"
+            fi
+            colorecho "$GREEN" "INFO $NC | Repository added successfully."
+            ;;
+        *)
+            colorecho "$RED" "ERROR$NC | Invalid repository type. Valid types are: acu, agr, git, pacman and archive."
+            sleep 1
+            return 1
+            ;;
+    esac
+}
+
+# Function to list repositories sorted by type
+list_repositories() {
+    load_repositories
+
+    # Print acu managed repositories
+    if [ "$1" != "pacman" ]; then
+        colorecho "$GREEN" "INFO $NC | List of ACU Managed Repositories:"
+        for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
+            echo "  Name: ${repositories_repo_name[i]}"
+            echo "  Type: ${repositories_repo_type[i]}"
+            echo "  URL: ${repositories_repo_url[i]}"
+        done
+    fi
+    # Print pacman repositories
+    if [ "$1" != "acu" ]; then
+    colorecho "$GREEN" "INFO $NC | List of Pacman Repositories (Custom):"
+        local pacman_repo_list=($(pacman-conf --repo-list))
+        for ((i = 0; i < ${#pacman_repo_list[@]}; i++)); do
+            if [ "${pacman_repo_list[i]}" != "core" ] && [ "${pacman_repo_list[i]}" != "extra" ] && [ "${pacman_repo_list[i]}" != "community" ] && [ "${pacman_repo_list[i]}" != "alarm" ]; then
+                echo "  Name: ${pacman_repo_list[i]}"
+                local repo_info=$(pacman-conf --repo="${pacman_repo_list[i]}")
+                echo "  $repo_info"
+            fi
+        done
+    fi
+}
+
+# Function to list repositories sorted by type
+remove_repository() {
+    load_repositories
+    local toremove=$1
+
+    colorecho "$RED" "REPO $NC | Are you sure to remove repository $toremove ? [y/N]:" 
+    read -r delrepoconfirm
+    case "$delrepoconfirm" in
+        [yY])
+            colorecho "$THEME" "INFO $NC | Removing repository $toremove ..."
+            mv $repositories_list "${repositories_list}.old"
+            ;;
+        *)
+            colorecho "$THEME" "INFO $NC | Repository will not be removed."
+            return 1
+            ;;
+    esac
+
+    # Print repositories
+    colorecho "$THEME" "INFO $NC | Generating new repository configuration ..."
+    create_repo_yaml
+    local removed=0
+    for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
+        # Append new repository item to YAML file
+        if [ "$toremove" != "${repositories_repo_name[i]}" ]; then
+            acu rem set ${repositories_repo_name[i]} ${repositories_repo_url[i]} ${repositories_repo_type[i]} &> /dev/null
+        else
+            if [ "${repositories_repo_type[i]}" == "agr" ]; then
+                colorecho "$THEME" "INFO $NC | Removing ${repositories_repo_name[i]} from agr ..."
+                agr rem del ${repositories_repo_name[i]}
+            fi
+            colorecho "$GREEN" "INFO $NC | removed ${repositories_repo_name[i]} successfully."
+            removed=1
+        fi
+    done
+    if [ "$removed" = 0 ]; then
+        colorecho "$RED" "ERROR$NC | Repository $toremove does not exist."
+    fi
+}
+
+# Function to fetch packages of a repositories
+fetch_repositories() {
+    load_repositories
+    ghrel_url=() # initialize empty url list
+    if [ "$1" != "-q" ]; then
+        echo ":: Fetching package repositories..."
+    fi
+    local i # declare as local variable
+    for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
+        if [ "$1" != "-q" ]; then
+            echo -n " ${repositories_repo_name[i]}"
+            printf "\t\t [ ########################## ] \t"
+        fi
+        case ${repositories_repo_type[i]} in
+            agr)
+                if ! command -v agr &> /dev/null; then
+                    # Install AGR if not installed
+                    colorecho "$RED" "REPO $NC | This repository requires agr to be installed, do you want to install it? [y/N]:" 
+                    read -r agrconfirm
+                    case "$agrconfirm" in
+                        [yY])
+                            acu install agr --noconfirm
+                            ;;
+                        *)
+                            colorecho "$WARNING" "WARNING $NC | This repository will be skipped and will not be fetched."
+                            ;;
+                    esac
+                fi
+                if command -v agr &> /dev/null; then
+                # Extract the branch name using parameter expansion and pattern matching
+                    if [[ "${repositories_repo_url[i]}" == *"://"*"/"*"/"*":"* ]]; then
+                        local agr_url="${repositories_repo_url[i]%:*}"
+                        local agr_branch="${repositories_repo_url[i]##*:}"  # Remove everything up to the last ":"
+                        agr rem set "${repositories_repo_name[i]}" "$agr_url" --branch "$agr_branch" &> /dev/null
+                    else
+                        agr rem set "${repositories_repo_name[i]}" "${repositories_repo_url[i]}" &> /dev/null
+                    fi
+                    colorecho "$THEME" "AGR    $NC | Looking up remote: ${repositories_repo_url[i]}"
+                    if [ -n "$debug_log" ]; then
+                        agr -d 2>&1 | grep -v 'INFO' | grep -v "\---" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+                    elif [ "$1" == "list" ]; then
+                        agr 2>&1 | grep -v 'INFO' | grep -v "\---" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+                    else
+                        agr  &> /dev/null
+                    fi
+                fi
+                ;;
+            git | archive | ghorg | ghapi-orgs | ghrel | ghapi-releases)
+                if [ "$1" != "-q" ]; then
+                    if [[ "${repositories_repo_url[i]}" == "https://github.com/"* && "${repositories_repo_url[i]}" != *"https://github.com/"*"/"* ]]; then
+                        # Github API (Orgs/Users)
+                        colorecho "$THEME" "GHORG  $NC | Looking up remote: ${repositories_repo_url[i]}"
+                    elif [[ "${repositories_repo_url[i]}" == "https://api.github.com/repos"* ]]; then
+                        # Github API (Repository)
+                        colorecho "$THEME" "GHREL  $NC | Looking up remote: ${repositories_repo_url[i]}"
+                    elif [ "${repositories_repo_type[i]}" = "archive" ]; then
+                        # Archive Repository (Downgrade)
+                        colorecho "$THEME" "ARCHIVE$NC | Looking up remote: ${repositories_repo_url[i]}"
+                    else
+                        # GIT
+                        colorecho "$THEME" "GIT    $NC | Looking up remote: ${repositories_repo_url[i]}"
+                    fi
+                fi
+                # Github API (Orgs/Users)
+                if [[ "${repositories_repo_url[i]}" == "https://github.com/"* && "${repositories_repo_url[i]}" != *"https://github.com/"*"/"* ]]; then
+                    local ghapi_url="https://api.github.com/orgs/$(basename ${repositories_repo_url[i]})/repos"
+                    get_ghapi_orgs $ghapi_url
+                    #mkdir -p $HOME/.acu/cache/db
+                    #local db_file="$HOME/.acu/cache/db/${repositories_repo_name[i]}.yaml"
+                    #echo "# Package database for ${repositories_repo_name[i]}" | tee "$db_file" >/dev/null
+                    #echo "${repositories_repo_name[i]}:" | tee -a "$db_file" >/dev/null
+                    #echo " " | tee -a "$db_file" >/dev/null
+                    local p
+                    for ((p = 0; p < ${#ghapi_pkg_results[@]}; p++)); do
+                    #    echo "- package_name: ${ghapi_pkg_results[p]}" | tee -a "$db_file" >/dev/null
+                    #    echo "  clone_url: ${ghapi_url_results[p]}" | tee -a "$db_file" >/dev/null
+                    #    echo " " | tee -a "$db_file" >/dev/null
+                        if [ "$1" == "list" ]; then
+                            colorecho "$THEME" "PKG $NC |     ${ghapi_pkg_results[p]}"
+                        fi
+                    done
+                    if [ "$1" == "list" ]; then
+                        colorecho "$GREEN" "INFO$NC |"
+                        colorecho "$GREEN" "INFO$NC |     Successfully fetched host (found ${#ghapi_pkg_results[@]} packages)"
+                    fi
+                # Github API (Repository)
+                elif [[ "${repositories_repo_url[i]}" == "https://api.github.com/repos"* ]]; then
+                    ghrel_url+=("${repositories_repo_url[i]}")
+                    ghapi_pkg_results=($(echo -e "n" | install_ghrel_packages .pkg.tar. | grep .pkg.tar.* | sed 's/\.pkg\..*//'))
+                    for pkg in "${ghapi_pkg_results[@]}"; do
+                        if [ "$1" == "list" ]; then
+                            colorecho "$THEME" "PKG $NC |     $pkg"
+                        fi
+                    done
+                    if [ "$1" == "list" ]; then
+                        colorecho "$GREEN" "INFO$NC |"
+                        colorecho "$GREEN" "INFO$NC |     Successfully fetched host (found ${#ghapi_pkg_results[@]} packages)"
+                    fi
+                # GIT REPO (subtree)
+                elif [[ "${repositories_repo_url[i]}" == *"://"*"/"*"/"* ]]; then
+                    mkdir -p $HOME/.acu/cache/db
+                    cd $HOME/.acu/cache/db # cd for git clone
+                    rm -rf "${repositories_repo_name[i]}"
+                    # Extract the branch name using parameter expansion and pattern matching
+                    if [[ "${repositories_repo_url[i]}" == *"://"*"/"*"/"*":"* ]]; then
+                        local agr_url="${repositories_repo_url[i]%:*}"
+                        local agr_branch="${repositories_repo_url[i]##*:}"  # Remove everything up to the last ":"
+                        local success=0
+                        if git clone "$agr_url" "${repositories_repo_name[i]}" --single-branch -b "$agr_branch" --depth 1 --no-tags --recursive &> /dev/null; then
+                            success=1
+                        fi
+                    else
+                        if git clone "${repositories_repo_url[i]}" "${repositories_repo_name[i]}" --single-branch --depth 1 --no-tags --recursive &> /dev/null; then
+                            success=1
+                        fi
+                    fi
+                    if [ "$success" = 1 ]; then
+                        if [ "$1" == "list" ]; then
+                            local agr_pkg=()
+                            local count=0
+                            while IFS= read -r pkg; do
+                                agr_pkg+=("$pkg")
+                                colorecho "$THEME" "PKG $NC |     $(basename $pkg)"
+                                ((count++))
+                            done < <(find ${repositories_repo_name[i]} -type f -name PKGBUILD -exec dirname {} \; | sort -u)
+                            colorecho "$GREEN" "INFO$NC |"
+                            colorecho "$GREEN" "INFO$NC |     Successfully fetched host (found $count packages)"
+                        fi
+                    else
+                        colorecho "$RED" "ERROR$NC |     Failed to resolve git repo."
+                    fi
+                    cd $HOME # restore cd after git clone
+                # GIT
+                else
+                    local response_code=$(curl --write-out '%{response_code}' -s "${repositories_repo_url[i]}/" -o /dev/null)
+                    if [ "$response_code" = 200 ]; then
+                        if [ "$1" == "list" ]; then
+                            colorecho "$GREEN" "INFO$NC |"
+                            colorecho "$GREEN" "INFO$NC |     Successfully fetched host (Packages list fetching unsupported)"
+                        fi
+                    else
+                        colorecho "$RED" "ERROR$NC |     Failed to resolve host (error code $response_code)."
+                    fi
+                fi
+                ;;
+            acu)
+                if [ "$1" != "-q" ]; then
+                    colorecho "$THEME" "ACU    $NC | Looking up remote: ${repositories_repo_url[i]}"
+                fi
+                mkdir -p $HOME/.acu/cache/tmp
+                response_code=$(curl -s --write-out '%{response_code}' -L "${repositories_repo_url[i]}" -o $HOME/.acu/cache/tmp/tmpdownload.yaml)
+                colorecho "$DEBUG" "CURL Response code: $response_code"
+                if [ "$response_code" = 200 ]; then
+                    mkdir -p $HOME/.acu/cache/db
+                    cp -r $HOME/.acu/cache/tmp/tmpdownload.yaml $HOME/.acu/cache/db/${repositories_repo_name[i]}.yaml
+                    if [ "$1" == "list" ]; then
+                        apps_list
+                        colorecho "$GREEN" "INFO$NC |     Successfully fetched host"
+                    fi
+                else
+                    colorecho "$RED" "ERROR$NC |     Failed to resolve repository."
+                fi
+                rm -rf $HOME/.acu/cache/tmp/tmpdownload.yaml
+                ;;
+            *)
+                if [ "$1" != "-q" ]; then
+                    colorecho "$RED" "ERROR  $NC | Invalid repository type. Valid types are: acu, agr, git and archive."
+                else
+                    colorecho "$DEBUG" "${RED}ERROR$NC |     Invalid repository type. Valid types are: acu, agr, git and archive."
+                fi
+                ;;
+        esac
+    done
+}
+
+manage_repositories() {
+    title "Manage Repositories"
+    list_repositories
+    options=()
+    options+=("Add a Repository")
+    options+=("Remove an ACU Managed Repository")
+    options+=("Edit Pacman Configurations")
+    options+=("Return to Manage Packages Menu")
+    echo
+    colorecho "$GREEN" "Options" "" "center"
+    echo
+    select_option "${options[@]}"
+    choice=$?
+
+    # Choice
+    case $choice in
+        0)
+            add_repository
+            acu update
+            manage_repositories
+            ;;
+        1)
+            title "Remove an ACU Managed Repository"
+            echo
+            colorecho "$GREEN" "Select a repository to remove: " "" "center"
+            echo
+            select_option "${repositories_repo_name[@]}"
+            choice=$?
+            remove_repository "${repositories_repo_name[choice]}"
+            manage_repositories
+            ;;
+        2)
+            colorecho "$GREEN" "INFO $NC | When you finish, press Ctrl+O to save then press Ctrl+X to exit the editor." "bottom" "center" "-a"
+            sleep 2
+            sudo nano /etc/pacman.conf
+            sudo pacman -Sy
+            manage_repositories
+            ;;
+        *)
+            manage_packages
+            ;;
+    esac
+
+}
+
+########################################################################
+## Utility Main Menu
+########################################################################
+
+config_options() {
+    title
+    colorecho "$NC" ""
+    colorecho "$WARNING" "\t    WARNING $NC| $utilname is experimental |$GREEN $release" "bottom" "center" "-a" # Bottom Text
+    options=("System Maintenance \t Configure system settings, System utilites & infomation")
+    options+=("Manage Packages \t Upgrade or downgrade packages, Manage packages repositories")
+    options+=("ACU Apps \t\t Curated collection of applications or packages to install")
+    options+=("Performance \t\t Tweak SoC Performance Settings, Enable PWM Fan, Overclocking")
+    options+=("Localization \t\t Generate locale, Install fonts, Set date, time & timezone")
+    options+=("User Accounts \t\t Add, Remove or Change user account settings")
+    options+=("ACU Settings \t\t Customize ACU Theme, configurations & settings")
+
+    if [ "$update_available" = true ]; then 
+        options+=("Update Now $GREEN(Updates available)$NC Update Utility to latest version $GREEN($release -> $remote_release)$NC ")
+    fi
+    
+    options+=("Exit Utility")
+    select_option "${options[@]}"
+    choice=$?
+
+    # Choice
+    case $choice in
+        0)
+            system_maintenance
+            ;;
+        1)
+            manage_packages
+            ;;
+        2)
+            apps_menu
+            ;;
+        3)
+            performance_features
+            ;;
+        4)
+            localization
+            ;;
+        5)
+            manage_user
+            ;;
+        6)
+            settings
+            ;;
+        7)
+            update_util # Or Exit Utility if no update is available
+            ;;
+    esac
+
+}
+
+########################################################################
+## System Maintenance
+########################################################################
+
+# System Maintenance Main Menu
+system_maintenance() {
+    title "System Maintenance"
+    options=("Flash Bootloader \t Flash Bootloader to eMMC/TF Card/SPI Flash")
+    options+=("Copy System \t\t Backup, Restore, or Clone this system with partimage")
+    options+=("System Infomation \t Print infomation of this system / device")
+    options+=("Return to Main Menu")
+    select_option "${options[@]}"
+    choice=$?
+
+    # Choice
+    case $choice in
+        0)
+            flash_uboot
+            ;;
+        1)
+            title "Copy System"
+            if ! command -v partimage &> /dev/null; then
+                echo
+                colorecho "$RED" "partimage is not installed, installing ..." "" "center"
+                echo
+                acu install partimage
+            fi
+            sudo partimage
+            system_maintenance
+            ;;
+        2)
+            local keypress=''
+            while [ "$keypress" != 'q' ]; do
+                system_info --center
+                colorecho "$GREEN" "Press q to return to main menu" "bottom" "center"
+                read -t 3 -n 1 keypress
+            done
+            config_options
+            ;;
+        *)
+            config_options
+            ;;
+    esac
+
+}
+
+# Fetch System Infomation
+system_info() {
+    if [ "$1" == "--center" ]; then
+        title "System Information"
+        echo
+    else
+        title "System Information" "left" "noclear"
+    fi
+
+    # Get OS
+    sys_os=$(cat /etc/*-release | grep PRETTY_NAME | cut -d'"' -f2)
+
+    # Get host / device model
+    sys_dmi_id_path="/sys/devices/virtual/dmi/id"
+    if [ -e "$sys_dmi_id_path/sys_vendor" ] && [ -e "$sys_dmi_id_path/product_name" ]; then
+        sys_host="$(cat $sys_dmi_id_path/sys_vendor | tr -d '\0') $(cat $sys_dmi_id_path/product_name | tr -d '\0')"
+    elif [ -e "/proc/device-tree/model" ]; then
+        sys_host=$(cat /proc/device-tree/model | tr -d '\0')
+    fi
+
+    # Get kernel
+    sys_krl=$(uname -sr)
+
+    # Get uptime
+    sys_uptime=$(uptime -p | sed 's/^up //')
+    
+    # Get cpu info
+    sys_cpu=$(cat /proc/cpuinfo | grep -m1 "model name" | cut -d':' -f2 | sed 's/^ *//' | tr -d '\0')
+    if [ -z "$sys_cpu" ] && [ -e "/proc/device-tree/compatible" ]; then
+        sys_cpu_vendor=$(awk -F ',' '{print $1}' /proc/device-tree/cpuinfo/compatible | tr -d '\0' | sed 's/^\(.\)/\U\1/')
+        sys_cpu_model=$(awk -F ',' '{print $NF}' /proc/device-tree/compatible | tr -d '\0' | tr '[:lower:]' '[:upper:]')
+        sys_cpu=$(echo "$sys_cpu_vendor $sys_cpu_model")
+    fi
+    sys_cpu_thread=$(nproc)
+    if [ -e "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq" ]; then
+        sys_cpu_clock=($(sudo cat /sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_cur_freq))
+    else
+        sys_cpu_clock="0.00"
+    fi
+    if [ -e "/sys/bus/cpu/devices/cpu0/cpufreq/scaling_governor" ]; then
+        sys_cpu_governor=($(cat /sys/bus/cpu/devices/cpu*/cpufreq/scaling_governor))
+    fi
+    sys_arch=$(uname -m)
+
+    # Get mem usage
+    sys_mem_free=$(free -h | grep "Mem:" | awk '{print $4}' | sed 's\Gi\\g' | sed 's\Mi\\g')
+    sys_mem_total=$(free -h | grep "Mem:" | awk '{print $2}' | sed 's\Gi\\g' | sed 's\Mi\\g')
+
+    # Get disk usage
+    sys_disk=$(df -h / | awk 'NR==2 {print $4" / "$2" ("$5")"}' | sed 's/G/ GiB/g; s/M/ MiB/g')
+
+    # Get number of packages installed
+    sys_packages=$(pacman -Q | wc -l)
+
+    # Get shell
+    sys_shell=$(basename "$SHELL")
+
+    # Get graphics session
+    if [ -n "$WAYLAND_DISPLAY" ]; then
+        sys_session="Wayland"
+    elif [ -n "$DISPLAY" ]; then
+        sys_session="Xorg"
+    fi
+
+    # Get screen resolution
+    if command -v xdpyinfo &> /dev/null; then
+        sys_resolution=$(xdpyinfo | awk '/dimensions:/ {print $2}')
+    else
+        if [[ -d /sys/class/drm ]]; then
+            for dev in /sys/class/drm/*/modes; do
+                read -r single_resolution _ < "$dev"
+                [[ $single_resolution ]] && sys_resolution="${single_resolution}"
+            done
+        fi
+    fi
+
+    # GPU Model
+    if command -v glxinfo &> /dev/null; then
+        sys_gpu=$(glxinfo | grep "OpenGL renderer string" | cut -d ":" -f 2 | cut -c 2-)
+    else
+        sys_gpu="Unknown (mesa-utils not installed)"
+    fi
+
+    # Get Desktop Environment
+    sys_de=$(echo "$XDG_CURRENT_DESKTOP" | sed 's/.\+://')
+
+    # Get terminal
+    ppid=$(grep PPid: /proc/$$/status | awk '{print $2}')
+    sys_terminal=$(basename $(cat "/proc/$ppid/comm"))
+    if [ -n "$sys_session" ]; then
+        while [ "$sys_terminal" == "watch" ] || [ "$sys_terminal" == "bash" ]; do
+            ppid=$(grep PPid: /proc/${ppid}/status | awk '{print $2}')
+            sys_terminal=$(basename $(cat "/proc/$ppid/comm"))
+        done
+    fi
+
+    sys_terminal_font=$(basename "$TERM")
+
+    if [ "$1" == "--center" ]; then
+        local align="center"
+        local alignarg="-a"
+    fi
+
+    colorecho "$THEME" "OS: $NC $sys_os ($sys_arch)" "" "$align" "$alignarg"
+    colorecho "$THEME" "Host: $NC $sys_host" "" "$align" "$alignarg"
+    colorecho "$THEME" "Kernel: $NC $sys_krl" "" "$align" "$alignarg"
+    colorecho "$THEME" "Uptime: $NC $sys_uptime" "" "$align" "$alignarg"
+    colorecho "$THEME" "Packages: $NC $sys_packages" "" "$align" "$alignarg"
+    colorecho "$THEME" "Shell: $NC $sys_shell" "" "$align" "$alignarg"
+    colorecho "$THEME" "DE: $NC $sys_de ($sys_session)" "" "$align" "$alignarg"
+    colorecho "$THEME" "Terminal: $NC $sys_terminal ($sys_terminal_font)" "" "$align" "$alignarg"
+    colorecho "$THEME" "CPU: $NC ($sys_cpu_thread) $sys_cpu @ $(awk "BEGIN{printf \"%.2f\\n\", ((${sys_cpu_clock[4]:-${sys_cpu_clock[0]}}/1000000))}") Ghz (${sys_cpu_governor[4]:-${sys_cpu_governor[0]}})" "" "$align" "$alignarg"
+    colorecho "$THEME" "GPU: $NC $sys_gpu" "" "$align" "$alignarg"
+    colorecho "$THEME" "Resolution: $NC $sys_resolution" "" "$align" "$alignarg"
+    colorecho "$THEME" "Memory: $NC $sys_mem_free GiB / $sys_mem_total GiB ($(awk "BEGIN{printf \"%.2f%%\\n\", (1-(${sys_mem_free}/${sys_mem_total}))*100}"))" "" "$align" "$alignarg"
+    colorecho "$THEME" "Disk: $NC $sys_disk" "" "$align" "$alignarg"
+}
+
+# Update Bootloader
+flash_uboot() {
+
+        if [ -z "$1" ]; then
+            title "Flash Bootloader"
+            echo
+            colorecho "$GREEN" "Select an option to confirm" "" "center"
+            echo
+            #colorecho "$RED" "Warning : The SPI NOR flash will be cleared."
+            echo ""
+            if [ -e /dev/mtdblock0 ]; then
+                colorecho "$RED" "Show U-Boot"
+            #elif [ -e /dev/nvme* ]; then
+            #    colorecho "$RED" "Show NVMe"
+            fi
+            if [ -f "$bootloader_file" ] || ([ -z "$bootloader_file" ] && [ -n "$bootloader_url" ]); then
+                colorecho "$GREEN" "Coming Soon" "" "center"
+            else
+                colorecho "$RED" "No available bootloader list" "" "center"
+            fi
+            echo
+            options=("Return to System Maintence Menu")
+            select_option "${options[@]}"
+            choice=$?
+        else
+            case $1 in
+                *)
+                    system_maintenance
+                    ;;
+            esac
+        fi
+
+        # Choice
+        case $choice in
+            *)
+                system_maintenance
+                return 0
+                ;;
+        esac
+
+    ###
+    colorecho "$GREEN" "Install bootloader to the SPI NOR flash ..."
+    exit 1 # Coming Soon
+
+
+    colorecho "$GREEN" "Downloading Zero Image ..."
+    curl -LJO ${zero_url}
+
+    if ! [ -x "$(command -v gzip)" ]; then
+        sudo pacman -Sy gzip --noconfirm
+    fi
+
+    colorecho "$GREEN" "Extracting Zero Image ..."
+    gzip -d zero.img.gz
+
+    colorecho "$GREEN" "Flashing Zero Image to SPI NOR flash ..."
+    sudo dd if=zero.img of=/dev/mtdblock0
+
+    # Remove zero.img
+    sudo rm -rf zero.img
+
+    if [ -n "$latest_image" ]; then
+        # Download the latest image
+        colorecho "$GREEN" "Downloading SPI U-Boot Image from ${which_url}${latest_image} ..."
+        curl -LJO ${which_url}${latest_image}
+    else
+        colorecho "$RED" "ERROR $NC | Fetch Error : No image found."
+        sleep 1
+        exit 1
+    fi
+    
+    colorecho "$GREEN" "Flashing SPI U-Boot Image ${latest_image} to SPI NOR flash ..."
+    sudo dd if=${latest_image} of=/dev/mtdblock0
+    sync
+    colorecho "$GREEN" "Installed bootloader to SPI NOR flash"
+
+    # Remove u-boot image file
+    sudo rm -rf ${latest_image}
+
+}
+
+# Update boot config (extlinux/grub/systemd-boot)
+update_boot_config() {
+
+    local pkgname=$1
+
+    # If not specified then look for the mainline stable kernel
+    if [ -z "$pkgname" ]; then
+        if [ "$system_arch" = "aarch64" ]; then
+            pkgname="linux-aarch64"
+        else
+            pkgname="linux"
+        fi
+        colorecho "$THEME" "INFO  $NC | pkgbase is not specified, looking for default kernel $pkgname ..."
+    fi
+
+    # Make sure package is installed and get kernel infomation
+    if sudo pacman -Q "$pkgname" > /dev/null 2>&1 ; then
+        local pkgbase="$(sudo pacman -Ql "$pkgname" | grep pkgbase | awk '{print $2}')"
+        if [ -n "$pkgbase" ]; then
+            pkgbase="$(cat $pkgbase)"
+        else
+            colorecho "$RED" "ERROR $NC | Boot Config can not be updated. (Can not determine pkgbase, Package $pkgname may not be a kernel)"
+            return 1
+        fi
+        colorecho "$THEME" "INFO  $NC | Updating boot config for $pkgbase ..."
+    else
+        colorecho "$RED" "ERROR $NC | Boot Config can not be updated. (Package $pkgname is not installed)"
+        return 1
+    fi
+
+    # EFI System
+    if sudo test -f /boot/EFI/BOOT/BOOT*.EFI; then
+        colorecho "$THEME" "INFO  $NC | UEFI System detected."
+        
+        # Detect EFI Bootloader
+        if sudo test -d /boot/grub && command -v grub-install &> /dev/null; then
+            # Grub
+            colorecho "$THEME" "INFO  $NC | Updating grub.cfg ..."
+            sudo grub-mkconfig -o /boot/grub/grub.cfg
+        elif sudo test -f /boot/EFI/systemd/systemd-boot*.efi; then
+            # Systemd-boot
+            colorecho "$THEME" "INFO  $NC | Updating systemd-boot ..."
+            sudo bootctl update
+            colorecho "$THEME" "INFO  $NC | You may need to update the configurations at /boot/loader/entries/ ..."
+        else
+            # Unsupported
+            colorecho "$RED" "ERROR $NC | Boot Config can not be updated. (Unsupported bootloader method)"
+            return 1
+        fi
+
+    # Update extlinux from booted config
+    elif sudo test -f "/boot/extlinux/extlinux.conf"; then
+        colorecho "$THEME" "INFO  $NC | Creating a backup of extlinux.conf at extlinux.conf.bak ..."
+        sudo rm -rf /boot/extlinux/extlinux.conf.bak
+        sudo mv /boot/extlinux/extlinux.conf /boot/extlinux/extlinux.conf.bak
+        colorecho "$THEME" "INFO  $NC | Generating new extlinux.conf ..."
+        # Kernel
+        echo "# This extlinux.conf is auto-generated by ACU" | sudo tee "/boot/extlinux/extlinux.conf" >/dev/null
+        echo " " | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        echo "label ${pkgbase}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        echo "    kernel /vmlinuz-${pkgbase}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        echo "    initrd /initramfs-${pkgbase}.img" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        # DTB dir
+        if sudo test -d "/boot/dtbs/${pkgbase}"; then
+            echo "    devicetreedir /dtbs/${pkgbase}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        else
+            # Mainline kernel
+            echo "    devicetreedir /dtbs" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        fi
+        # DTB file (ftd)
+        local ftdline
+        if ftdline="$(cat /boot/extlinux/extlinux.conf.bak | grep -m 1 'ftd ')"; then
+            # Add dtb fdt file
+            echo "${ftdline}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        fi
+        # Overlays
+        local overlaysline
+        if overlaysline="$(cat /boot/extlinux/extlinux.conf.bak | grep -m 1 'fdtoverlays ')"; then
+            local overlaylist=($overlaysline)
+            local i
+            local dtbolist
+            for ((i = 1; i < ${#overlaylist[@]}; i++)); do
+                local target_dtbo=$(basename ${overlaylist[i]})
+                local found_dtbo
+                if found_dtbo=$(find /boot/dtbs/${pkgbase} -type f -name $target_dtbo -exec dirname {} \; | head -n 1); then
+                    dtbolist+=("${found_dtbo}/${target_dtbo}")
+                elif found_dtbo=$(find /boot/dtbs -type f -name $target_dtbo -exec dirname {} \; | head -n 1); then
+                    dtbolist+=("${found_dtbo}/${target_dtbo}")
+                elif sudo test -e "$target_dtbo" || sudo test -e "/boot/$target_dtbo"; then
+                    dtbolist+=("$target_dtbo")
+                fi
+            done
+            if [ -n "$dtbolist" ]; then
+                echo "    fdtoverlays ${dtbolist[@]}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+            fi
+        fi
+        # Append (cmdline)
+        local appendline
+        if appendline="$(cat /boot/extlinux/extlinux.conf.bak | grep -m 1 'append ')"; then
+            # Use cmdline from the backup extlinux.conf
+            echo "${appendline}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        elif sudo test -f "/proc/cmdline"; then
+            # Use cmdline from booted cmdline
+            local cmdline="$(cat /proc/cmdline)"
+            echo "    append   ${cmdline}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        else
+            # Get rootfs partition from the current mount point "/"
+            rootfs_partition=$(mount | grep "on / " | awk '{print $1}')
+            # Find the UUIDs of the root partition
+            root_uuid=$(sudo blkid $rootfs_partition | awk '{print $2}' | tr -d '"')
+            colorecho "$DEBUG" "Root partition UUID: $root_uuid"
+            # Use default cmdline
+            echo "    append   root=UUID=${root_uuid} rw quiet splash" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        fi
+
+        # Check if /boot is mounted as a partition or directory
+        if mountpoint -q /boot; then
+            colorecho "$DEBUG" "INFO  $NC | /boot is mounted as a partition"
+        else
+            colorecho "$DEBUG" "INFO  $NC | /boot is mounted as a directory"
+            colorecho "$THEME" "INFO  $NC | Updating paths for extlinux.conf ..."
+            sudo sed -i "s| /vmlinuz| /boot/vmlinuz|" /boot/extlinux/extlinux.conf
+            sudo sed -i "s| /initramfs| /boot/initramfs|" /boot/extlinux/extlinux.conf
+            sudo sed -i "s| /initrd| /boot/initrd|" /boot/extlinux/extlinux.conf
+            sudo sed -i "s| /dtbs| /boot/dtbs|" /boot/extlinux/extlinux.conf
+            sudo sed -i "s| /dtbo| /boot/dtbo|" /boot/extlinux/extlinux.conf
+        fi
+    else
+        colorecho "$RED" "ERROR  $NC | Boot Config can not be updated. (Unable to detect boot firmware)"
+        return 1
+    fi
+}
+
+# Move Arch Linux
+move_system() {
+    echo "Not implemented"
+}
+
+########################################################################
+## Packages Management
+########################################################################
+
+# Manage Packages Main Menu
+manage_packages() {
+    title "Manage Packages"
+    options=("Update Packages \t Check & Perform Selective / Full System Upgrade")
+    options+=("Downgrade Packages \t Install / Downgrade any Arch Linux Packages from Archive")
+    options+=("Manage Repositories \t List, add or remove ACU Managed and Pacman Repositories.")
+    options+=("Return to Main Menu")
+    select_option "${options[@]}"
+    choice=$?
+
+    # Choice
+    case $choice in
+        0)
+            package_update
+            ;;
+        1)
+            downgrade
+            ;;
+        2)
+            manage_repositories
+            ;;
+        *)
+            config_options
+            ;;
+    esac
+
+}
+
+# System Update
+package_update() {
+
+    title "Package Updates"
+
+    if [ "$1" = "--select" ]; then
+        local selected_option="${poptions[$2]}"
+
+        if [[ " ${selection[*]} " == *" $selected_option "* ]]; then
+            options[$2]="[ ] ${selected_option}"
+            selection=("${selection[@]/$selected_option}")
+        else
+            options[$2]="[x] ${selected_option}"
+            selection+=("$selected_option")
+        fi
+    else
+        selection=()
+        options=("Return to Main Menu" "Upgrade All Packages" "Upgrade Selected Packages")
+        options+=("$GREEN----------------------------------------------------" "$GREEN Upgradable Packages (Press enter to select/deselect): " "$GREEN----------------------------------------------------" "Refresh / Reset $NC")
+        poptions=("${options[@]}")
+
+        if [ -x "$(command -v yay)" ]; then
+            update_list=($(yay -Qu))
+            if [ -z "$update_list" ]; then
+                options[6]="Refresh / Reset $NC (All packages are up-to-date)"
+            else
+                for ((i=0; i<${#update_list[@]}; i+=4)); do
+                    options+=("[ ] ${update_list[i]}")
+                    poptions+=("${update_list[i]}")
+                done
+                options[6]="Refresh / Reset $NC (Using yay)"
+            fi
+        else
+            update_list=($(pacman -Qu | awk -F' ' '{ if (NF == 4) { $5 = "[]" } }1'))
+            if [ -z "$update_list" ]; then
+                options[6]="Refresh / Reset $NC (All packages are up-to-date)"
+            else
+                for ((i=0; i<${#update_list[@]}; i+=5)); do
+                    options+=("[ ] ${update_list[i]}")
+                    poptions+=("${update_list[i]}")
+                done
+                options[6]="Refresh / Reset $NC (Using pacman)"
+            fi
+        fi
+    fi
+
+    select_option "${options[@]}"
+    choice=$?
+
+    if [ "$choice" = "0" ]; then
+        config_options
+    elif [ "$choice" = "1" ]; then
+        if [ -x "$(command -v yay)" ]; then
+            yay -Syyu
+        else
+            if [ -z "$no_confirm" ]; then
+                sudo pacman -Syyu
+            else
+                sudo pacman -Syyu --noconfirm
+            fi
+        fi
+    elif [ "$choice" = "2" ]; then
+        if [ -x "$(command -v yay)" ]; then
+            yay -S "${selection[*]}"
+        else
+            if [ -z "$no_confirm" ]; then
+                sudo pacman -Sy "${selection[*]}"
+            else
+                sudo pacman -Sy "${selection[*]}" --noconfirm
+            fi
+        fi
+    elif [ "$choice" = "3" ] || [ "$choice" = "4" ] || [ "$choice" = "5" ] || [ "$choice" = "6" ]; then
+        package_update
+    else
+        package_update --select $choice
+    fi
+
+}
+
+# Load Apps List
+load_apps() {
+    if [ -z "$apps_category_name" ]; then
+        load_repositories
+        local i
+        local isfirst=0
+        for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
+            if [ "${repositories_repo_type[i]}" = "acu" ]; then
+                if [ "$isfirst" = 0 ]; then
+                    eval $(load_yaml "$HOME/.acu/cache/db/${repositories_repo_name[i]}.yaml" "apps")
+                    isfirst=1
+                else
+                    eval $(load_yaml "$HOME/.acu/cache/db/${repositories_repo_name[i]}.yaml" "apps" append)
+                fi
+                # For apps list of ACU 0.0.6 or below
+                if [ -n "$apps_app_name" ]; then
+                    for item in "${apps_app_name[@]}"; do
+                        apps_pretty_name+=("$item")
+                    done
+                fi
+            fi
+        done
+    fi
+}
+
+apps_list() {
+    local target=$1
+    local arg=$2
+    local i
+    load_apps # Load Apps List
+    if [ -n "$target" ]; then
+        for ((i = 0; i < ${#apps_package_name[@]}; i++)); do
+            if [ "${apps_package_name[i]}" = "$target" ]; then
+                if [ "$arg" = "-i" ]; then
+                    echo $i
+                    return 0
+                else
+                    colorecho "$THEME" "PKG  $NC | ${apps_package_name[i]}"
+                    colorecho "$GREEN" "INFO $NC | APP: ${apps_pretty_name[i]}, CAT: ${apps_category[i]}, DIS: ${apps_description[i]}"
+                    colorecho "$DEBUG" "INFO $NC | Packages: ${apps_packages[i]}"
+                    colorecho "$DEBUG" "INFO $NC | Commands: ${apps_commands[i]}"
+                    return 0
+                fi
+            fi
+        done
+        colorecho "$RED" "ERROR $NC| Package $target not found"
+        return 1
+    else
+        for ((i = 0; i < ${#apps_package_name[@]}; i++)); do
+            colorecho "$THEME" "PKG  $NC | ${apps_package_name[i]}"
+            colorecho "$DEBUG" "INFO $NC | APP: ${apps_pretty_name[i]}, CAT: ${apps_category[i]}, DIS: ${apps_description[i]}"
+            colorecho "$DEBUG" "INFO $NC | Packages: ${apps_packages[i]}"
+            colorecho "$DEBUG" "INFO $NC | Commands: ${apps_commands[i]}"
+        done
+        colorecho "$GREEN" "INFO $NC |"
+        colorecho "$GREEN" "INFO $NC | $i packages found"
+    fi
+}
+
+# ACU Apps Menu (Categories)
+apps_menu() {
+    colorecho "$THEME" "INFO $NC | Loading apps list ..."
+    load_apps # Load Apps List
+    title "Apps - Categories"
+    echo
+    colorecho "$GREEN" "\t Category \t\t Description" "" "center" "-a"
+    echo
+    options=()
+    for ((i = 0; i < ${#apps_category_name[@]}; i++)); do
+        padded_name=$(printf "%-16s" "${apps_category_name[i]}")
+        options+=("$padded_name\t ${apps_category_description[i]}")
+    done
+    if [ ${#selection[@]} -gt 0 ]; then
+        options+=("Install selected apps")
+        options+=("Clear all selected")
+        print_selected_pkg
+    fi
+    options+=("Return to main menu")
+    select_option "${options[@]}"
+    choice=$?
+
+    if [ "${options[choice]}" = "Return to main menu" ]; then
+        config_options
+    elif [ "${options[choice]}" = "Clear all selected" ]; then
+        selection=()
+        apps_menu
+    elif [ "${options[choice]}" = "Install selected apps" ]; then
+        install_pkg
+    else
+        apps_menu_category $choice
+    fi
+}
+
+# ACU Apps Menu (Apps of the selected category)
+apps_menu_category() {
+    local catinx=$1
+    local i
+    local j
+    local selinx
+    local found
+    colorecho "$THEME" "INFO $NC | Loading ${apps_category_name[catinx]} ..."
+    title "Apps - ${apps_category_name[catinx]}"
+    echo
+    colorecho "$GREEN" "\t Apps \t\t Description" "" "center" "-a"
+    echo
+    options=()
+    selinx=()
+    checkbox_menu_checked=()
+    for ((i = 0; i < ${#apps_package_name[@]}; i++)); do
+        if [ "${apps_category[i]}" = "${apps_category_name[catinx]}" ]; then
+            padded_name=$(printf "%-20s" "${apps_pretty_name[i]}")
+            options+=("$padded_name \t ${apps_description[i]}")
+            selinx+=("$i")
+            found=0
+            for ((j = 0; j < ${#selection[@]}; j++)); do
+                if [ "${selection[j]}" = "${apps_package_name[i]}" ]; then
+                    found=1
+                    break
+                fi
+            done
+            if [ "$found" = 1 ]; then
+                checkbox_menu_checked+=("X")
+            else
+                checkbox_menu_checked+=(" ")
+            fi
+        fi
+    done
+    options+=("Return to apps categories (Select more packages / Install)")
+    if [ ${#selection[@]} -gt 0 ]; then
+        print_selected_pkg
+    fi
+    checkbox_menu=1
+    select_option "${options[@]}"
+    choice=$?
+    if [ "$choice" -eq $((${#options[@]} - 1)) ]; then
+        apps_menu
+    else
+        local si="${selinx[choice]}"
+        found=0
+        for ((j = 0; j < ${#selection[@]}; j++)); do
+            if [ "${selection[j]}" = "${apps_package_name[si]}" ]; then
+                found=1
+                break
+            fi
+        done
+        if [ "$found" = 1 ]; then
+            target="${apps_package_name[si]}" # Define the target item to remove
+            new_selection=()
+            for item in "${selection[@]}"; do
+                if [[ "$item" != "$target" ]]; then
+                    new_selection+=("$item")
+                fi
+            done
+            selection=("${new_selection[@]}")
+        else
+            selection+=("${apps_package_name[si]}")
+        fi
+        apps_menu_category $catinx
+    fi
+}
+
+# Indicates all selected package
+print_selected_pkg() {
+    local selected
+    for ((i=0; i<${#selection[@]}; i++)); do
+        selected="${selected} ${selection[i]}"
+    done
+    colorecho "$GREEN" "Selected packages: ${selected}" "bottom"
+}
+
+pkg_lookup_git() {
+    load_repositories
+    local i
+    local pkg=$1
+    local repo=$2
+    pkg_lookup_clone_url=""
+    pkg_lookup_clone_repo=""
+    for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
+        if [ "${repositories_repo_type[i]}" = "git" ]; then
+            if [[ "${repositories_repo_url[i]}" == *"://"*"/"*"/"* ]]; then
+                cd $HOME/.acu/cache/db
+                while IFS= read -r repo_pkg; do
+                    if [ "$pkg" = "$(basename $repo_pkg)" ]; then
+                        if [ -z "$repo" ]; then
+                            # Lookup and match any repo
+                            pkg_lookup_clone_url="$HOME/.acu/cache/db/$repo_pkg"
+                            pkg_lookup_clone_repo="${repositories_repo_name[i]}"
+                            cd $HOME
+                            return 0
+                        elif [ "$repo" = "${repositories_repo_name[i]}" ]; then
+                            # Lookup and match only the target repo
+                            pkg_lookup_clone_url="$HOME/.acu/cache/db/$repo_pkg"
+                            pkg_lookup_clone_repo="${repositories_repo_name[i]}"
+                            cd $HOME
+                            return 0
+                        fi
+                    fi
+                done < <(find ${repositories_repo_name[i]} -type f -name PKGBUILD -exec dirname {} \; | sort -u)
+                cd $HOME
+            elif [[ "${repositories_repo_url[i]}" != "https://api.github.com/repos"* ]]; then
+                local lookup=$(git ls-remote "${repositories_repo_url[i]}/$pkg" 2>/dev/null)
+                if [ -n "$lookup" ]; then
+                    if [ -z "$repo" ]; then
+                        # Lookup and match any repo
+                        pkg_lookup_clone_url="${repositories_repo_url[i]}/$pkg"
+                        pkg_lookup_clone_repo="${repositories_repo_name[i]}"
+                        return 0
+                    elif [ "$repo" = "${repositories_repo_name[i]}" ]; then
+                        # Lookup and match only the target repo
+                        pkg_lookup_clone_url="${repositories_repo_url[i]}/$pkg"
+                        pkg_lookup_clone_repo="${repositories_repo_name[i]}"
+                        return 0
+                    fi
+                fi
+            fi
+        fi
+    done
+    return 1
+}
+
+# Install Packages
+install_pkg() {
+    # Handle build only
+    if [ "$1" = "--noinstall" ]; then
+        use_pm="git"
+    fi
+    # Handle each packages installation
+    if [ -n "$use_pm" ]; then
+        local gpm=$use_pm
+    fi
+    for ((i=0; i<${#selection[@]}; i++)); do
+        local selection_base=$(basename ${selection[i]})
+        colorecho "$THEME" "INFO $NC | Looking for package: $selection_base"
+
+        # Handle URL & REPO
+        if [[ "${selection[i]}" == *"://"* ]]; then
+            pm_repo_name="GIT"
+            pm_repo_url="${selection[i]}"
+            use_pm="git"
+        elif [ "$(dirname ${selection[i]})" != "." ] && [ -n "$(dirname ${selection[i]})" ]; then
+            if (sudo pacman -Ssy "^$selection_base$" | grep ${selection[i]} &> /dev/null); then
+                use_pm="pacman"
+            elif pkg_lookup_git $selection_base "$(dirname ${selection[i]})"; then
+                pm_repo_name="$(dirname ${selection[i]})"
+                pm_repo_url="$pkg_lookup_clone_url"
+                use_pm="git"
+            else
+                colorecho "$RED" "ERROR $NC | Package $selection_base not found"
+                return 1
+            fi
+        elif [ "$use_pm" = "git" ]; then
+            if pkg_lookup_git $selection_base; then
+                # GIT
+                pm_repo_name="$pkg_lookup_clone_repo"
+                pm_repo_url="$pkg_lookup_clone_url"
+                use_pm="git"
+            else
+                colorecho "$RED" "ERROR $NC | Package $selection_base not found"
+                return 1
+            fi
+        fi
+
+        # Handle fallbacks
+        if [ "$fallback" = 1 ]; then
+            if [ ! "${#selection[@]}" -eq 2 ]; then
+                colorecho "$RED" "ERROR $NC | You must specify exactly two packages when used with --fallback."
+                return 1
+            fi
+        # Skip installed packages
+        elif [ "$needed" = 1 ] && pacman -Q "${selection_base#*)}" > /dev/null 2>&1 ; then
+            colorecho "$THEME" "INFO $NC | $selection_base is installed. Skipping ..."
+            use_pm="skip"
+        fi
+
+        # Find the package
+        if [ -z "$use_pm" ]; then
+            if [ -z "$skip_apps" ] && apps_list "$selection_base" &> /dev/null; then
+                # ACU Apps
+                use_pm="acu"
+            elif (sudo pacman -Ssy "^$selection_base$" &> /dev/null); then
+                # Pacman
+                use_pm="pacman"
+            elif pkg_lookup_git $selection_base; then
+                # GIT
+                pm_repo_name="$pkg_lookup_clone_repo"
+                pm_repo_url="$pkg_lookup_clone_url"
+                use_pm="git"
+            elif (agr 2>&1 | grep -v -E '://' | grep -v 'INFO' | grep -q "$selection_base"); then
+                # AGR
+                use_pm="agr"
+            elif fetch_repositories -q && echo -e "n" | install_ghrel_packages "$selection_base" | grep -q '.*pkg.*'; then
+                # GHREL
+                use_pm="ghrel"
+            elif [ "$fallback" != 1 ]; then
+                colorecho "$RED" "ERROR $NC | Package $selection_base not found"
+                return 1
+            fi
+        fi
+
+        # Install the package
+        if [ "$use_pm" = "acu" ]; then
+            # ACU Apps
+            local index=$(apps_list "$selection_base" -i)
+            colorecho "$GREEN" "APPS $NC | Installing $selection_base ($index)"
+            local package="${apps_packages[index]}"
+            colorecho "$DEBUG" "APPS $NC | Packages: $package"
+            if [ "$package" != "null" ]; then
+                colorecho "$GREEN" "APPS $NC | Resolving packages ..."
+                local j
+                for ((j=0; j<${#package[@]}; j++)); do
+                    if [[ "${package[j]}" = "(needed)"* ]]; then
+                        acu install -y "${package[j]#"(needed)"}" --needed --skipapps
+                    elif [[ "${package[j]}" != "(fallback)"* ]] && [[ "${package[j+1]}" == "(fallback)"* ]]; then
+                        acu install -y ${package[j]} "${package[j+1]#"(fallback)"}" --fallback --skipapps
+                    else
+                        acu install -y ${package[j]} --skipapps
+                    fi
+                done
+            fi
+            local commands="${apps_commands[index]}"
+            colorecho "$DEBUG" "APPS $NC | Commands: $commands"
+            if [ "$commands" != "null" ]; then 
+                colorecho "$GREEN" "APPS $NC | Running Package commands ..."
+                mkdir -p $HOME/.acu/cache/pkgs
+                echo -e $commands | tee $HOME/.acu/cache/pkgs/install-$selection_base.sh >/dev/null
+                bash $HOME/.acu/cache/pkgs/install-$selection_base.sh
+                rm $HOME/.acu/cache/pkgs/install-$selection_base.sh
+            fi
+        elif [ "$use_pm" = "pacman" ]; then
+            # Pacman
+            colorecho "$GREEN" "PACMAN $NC | Installing $selection_base"  
+            if [ -z "$no_confirm" ]; then
+                sudo pacman -S $selection_base 
+            else
+                sudo pacman -S $selection_base --noconfirm
+            fi
+        elif [ "$use_pm" = "git" ]; then
+            #GIT
+            if [ "$1" = "--noinstall" ]; then
+                colorecho "$GREEN" "$pm_repo_name $NC | Compiling $selection_base"
+                install_from_source "$pm_repo_url" --noinstall
+            else
+                 colorecho "$GREEN" "$pm_repo_name $NC | Compiling & Installing $selection_base"
+                install_from_source "$pm_repo_url"
+            fi           
+        elif [ "$use_pm" = "ghrel" ]; then
+            #GHREL
+            colorecho "$GREEN" "GHREL $NC | Installing $selection_base"  
+            install_ghrel_packages "$selection_base"
+        elif [ "$use_pm" = "agr" ]; then
+            # AGR
+            if [ "$(id -u)" -eq 0 ]; then
+                colorecho "$RED" "ERROR $NC | acu is running in root or sudo, the following command can not be executed"
+                exit 1
+            fi
+            colorecho "$GREEN" "AGR $NC | Compiling & Installing $selection_base"  
+            if [ -z "$no_confirm" ]; then
+                agr install $selection_base 
+            else
+                agr install $selection_base --noconfirm
+            fi
+        fi
+
+        if [ "$fallback" = 1 ]; then 
+            if pacman -Q "${selection_base#*)}" > /dev/null 2>&1 ; then
+                return 0
+            else
+                colorecho "$WARNING" "WARNING $NC | ${selection[0]} is replaced with ${selection[1]}"
+            fi 
+        fi
+
+        # Handle Kernel Installation
+        if [ "$1" != "--noinstall" ] && [[ "$selection_base" == "linux-"* ]] && [[ "$selection_base" != *"-headers" ]] && [[ "$selection_base" != "linux-firmware"* ]]; then
+            update_boot_config "$selection_base"
+        fi
+
+        # Restore use_pm for next package
+        if [ -n "$gpm" ]; then
+            use_pm="$gpm"
+        else
+            use_pm=""
+        fi
+    done
+}
+
+# Install Packages from Archive
+downgrade() {
+    title "Downgrade Packages"
+
+    if [ -z "$1" ]; then
+        local p=$(colorecho "$NC" "Enter a package to downgrade: " "" "center")
+        read -p "$p" dgpkg
+    else
+        dgpkg=$1
+    fi
+
+    if [ -z "$2" ]; then
+        nopkg=15
+    else
+        nopkg=$2
+    fi
+
+    dgpkgfb=$(echo $dgpkg | cut -b 1)
+    load_repositories
+    local i
+    local which_url
+    for ((i = 0; i < ${#repositories_repo_name[@]}; i++)); do
+        if [ "${repositories_repo_type[i]}" = "archive" ]; then
+            response_code=$(curl --write-out '%{response_code}' -s "${repositories_repo_url[i]}/" -o /dev/null)
+            if [ "$response_code" = 200 ]; then
+                which_url="${repositories_repo_url[i]}/packages/${dgpkgfb}/${dgpkg}/"
+                break
+            fi
+        fi
+    done
+
+    if [ -n "$which_url" ]; then
+        colorecho "$GREEN" "Fetching $which_url ..." "" "center"
+        echo
+        response_code=$(curl --write-out '%{response_code}' -s "$which_url" -o /dev/null)
+        if [ "$response_code" != 200 ]; then
+            colorecho "$RED" "ERROR $response_code | No result found" "" "center"
+            select_option "Return to Manage Packages Menu"
+        else
+            dgpkg_list=$(curl -s "$which_url" | grep -v '.sig' | grep -o 'href="[^"]*"' | sed 's/href="//;s/"$//' | grep -o ${dgpkg}.*-aarch64.pkg.tar.xz)
+            dgpkg_date=$(curl -s "$which_url" | grep -v '.sig' | grep -o "${dgpkg}.*-aarch64.pkg.tar.xz.*<td class=\"date\">.*</td>" | grep -o "<td class=\"date\">.*</td>" | awk -F'<td class="date">|</td>' '{print $2}')
+            dgpkg_list=($(paste -d ' ' <(echo "$dgpkg_list") <(echo "$dgpkg_date") | sort -k 2,2 -r | awk '{print $1}' | head -n $nopkg))
+            select_option "${dgpkg_list[@]}" "Return to Manage Packages Menu"
+            choice=$?
+        fi
+        if [ "$choice" -lt "${#dgpkg_list[@]}" ]; then
+            download_pkg_from_url "${which_url}${dgpkg_list[choice]}"
+            install_local_pkg "${which_url}${dgpkg_list[choice]}"
+        else
+            manage_packages
+        fi
+    else
+        colorecho "$RED" "ERROR $response_code | Archive repository unavailable or missing." "" "center"
+        select_option "Return to Manage Packages Menu"
+        manage_packages
+    fi
+}
+
+########################################################################
+## Performance & Features
+########################################################################
+
+# Performance & Features Main Menu
+performance_features() {
+    title "Performance & Features"
+    options=("SoC Profile \t\t Available options are performance, ondemand and powersave")
+    options+=("HW Monitor \t\t Monitor Hardware infomations, temperatures & clock frequency")
+    #options+=("Fan Control \t\t (ROCK 5 ONLY) Configure PWM Fan-control service")
+    #options+=("Overclocking - Configure rk3588-unlock-opps overlay which increases CPU supply & CPU VDD supply")
+    #options+=("Overlay - Configure Device Tree Overlay")
+    options+=("Return to Main Menu")
+    select_option "${options[@]}"
+    choice=$?
+
+    # Choice
+    case $choice in
+        0)
+            soc_profile
+            ;;
+        1)
+            local keypress=''
+            while [ "$keypress" != 'q' ]; do
+                hw_monitor --center
+                colorecho "$GREEN" "Press q to return to main menu" "bottom" "center"
+                read -t 3 -n 1 keypress
+            done
+            config_options
+            ;;
+        #2)
+            #overclocking
+            #;;
+        #3)
+            #overlays
+            #;;
+        *)
+            config_options
+            ;;
+    esac
+
+}
+
+# SoC Performance Profile
+soc_profile() {
+
+    if [ -z "$1" ]; then
+        title "SoC Performance Profile"
+        echo
+        colorecho "$THEME" "CPU Profile: $(cat /sys/bus/cpu/devices/cpu[046]/cpufreq/scaling_governor 2>/dev/null)" "" "center" "-a"
+        colorecho "$THEME" "Memory Profile: $(cat /sys/class/devfreq/dmc/governor 2>/dev/null)" "" "center" "-a"
+        colorecho "$THEME" "GPU Profile: $(cat /sys/class/devfreq/fb000000.gpu/governor 2>/dev/null)" "" "center" "-a"
+        echo
+        options=("Performance - Run SoC at full performance" "On Demand - Run SoC on CPU usage demand" "Power Save - Run SoC on Power Saving Mode" "System Default - Run SoC with system default settings" "Return to Main Menu")
+        select_option "${options[@]}"
+        choice=$?
+
+        case $choice in
+            0)
+                create_soc_profile_service "performance"
+                colorecho "$GREEN" "Profile set to Performance"
+                ;;
+            1)
+                create_soc_profile_service "ondemand"
+                colorecho "$GREEN" "Profile set to On Demand"
+                ;;
+            2)
+                create_soc_profile_service "powersave"
+                colorecho "$GREEN" "Profile set to Power Save"
+                ;;
+            3)
+                sudo rm /etc/systemd/system/soc_profile.service
+                sudo systemctl daemon-reload
+                colorecho "$GREEN" "Removed SoC Profile service"
+                ;;
+            *)
+                performance_features
+                ;;
+        esac
+        
+    elif [ "$1" = "set" ]; then
+        case $2 in
+            "performance")
+                echo performance | sudo tee /sys/bus/cpu/devices/cpu*/cpufreq/scaling_governor /sys/class/devfreq/dmc/governor /sys/class/devfreq/fb000000.gpu/governor
+                colorecho "$GREEN" "Set to Performance"
+                ;;
+            "ondemand")
+                echo ondemand | sudo tee /sys/bus/cpu/devices/cpu*/cpufreq/scaling_governor
+                echo dmc_ondemand | sudo tee /sys/class/devfreq/dmc/governor
+                echo simple_ondemand | sudo tee /sys/class/devfreq/fb000000.gpu/governor
+                colorecho "$GREEN" "Set to On Demand"
+                ;;
+            "powersave")
+                echo powersave | sudo tee /sys/bus/cpu/devices/cpu*/cpufreq/scaling_governor /sys/class/devfreq/dmc/governor /sys/class/devfreq/fb000000.gpu/governor
+                colorecho "$GREEN" "Set to Power Save"
+                ;;
+            *)
+                colorecho "$RED" "ERROR $NC | Invalid SoC Governor"
+                exit 1
+                ;;
+        esac
+    fi
+}
+
+create_soc_profile_service() {
+    local governor=$1
+    echo -e "[Unit]\nDescription=SoC Profile\nAfter=multi-user.target\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/acu soc set $governor \nRemainAfterExit=no\n\n[Install]\nWantedBy=multi-user.target" | sudo tee /etc/systemd/system/soc_profile.service > /dev/null
+    sudo systemctl enable soc_profile.service
+    sudo systemctl restart soc_profile.service
+}
+
+hw_monitor() {
+    if [ "$1" == "--center" ]; then
+        title "Hardware Monitor"
+        echo
+    else
+        title "Hardware Monitor" "left" "noclear"
+    fi
+    
+    # Get CPU Model
+    sys_cpu=$(cat /proc/cpuinfo | grep -m1 "model name" | cut -d':' -f2 | sed 's/^ *//' | tr -d '\0')
+    if [ -z "$sys_cpu" ] && [ -e "/proc/device-tree/compatible" ]; then
+        sys_cpu_vendor=$(awk -F ',' '{print $1}' /proc/device-tree/cpuinfo/compatible | tr -d '\0' | sed 's/^\(.\)/\U\1/')
+        sys_cpu_model=$(awk -F ',' '{print $NF}' /proc/device-tree/compatible | tr -d '\0' | tr '[:lower:]' '[:upper:]')
+        sys_cpu=$(echo "$sys_cpu_vendor $sys_cpu_model")
+    fi
+
+    # Get Number of Threads and Architechure
+    sys_cpu_thread=$(nproc)
+    sys_arch=$(uname -m)
+
+    # Get CPU Cores Model and Clock Freq
+    sys_temps=($(cat /sys/class/thermal/thermal_zone*/temp))
+    sys_temps_name=($(cat /sys/class/thermal/thermal_zone*/type))
+
+    if command -v lscpu &> /dev/null; then
+        sys_core_vendor=$(lscpu | grep "Vendor ID" | cut -d ":" -f 2 | cut -c 2- | tr -d ' ')
+        sys_core_model=($(lscpu -e=MODELNAME | tr -d ' '))
+        sys_core_model=("${sys_core_model[@]:1}") # Remove the first element
+
+        sys_core_freq=($(lscpu -e=MHZ))
+        sys_core_freq=("${sys_core_freq[@]:1}")  # Remove the first element
+
+        sys_core_min_freq=($(lscpu -e=MINMHZ))
+        sys_core_min_freq=("${sys_core_min_freq[@]:1}")  # Remove the first element
+
+        sys_core_max_freq=($(lscpu -e=MAXMHZ))
+        sys_core_max_freq=("${sys_core_max_freq[@]:1}")  # Remove the first element
+
+    elif [ -e "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq" ]; then
+        sys_core_freq=($(sudo cat /sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_cur_freq))
+        for ((i = 0; i < ${#sys_core_freq[@]}; i++)); do
+            sys_core_freq[i]=$(( ${sys_core_freq[i]} / 1000 ))
+        done
+    else
+        sys_core_freq=("0.00")
+    fi
+
+    if [ -e "/sys/bus/cpu/devices/cpu0/cpufreq/scaling_governor" ]; then
+        sys_cpu_governor=($(cat /sys/bus/cpu/devices/cpu*/cpufreq/scaling_governor))
+    fi
+
+    # GPU Model
+    if command -v glxinfo &> /dev/null; then
+        sys_gpu=$(glxinfo | grep "OpenGL renderer string" | cut -d ":" -f 2 | cut -c 2-)
+        sys_gl_ver=$(glxinfo | grep "OpenGL version string" | cut -d ":" -f 2 | cut -c 2-)
+        sys_gles_ver=$(glxinfo | grep "OpenGL ES profile version string" | cut -d ":" -f 2 | cut -c 2-)
+    else
+        sys_gpu="Unknown (mesa-utils not installed)"
+        sys_gl_ver="Unknown (mesa-utils not installed)"
+        sys_gles_ver="Unknown (mesa-utils not installed)"
+    fi
+
+    if command -v vulkaninfo &> /dev/null; then
+        sys_vk_ver=$(vulkaninfo | grep "Vulkan Instance Version" | cut -d ":" -f 2 | cut -c 2-)
+    else
+        sys_vk_ver="Unknown (vulkaninfo not installed)"
+    fi
+
+    if [ "$1" == "--center" ]; then
+        local align="center"
+        local alignarg="-a"
+    fi
+
+    colorecho "$THEME" "CPU: $NC ($sys_cpu_thread) $sys_cpu ($sys_arch)" "" "$align" "$alignarg"
+    echo
+    for ((i=0; i<${#sys_core_freq[@]}; i++)); do
+        local core_freq="${sys_core_freq[i]}"
+        local core_model="${sys_core_vendor} ${sys_core_model[i]}"
+        local core_mfreq="Min: ${sys_core_min_freq[i]} MHz, Max: ${sys_core_max_freq[i]} MHz"
+        colorecho "$THEME" "\t Core $i: $NC $core_model @ $core_freq MHz (${sys_cpu_governor[i]}) ($core_mfreq)" "" "$align" "$alignarg"
+    done
+    echo
+    colorecho "$THEME" "GPU: $NC ${sys_gpu:-"Software Rendering"}" "" "$align" "$alignarg"
+    colorecho "$THEME" "\t OpenGL: $NC ${sys_gl_ver:-"Unsupported"}" "" "$align" "$alignarg"
+    colorecho "$THEME" "\t OpenGL ES: $NC ${sys_gles_ver:-"Unsupported"}" "" "$align" "$alignarg"
+    colorecho "$THEME" "\t Vulkan: $NC ${sys_vk_ver:-"Unsupported"}" "" "$align" "$alignarg"
+    echo
+    colorecho "$THEME" "Temperatures:" "" "$align" "$alignarg"
+    for ((i=0; i<${#sys_temps[@]}; i++)); do
+        local stemp="$((sys_temps[i] / 1000))"
+        local stemp_name=$(echo "${sys_temps_name[i]%-thermal}" | tr '[:lower:]' '[:upper:]')
+        colorecho "$THEME" "\t $stemp_name: $NC $stemp C" "" "$align" "$alignarg"
+    done
+}
+
+########################################################################
+## Localization
+########################################################################
+
+# Localization Main Menu
+localization() {
+    title "Localization"
+    options=("Locale \t\t Generate Locale Settings")
+    options+=("Fonts \t\t\t Install Fonts, TTF, Non-English Characters, Special Characters / Emoji")
+    options+=("Time \t\t\t Change Time Zone, Current Date and Time")
+    options+=("Keyboard Layout \t Change Keyboard Layout")
+    options+=("Return to Main Menu")
+    select_option "${options[@]}"
+    choice=$?
+
+    # Choice
+    case $choice in
+        0)
+            locale
+            ;;
+        1)
+            fonts
+            ;;
+        2)
+            timezone
+            ;;
+        3)
+            keyboard
+            ;;
+        *)
+            config_options
+            ;;
+    esac
+
+}
+
+# Function to manage user accounts
+manage_user() {
+
+    confirm_password() {
+        while true; do
+            read -s -p "Set a password for $new_user: " new_pw
+            echo
+            read -s -p "Confirm password for $new_user: " cfm_pw
+            echo
+            if [ "$new_pw" != "$cfm_pw" ]; then
+                colorecho "$RED" "ERROR $NC | Password and confirm password does not match."
+            elif [ -z "$new_pw" ] || [ -z "$cfm_pw" ]; then
+                colorecho "$RED" "ERROR $NC | Password can not be empty."
+            else
+                return 0
+            fi
+        done
+    }
+
+    if [ -z "$1" ]; then
+    title "Manage User"
+    echo
+    
+    # List all user accounts
+    real_users=($(getent passwd | awk -F: '$3 >= 1000 && $3 < 65534 {print $1}'))
+
+    # Prompt to add a new user
+    select_options=("Return to Main Menu" "Add User ...")
+    select_options+=("${real_users[@]}")
+    
+    select_option "${select_options[@]}"
+    choice=$?
+
+    elif [ "$1" = "add" ]; then
+        choice=1
+        new_user=$2
+        new_pw=$3
+        cfm_pw=$3
+    elif [ "$1" = "remove" ]; then
+        choice=99
+        t_user=$2
+    elif [ "$1" = "manage" ]; then
+        selected_user=$2
+        manage_action=$3
+    fi
+
+    case $choice in
+        0)
+            config_options
+            ;;
+        1)
+            if [ -z "$new_user" ]; then
+                title "Add New User" "left"
+                read -p "Enter username for the new user: " new_user
+            fi
+            if [ -z "$new_pw" ]; then
+                confirm_password
+            fi
+            sudo useradd -m "$new_user"
+            echo -e "$new_pw\n$cfm_pw" | sudo passwd "$new_user"
+            sudo usermod -aG wheel "$new_user"
+            sudo usermod -aG video "$new_user"
+            sudo usermod -aG audio "$new_user"
+            sudo usermod -aG games "$new_user"
+            sudo usermod -aG log "$new_user"
+            sudo usermod -aG lp "$new_user"
+            sudo usermod -aG optical "$new_user"
+            sudo usermod -aG power "$new_user"
+            sudo usermod -aG scanner "$new_user"
+            sudo usermod -aG storage "$new_user"
+            ;;
+        99)
+            if [ -z "$t_user" ]; then
+                title "Remove User"
+                read -p "Enter username to remove: " t_user
+            fi            
+             # Remove  account
+            sudo userdel -r $t_user
+            if [ $? -eq 0 ]; then
+                echo "account removed successfully"
+            else
+                echo "Error removing account"
+            fi
+            ;;
+        *)
+            if [ -z "$selected_user" ]; then
+                selected_user=${real_users[$((choice - 2))]}
+            fi
+
+            if [ -z "$manage_action" ]; then
+                title "\t Manage User ${WHITE}($selected_user)"
+                echo
+                colorecho "$GREEN" "Options" "" "center"
+                echo
+
+                # Perform actions for the selected user (if needed)
+                options=("Return to Manage User Menu" "Change User Password")
+
+                if sudo -lU "$selected_user" | grep NOPASSWD | grep -v -q "(root)"; then
+                    options+=("Enable Sudo Password")
+                else
+                    options+=("Disable Sudo Password")
+                fi
+
+                if sudo grep -qFx "$selected_user $hostname =NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot" /etc/sudoers; then
+                    options+=("Enable Reboot Password")
+                else
+                    options+=("Disable Reboot Password")
+                fi
+
+                select_option "${options[@]}"
+                choice=$?
+            elif [ "$manage_action" = "sudopw" ]; then
+                choice=2
+            elif [ "$manage_action" = "rebootpw" ]; then
+                choice=3
+            fi
+
+            case $choice in
+                0)
+                    manage_user
+                    ;;
+                1)
+                    sudo passwd "$selected_user"
+                    ;;
+                2)  
+                    if sudo -lU "$selected_user" | grep NOPASSWD | grep -v -q "(root)"; then
+                        sudo sed -i "s/^\($selected_user.*\)NOPASSWD: ALL/\1ALL/" /etc/sudoers
+                        colorecho "$GREEN" "Enabled Sudo Password for $selected_user"
+                    else
+                        # NOPASSWD is not set, check if the user exists in sudoers file
+                        if sudo grep -q "^[^#]*$selected_user ALL" /etc/sudoers; then
+                            # User exists, change (ALL) ALL to (ALL) NOPASSWD: ALL
+                            sudo sed -i "s/^\($selected_user.*\)(ALL) ALL/\1(ALL) NOPASSWD: ALL/" /etc/sudoers
+                            echo "Changed $selected_user permissions to NOPASSWD: ALL"
+                        else
+                            # User does not exist, add it to sudoers file
+                            echo "$selected_user ALL=(ALL) NOPASSWD: ALL" | sudo tee -a "/etc/sudoers" >/dev/null
+                            echo "Added $selected_user to sudoers file with NOPASSWD: ALL"
+                        fi
+                        colorecho "$GREEN" "Disabled Sudo Password for $selected_user"
+                    fi
+                    ;;
+                3)
+                    local hostname=$(hostnamectl --static)
+                    if grep -qFx "$selected_user $hostname =NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot" /etc/sudoers; then
+                        sudo sed -i "/^$selected_user $hostname =NOPASSWD: \/usr\/bin\/systemctl poweroff,\/usr\/bin\/systemctl halt,\/usr\/bin\/systemctl reboot$/d" /etc/sudoers
+                        colorecho "$GREEN" "Enabled Reboot Password"
+                    else
+                        echo "$selected_user $hostname =NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot" | sudo tee -a "/etc/sudoers" >/dev/null
+                        colorecho "$GREEN" "Disabled Reboot Password"
+                    fi
+                    ;;
+            esac
+            ;;
+    esac
+}
+
+# Function to select and generate locale
+locale() {
+
+    generated_locales=$(sudo localedef --list-archive)
+    local i
+    
+    if [ -z "$1" ]; then
+        title "Locale"
+        # List available locales
+        echo
+        colorecho "$GREEN" "Generated Locales:" "" "center"
+        echo
+        generated_locales=($(echo $generated_locales))
+        for ((i = 0; i < ${#generated_locales[@]}; i++)); do
+            colorecho "$NC" "${generated_locales[i]}" "" "center"
+        done
+        echo
+
+        # Prompt to select and generate locale
+        select_options=("Generate New Locales" "Return to Localization Menu")
+        select_option "${select_options[@]}"
+        choice=$?
+    elif [ "$1" = "list-generated" ]; then
+        echo "$generated_locales"
+        exit 1
+    elif [ "$1" = "list-available" ] || [ "$1" = "generate" ]; then
+        choice=0
+    else
+        colorecho "$RED" "ERROR $NC | Invalid option"
+        exit 1
+    fi
+
+    case $choice in
+        0)
+            # Read available locales from file and add numbers
+            IFS=$'\n' read -d '' -ra locales <<< "$(grep -E '^#[^[:space:]]' /etc/locale.gen | sed 's/^#//')"
+            IFS=$'\n' read -d '' -ra langcode <<< "$(grep -E '^#[^[:space:]]' /etc/locale.gen | sed 's/^#//; s/[ @.].*//' | uniq)"
+
+            if [ ! "$1" = "list-available" ]; then
+
+                if [ "$1" = "generate" ] && [ -z "$2" ] || [ "$1" = "locale" ] && [ -z "$2" ] || [ -z "$1" ]; then
+                    colorecho "$GREEN" "Available Locales for generation:"
+
+                    for ((i = 0; i < ${#langcode[@]}; i++)); do
+                        echo "$((i + 1))) ${langcode[$i]}"
+                    done
+
+                    read -p "Enter the locale number: " chosen_number
+                    chosen_locale=${langcode[$((chosen_number - 1))]}
+                    colorecho "$GREEEN" "Picked $chosen_locale"
+                else
+                    chosen_locale=$2
+                fi
+
+                # Iterate through the array and find matches
+                matches=()
+                for ((i = 0; i < ${#locales[@]}; i++)); do
+                    element="${locales[i]}"
+                    if [[ "$element" =~ $chosen_locale ]]; then
+                        matches+=("$element")
+                    fi
+                done
+                
+                title "Generate Locale"
+                echo
+                colorecho "$GREEN" "The following locales will be added:" "" "center"
+                echo
+                for ((i = 0; i < ${#matches[@]}; i++)); do
+                    colorecho "$NC" "${matches[i]}" "" "center"
+                done
+                echo
+
+                if [ -n "$no_confirm" ]; then
+                    choice=0
+                elif [ -z "$3" ]; then
+                    select_options=("Generate Locales" "Cancel")
+                    select_option "${select_options[@]}"
+                    choice=$?
+                else
+                    colorecho "$RED" "ERROR $NC | Invalid option"
+                    exit 1
+                fi
+
+                if [ "$choice" = 0 ]; then
+                    for ((i = 0; i < ${#matches[@]}; i++)); do
+                        sudo sed -i "s|#${matches[i]}|${matches[i]}|" /etc/locale.gen
+                    done
+                    sudo locale-gen
+                fi
+        
+            else
+                for ((i = 0; i < ${#langcode[@]}; i++)); do
+                    echo "${langcode[$i]}"
+                done
+            fi
+            ;;
+        *)
+            localization
+            ;;
+    esac
+}
+
+# Function to manage fonts
+fonts() {
+    title "Fonts"
+    
+    # Prompt to install fonts
+    select_options=("Install Noto Fonts (including CJK and Emoji) - Support Asian Characters" "Install TTF Fonts from File" "Return to Localization Menu")
+    select_option "${select_options[@]}"
+    choice=$?
+
+    case $choice in
+        0)
+            sudo pacman -Sy noto-fonts noto-fonts-cjk noto-fonts-emoji --noconfirm
+            ;;
+        1)
+            read -p "Enter the path to the TTF font file: " font_path
+            sudo cp "$font_path" /usr/share/fonts/TTF/
+            sudo fc-cache -f -v
+            ;;
+        *)
+            localization
+            ;;
+    esac
+}
+
+# Function to change time zone and date/time
+timezone() {
+    
+    # Get current time zone and network time zone
+    current_timezone=$(timedatectl show --property=Timezone --value)
+    network_timezone=$(curl -s https://ipapi.co/timezone)
+
+
+    if [ -z "$1" ]; then
+
+        title "Time Zone"
+        echo
+        colorecho "$GREEN" "Network Time Zone: $network_timezone" "" "center"
+
+        if [ "$current_timezone" = "$network_timezone" ]; then
+            colorecho "$GREEN" "Current Time Zone: $current_timezone" "" "center"
+        else
+            colorecho "$RED" "Current Time Zone: $current_timezone" "" "center"
+        fi
+
+        echo
+        select_options=("Return to Localization Menu" "Set Time Zone Manually" "Set Date & Time Manually")
+
+        if [ "$current_timezone" != "$network_timezone" ]; then
+            select_options+=("Synchronize Time Zone with Network")
+        fi
+
+        select_option "${select_options[@]}"
+        choice=$?
+    
+    elif [ "$1" = "set-time-zone" ]; then
+        if [ -z "$2" ]; then
+            choice=1
+        elif [ "$2" = "sync" ]; then
+            choice=3
+        else
+            choice=1
+            new_timezone=$2
+        fi
+    elif [ "$1" = "set-time-date" ]; then
+        choice=2
+    elif [ "$1" = "network-time-zone" ]; then
+        echo $network_timezone
+    elif [ "$1" = "system-time-zone" ]; then
+        echo $current_timezone
+    fi
+
+    case $choice in
+        0)
+            localization
+            ;;
+        1)
+            if [ -z "$new_timezone" ]; then
+                read -p "Enter new time zone (e.g., Asia/Tokyo): " new_timezone
+            fi
+            sudo timedatectl set-timezone "$new_timezone"
+            echo "Time Zone updated to $new_timezone"
+            sudo timedatectl set-ntp true
+            ;;
+        2)
+            read -p "Enter the new date and time in format 'YYYY-MM-DD HH:MM:SS': " new_datetime
+            sudo timedatectl set-time "$new_datetime"
+            ;;
+        3)
+            sudo timedatectl set-timezone "$network_timezone"
+            sudo timedatectl set-ntp true
+            colorecho "$GREEN" "Time Zone synchronized with network."
+            ;;
+    esac
+}
+
+# Function to change keyboard layout
+keyboard() {
+    title "Keyboard Layout"
+
+    # Get current keyboard layout
+    current_layout=$(localectl status | grep "X11 Layout" | awk '{print $3}')
+    
+    echo
+    colorecho "$GREEN" "Current Keyboard Layout: $current_layout" "" "center"
+    echo
+    
+    # Prompt to select new keyboard layout
+    select_options=("Change Keyboard Layout" "Return to Localization Menu")
+    select_option "${select_options[@]}"
+    choice=$?
+
+    case $choice in
+        0)
+            read -p "Enter new keyboard layout (e.g., us, de): " new_layout
+            sudo localectl set-x11-keymap "$new_layout"
+            echo "Keyboard Layout updated to $new_layout"
+            ;;
+        *)
+            localization
+            ;;
+    esac
+}
+
+########################################################################
+## Settings
+########################################################################
+# ACU Settings
+settings() {
+    title "ACU Settings"
+    echo
+    colorecho "$NC" "\t\tTheme:          ${THEME_NAME:-"(unset)"}" "" "center" "-a"
+    colorecho "$NC" "\t\tTheme Color:   $THEME This is an example $NC" "" "center" "-a"
+    colorecho "$NC" "\t\tWarning Color: $WARNING This is a warning message $NC" "" "center" "-a"
+    colorecho "$NC" "\t\tDebug Color:   $DEBUG This is a debug message $NC" "" "center" "-a"
+    colorecho "$NC" "\t\tConfig File:    $config_file" "" "center" "-a"
+    colorecho "$WARNING" "\t    WARNING $NC| $utilname is experimental |$GREEN $release" "bottom" "center" "-a" # Bottom Text
+    echo
+    select_options=("Change ACU Theme" "Change Theme Color" "Edit ACU Configurations" "Load Default ACU Configurations" "Return to Main Menu")
+    select_option "${select_options[@]}"
+    choice=$?
+
+    case $choice in
+        0)
+            title "ACU Themes"
+            echo
+            select_options=(   "ACU - Light" "ACU - Dark" "ACU - Gaming")
+            local theme_color=("\$BLUE"      "\$LTBLUE"     "\$RED"       )
+            local theme_bg=(   "\$BGWHITE"   "\$BGBLACK"  "\$BGBLACK"   )
+            select_option "${select_options[@]}" "Reset to default (theme unset)" "Return to Main Menu"
+            choice=$?
+            if [ "$choice" -lt "${#select_options[@]}" ]; then
+                sed -i "s| #BACKGROUND: | BACKGROUND: |" $config_file
+                sed -i "s| #THEME_NAME: | THEME_NAME: |" $config_file
+                sed -i "s| #THEME: | THEME: |" $config_file
+                sed -i "s/ THEME_NAME:.*/ THEME_NAME: ${select_options[choice]}/g" $config_file
+                sed -i "s/ BACKGROUND:.*/ BACKGROUND: ${theme_bg[choice]}/g" $config_file
+                sed -i "s/ THEME:.*/ THEME: ${theme_color[choice]}/g" $config_file
+                load_config
+                settings
+            elif [ "$choice" -eq "${#select_options[@]}" ]; then
+                echo "Reset to default"
+                sed -i "s| BACKGROUND: | #BACKGROUND: |" $config_file
+                sed -i "s| THEME_NAME: | #THEME_NAME: |" $config_file
+                sed -i "s| THEME: | #THEME: |" $config_file
+                acu settings
+            else
+                settings
+            fi
+            ;;
+        1)
+            title "Theme Color"
+            echo
+            select_options=("\$GREY" "\$RED" "\$GREEN" "\$ORANGE" "\$BLUE" "\$DKBLUE" "\$MAGENTA" "\$CYAN" "\$WHITE" "\$LTMAGENTA" "\$LTBLUE" "\$DKRED" "\$DKGREEN")
+            select_option "${select_options[@]}" "Reset to default" "Return to Main Menu"
+            choice=$?
+            if [ "$choice" -lt "${#select_options[@]}" ]; then
+                sed -i "s| #THEME: | THEME: |" $config_file
+                sed -i "s/ THEME:.*/ THEME: ${select_options[choice]}/g" $config_file
+                load_config
+                settings
+            elif [ "$choice" -eq "${#select_options[@]}" ]; then
+                echo "Reset to default"
+                sed -i "s| THEME: | #THEME: |" $config_file
+                acu settings
+            else
+                settings
+            fi
+            ;;
+        2)
+            title "Edit ACU Configurations"
+            colorecho "$GREEN" "INFO $NC | Starting Editor ... When you finish, press Ctrl+O to save then press Ctrl+X to exit the editor." "center" "center"
+            sleep 2
+            nano $config_file
+            acu settings
+            ;;
+        3)
+            title "Load Default ACU Configurations"
+
+            if [ -z "$no_confirm" ]; then
+                local p=$(colorecho "$RED" "ACU $NC | Confirm to load default ACU Configurations? (This will remove all existing data of ACU) [y/N]:")
+                read -p "$p" resetconfig
+            else
+                resetconfig="y"
+            fi
+
+            if [[ "$resetconfig" == [Yy]* ]]; then
+                echo "Removing configurations and cache ..."
+                sudo rm -rf $HOME/.acu/config
+                sudo rm -rf $HOME/.acu/cache
+                echo "Loading default configuration ..."
+                load_config
+                settings
+            else
+                settings
+            fi
+            ;;
+        *)
+            config_options
+            ;;
+    esac
+    
+}
+
+########################################################################
+## Main Program
+########################################################################
+
+# NOTE that if new configurations (that arent optional / have a default value) are added, need to patch the existing user configurations file
+# Load user configurations from YAML file
+load_config() {
+    if [ -f "$config_file" ] || [[ "$config_file" == *"://"* ]] ; then
+        eval $(load_yaml "$config_file" " ")
+    elif [ ! "$(id -u)" -eq 0 ]; then
+        # Create Desktop Shortcut
+        local desktop_shortcut_file="/usr/share/applications/acu.desktop"
+        echo "Creating Desktop Shortcut and Icon ..."
+        sudo curl -L https://raw.githubusercontent.com/kwankiu/acu/$release/examples/acu.png -o /usr/share/pixmaps/acu.png
+        echo -e "[Desktop Entry]\nName=$utilname\nExec=acu\nType=Application\nVersion=$release\nIcon=acu\nComment=$utilname\nCategories=System;Utility;\nTerminal=true\n" | sudo tee "$desktop_shortcut_file" >/dev/null
+        # Download default configurations file
+        local config_dir=$(dirname "$config_file")
+        if [ -f "$config_dir/config.old" ]; then
+            echo "Downloading new configuration file ..."
+        else
+            echo "No configuration file found, downloading configuration file ..."
+        fi
+        mkdir -p "$config_dir"
+        mkdir -p $HOME/.acu/cache/tmp
+        response_code=$(curl --write-out '%{response_code}' -L https://raw.githubusercontent.com/kwankiu/acu/$release/config/config.yaml -o $HOME/.acu/cache/tmp/tmpdownload_config.yaml)
+        if [ "$response_code" = 200 ]; then
+            cp -r $HOME/.acu/cache/tmp/tmpdownload_config.yaml $HOME/.acu/config/config.yaml
+            sudo rm -rf $HOME/.acu/cache/tmp/tmpdownload_config.yaml
+            if [ ! -f "$config_dir/config.old" ]; then
+                response_code=$(curl --write-out '%{response_code}' -L https://raw.githubusercontent.com/kwankiu/acu/$release/examples/repo.yaml -o $HOME/.acu/cache/tmp/tmpdownload_repo.yaml)
+                if [ "$response_code" = 200 ]; then
+                    cp -r $HOME/.acu/cache/tmp/tmpdownload_repo.yaml $HOME/.acu/config/repo.yaml
+                    sudo rm -rf $HOME/.acu/cache/tmp/tmpdownload_repo.yaml
+                else
+                    sudo rm -rf $HOME/.acu/cache/tmp/tmpdownload_repo.yaml
+                    colorecho "$RED" "ERROR $NC | Failed to download new repository file."
+                fi
+            fi
+            load_config
+            acu update
+        else
+            sudo rm -rf $HOME/.acu/cache/tmp/tmpdownload_config.yaml
+            colorecho "$RED" "ERROR $NC | Failed to download new configuration file."
+            exit 1
+        fi
+    fi
+}
+
+print_config_values() {
+    echo "Device Configuration: ${device_config:-"(unset)"}"
+    echo "No Configuration Update: ${no_config_update:-"(unset)"}"
+    echo "No Confirm: ${no_confirm:-"(unset)"}"
+    echo "No Warning: ${no_warning:-"(unset)"}"
+    echo "No Clear: ${no_clear:-"(unset)"}"
+    echo "Debug Log: ${debug_log:-"(unset)"}"
+    echo "Auto Update: ${auto_update:-"(unset)"}"
+    echo "Source Repo Dir: $HOME/${source_repo_dir:-"(unset)"}"
+    echo "Repositories List: ${repositories_list:-"(unset)"}"
+    echo "Repositories Update URL: ${repositories_list_update:-"(unset)"}"
+}
+# Handle load config argument
+for arg in "$@"; do
+    case "$arg" in
+        --loadconfig=*)
+            config_file="${arg#*=}"
+            ;;
+        --nocolorecho)
+            no_color_echo=1
+            ;;
+    esac
+done
+
+# Load configurations
+load_config
+
+# Handle other arguments
+for arg in "$@"; do
+    case "$arg" in
+        -d | --debug)
+            debug_log=1
+            ;;
+        -v | --version)
+            colorecho "$THEME" "$utilname $release"
+            colorecho "$DEBUG" "Build Number: $utilver"
+            ;;
+        -h | --help)
+            colorecho "$THEME" "$utilname $release"
+            colorecho "$DEBUG" "Build Number: $utilver"
+            echo
+            colorecho "$GREEN" "Usage"
+            echo
+            echo "  acu : show interactive menu"
+            echo "  acu <options> --flags : run commands"
+            echo
+            colorecho "$GREEN" "Options"
+            echo
+            echo "  -h / --help : Usage and Infomation of this configuration utility."
+            echo "  -v / --version : Version of this configuration utility."
+            echo "  -d / --debug : Show more logs, useful for debugging."
+            echo "  -u / --update : Install / Update to latest configuration utility."
+            echo "  -y / --yes : Automatically confirm y / yes for everything, not recommended for install command."
+            echo "  --loadconfig=<path/url> : load an acu config file from path or url. (use with -u to install this config as default config file)"
+            echo "  --update=<release> : Install / Update configuration utility to a specified release tag."
+            echo "  --usepm=<pm> : Specify a package manager to use when installing packages. <pm> options: pacman, agr, git."
+            echo "  --skipapps : Skip looking up apps list when using the install command"
+            echo "  --needed : Skip already installed package when using the install command"
+            echo "  --fallback : Install an alternative package if the first one fails when using the install command"
+            echo "  --device=<tag> : Specify target device tag. By default if not set, ACU will auto detect it from /proc/device-tree/compatitble."
+            echo "  --branch=<branch> : Specify a git branch for setting or cloning from remote repository."
+            echo "  --noconfirm : Do not ask for confirmation when resolving dependencies and installing packages managed by pacman / makepkg."
+            echo "  --nowarning : Do not show warning messages."
+            echo "  --noclear : Do not clear terminal output."
+            echo "  --nowarning : Do not show warning messages."
+            echo "  --nocolorecho : Disable color or cursor position in output, useful for non-interactive usage."
+            echo
+            colorecho "$GREEN" "Features"
+            echo
+            colorecho "$THEME" "System Maintenance"
+            echo
+            echo "  bootloader <bootloader> : Flash Bootloader to eMMC/TF Card/SPI Flash. <bootloader> options: radxa, radxa-debug, edk2-rock5a, edk2-rock5b, armbian."
+            #echo "  backup <save_path> : Backup a flashable image of this system."
+            #echo "  restore <img_path> : Restore this system from a flashable image. <img_path> : path to the image to restore."
+            #echo "  clone <disk> : Clone this system to another disk. <disk> : disk location, example /dev/nvme0n1."
+            echo "  sysinfo : Print infomation of this system / device."
+            echo "  alias add / create : add an alias / shortcut of a command."
+            echo "  alias remove / del : remove an alias created by acu."
+            echo "  update-boot-config <pkgname> : Update boot config for booting to a new kernel."
+            echo
+            colorecho "$THEME" "Manage Packages"
+            echo
+            echo "  apps / install / -S : show interactive menu to install a collection of apps / packages."
+            echo "  apps list : show all available packages of acu apps list."
+            echo "  apps list <package> : find a packages from acu apps list."
+            echo "  apps index <package> : find a packages from acu apps list and return only its list item index."
+            echo "  -S / install <package> : install a package using acu, you can install multiple packages with one command, example: acu install package1 package4 package3"
+            echo "  update : Fetch pacman repositories, acu managed repositories and update lists defined in config."
+            echo "  upgrade : Check & Perform Selective / Full System Upgrade."
+            echo "  -D / downgrade <package> <index> : Install / Downgrade any Arch Linux Packages from Archive. <package>: package name <index>: index to show, default=15."
+            echo "  -R / remove : remove / uninstall a package from this system."
+            echo "  -B / build <URL> : build / compile a package without installing. <URL>"
+            echo "  rem / rem manage : show menu for add, list or remove ACU Managed and Pacman Repositories."
+            echo "  rem fetch : fetch acu managed repositories and print all fetched packages."
+            echo "  rem list / rem show <pacman/acu> : list acu managed repositories, optional argument to list only pacman repositories or acu repositories."
+            echo "  rem add / rem set <name> <url> <type> : add a repository, <type> is optional."
+            echo "  rem add / rem set <name> <url> pacman <gpg_key> : add a repository to pacman."
+            echo "  rem remove / rem del <name> : remove a repository from acu."
+            echo "  rem remove / rem del pacman <name>: remove a repository from pacman."
+            echo
+            colorecho "$THEME" "Performance"
+            echo
+            echo "  soc set <governor> : Manage SoC Settings. options: performance, ondemand, powersave."
+            echo "  hwmon : Print hardware infomations like cpu clock freq, temps and gpu info."
+            #echo "  fan <option> : Configure PWM Fan-control. options: install, enable, disable and status."
+            echo
+            colorecho "$THEME" "Localization"
+            echo
+            echo "  locale : Generate Locale Settings. options: list-generated, list-available, generate <country_code>"
+            echo "  font : Install Fonts, TTF, Non-English Characters, Special Characters / Emoji."
+            echo "  time <option> : Change Time Zone, Current Date and Time. options: set-time-zone, set-time-date, network-time-zone, system-time-zone"
+            echo "  keyboard : Change Keyboard Layout."
+            #echo "  wifi : Change WiFi Country Settings."
+            echo
+            colorecho "$THEME" "User Accounts"
+            echo
+            echo "  user <option> : Add, Remove and Change User Account Settings. options: add, remove, manage"
+            echo
+            colorecho "$THEME" "ACU Settings"
+            echo
+            echo "  settings : Config ACU Settings, change theme, color , edit ACU Configurations, etc."
+            exit 0
+            ;;
+        -u | --update)
+            argupdate=1
+        ;;
+        --update=*)
+            remote_release="${arg#*=}"
+            argupdate=1
+        ;;
+        -y | --yes)
+            args=("$@")
+            for ((i = 0; i < ${#args[@]}; i++)); do
+                if [[ "${args[i]}" == "-y" || "${args[i]}" == "--yes" ]]; then
+                    unset 'args[i]'  # Remove -y or --yes from the arguments
+                fi
+            done
+            if [ -n "$3" ] && [ "$1" != "locale" ] ; then
+                yes y | acu "${args[@]}"
+                exit 0
+            else
+                no_confirm=1
+            fi
+        ;;
+        --noconfirm)
+            no_confirm=1
+        ;;
+        --nowarning)
+            no_warning=1
+        ;;
+        --noclear)
+            no_clear=1
+        ;;
+        --needed)
+            needed=1
+        ;;
+        --fallback)
+            fallback=1
+        ;;
+        --skipapps)
+            skip_apps=1
+        ;;    
+        --device=*)
+            device_config="${arg#*=}"
+            colorecho "$DEBUG" "INFO $NC | use target device : $device_config"
+        ;;
+        --branch=*)
+            git_branch="${arg#*=}"
+            colorecho "$DEBUG" "INFO $NC | clone from branch : $git_branch"
+        ;;
+        --usepm=*)
+            use_pm="${arg#*=}"
+        ;;
+        -*)
+            case "$arg" in
+                -S | -R | -D | -B | --loadconfig=* | --nocolorecho) 
+                    # Add more excluded arguments as needed (these args are handled before or after this loop)
+                    ;;
+                *)
+                    colorecho "$RED" "ERROR $NC | Invalid command or argument."
+                    exit 1
+                    ;;
+            esac
+            ;;
+    esac
+done
+
+# non-aarch64 system warning
+if [ "$system_arch" != "aarch64" ] && [ "$system_arch" != "arm64" ] && [ "$system_arch" != "armv8" ]; then
+    colorecho "$WARNING" "WARNING $NC | System is $system_arch, some features are unsupported"
+fi
+
+if [ -z "$device_config" ] && [ -f "/proc/device-tree/compatible" ]; then
+    device_config=$(sed 's/\x00/ /g; s/,/ /g' /proc/device-tree/compatible | awk '{print $1, $2}' | tr ' ' '-')
+fi
+
+# Debug logging
+colorecho "$DEBUG" "INFO $NC | Debug logging is enabled"
+colorecho "$DEBUG" "INFO $NC | Configuration ($config_file):"
+colorecho "$DEBUG" ""
+
+# Print loaded ACU Config if debug enabled
+if [ -n "$debug_log" ]; then
+    print_config_values
+fi
+
+# Install / Reinstall / Updates / Auto Update
+if [ -n "$argupdate" ] || [ -n "$auto_update" ]; then
+    if [ -z "$remote_release" ]; then
+        check_util_updates
+    fi
+    update_util "$@"
+fi
+
+# make sure it is in a working directory
+pwd=$(pwd)
+cd $HOME
+
+### Features - Manage Packages ###
+if [ "$1" = "upgrade" ]; then
+    package_update
+
+elif [ "$1" = "update" ]; then
+    # Fetch pacman repositories updates
+    sudo pacman -Syy --noconfirm
+    # Update ACU repositories list
+    if [ -n "$repositories_list" ] && [ -n "$repositories_list_update" ]; then
+        echo ":: Updating ACU repositories list ..."
+        mkdir -p $HOME/.acu/cache/tmp
+        response_code=$(curl -s --write-out '%{response_code}' -L "$repositories_list_update" -o $HOME/.acu/cache/tmp/tmpdownload.yaml)
+        colorecho "$DEBUG" "CURL Response code: $response_code"
+        if [ "$response_code" = 200 ]; then
+            cp -r $HOME/.acu/cache/tmp/tmpdownload.yaml $repositories_list
+        else
+            colorecho "$RED" "ERROR $NC | failed to update repositories list."
+        fi
+        sudo rm -rf $HOME/.acu/cache/tmp/tmpdownload.yaml
+    fi
+    # Fetch ACU repositories packages
+    fetch_repositories
+
+elif [ "$1" = "remove" ] || [ "$1" = "-R" ]; then
+    for ((i = 2; i <= $#; i++)); do
+        if [[ "${!i}" != -* ]] && [[ "${!i}" != "acu" ]] && [[ "${!i}" != "agr" ]]; then
+            pkgtoremove+=("${!i}")
+        elif [[ "${!i}" == "acu" ]]; then
+            colorecho "$RED" "REMOVE $NC | Are you sure to remove this utility (acu)? (${RED}you wont be able to use acu again if you confirm to remove${NC}) [y/N]:" 
+            read -r rmconfirm
+            case "$rmconfirm" in
+                [yY])
+                    echo "Removing acu ..."
+                    sudo rm -rf /usr/share/applications/acu.desktop
+                    sudo rm -rf /usr/share/pixmaps/acu.png
+                    sudo rm -rf /usr/bin/acu
+                    sudo rm -rf $HOME/.acu
+                    exit 0
+                    ;;
+                *)
+                    echo "acu will NOT be removed."
+                    ;;
+            esac
+        elif [[ "${!i}" == "agr" ]]; then
+            if ! acu rem list acu | grep "Type: agr" &> /dev/null; then
+                colorecho "$RED" "REMOVE $NC | Are you sure to remove agr? (${RED}you wont be able to use acu again if you confirm to remove${NC}) [y/N]:" 
+                read -r rmagrconfirm
+                if [ "$rmagrconfirm" != "y" ] && [ "$rmagrconfirm" != "Y" ]; then
+                    exit 1
+                fi
+                sudo rm -rf ~/.local/bin/agr
+                sudo rm -rf ~/.agr
+                echo "removed agr"
+            else
+                colorecho "$RED" "ERROR $NC | Some repository requires AGR, please remove the repository before removing AGR." 
+            fi
+            exit 0
+        fi
+    done
+ 
+    if [ -z "$no_confirm" ]; then
+        sudo pacman -R "${pkgtoremove[@]}"
+    else
+        sudo pacman -R "${pkgtoremove[@]}" --noconfirm
+    fi
+
+elif [ "$1" = "apps" ] ; then
+    if [ -z "$2" ]; then
+        # Show apps menu if no packages are specified
+        apps_menu
+    elif [ "$2" = "list" ]; then
+        apps_list "$3"
+    elif [ "$2" = "index" ]; then
+        apps_list "$3" -i
+    fi
+
+elif [ "$1" = "install" ] || [ "$1" = "-S" ] ; then
+    if [ -z "$2" ]; then
+        # Show apps menu if no packages are specified
+        apps_menu
+    else
+        # Add all packages to the list
+        for ((i = 2; i <= $#; i++)); do
+            if [[ "${!i}" != -* ]]; then
+                selection+=("${!i}")
+            fi
+        done
+        # Install the packages
+        install_pkg
+    fi
+
+elif [ "$1" = "build" ] || [ "$1" = "-B" ]; then
+    # Add all packages to the list
+    for ((i = 2; i <= $#; i++)); do
+        if [[ "${!i}" != -* ]]; then
+                selection+=("${!i}")
+        fi
+    done
+    # Install the packages
+    install_pkg --noinstall
+
+elif [ "$1" = "downgrade" ] || [ "$1" = "-D" ]; then
+    downgrade "$2" "$3"
+
+elif [ "$1" = "rem" ] || [ "$1" = "remote" ]; then
+    if [ -z "$2" ] || [ "$2" = "manage" ]; then
+        manage_repositories
+    elif [ "$2" = "fetch" ]; then
+        # fetch repositories and list all packages
+        fetch_repositories list
+    elif [ "$2" = "list" ] || [ "$2" = "show" ]; then
+        list_repositories "$3"
+    elif [ "$2" = "set" ] || [ "$2" = "add" ]; then
+        add_repository "$3" "$4" "$5" "$6"
+    elif [ "$2" = "del" ] || [ "$2" = "remove" ]; then
+        if [ "$3" = "pacman" ]; then
+            colorecho "$GREEN" "INFO $NC | Auto removing a pacman repo is not yet supported. But you can edit pacman.conf manually, hold on, I will bring you there."
+            colorecho "$GREEN" "INFO $NC | When you finish, press Ctrl+O to save then press Ctrl+X to exit the editor." "bottom"
+            sleep 2
+            sudo nano /etc/pacman.conf
+        else
+            remove_repository "$3" "$4"
+        fi
+    fi
+
+### Features - System Maintenance ###
+elif [ "$1" = "bootloader" ]; then
+    flash_uboot "$2"
+
+elif [ "$1" = "update-boot-config" ]; then
+    update_boot_config "$2"
+
+### Features - Performance & Features ###
+elif [ "$1" = "soc" ]; then
+    soc_profile "$2" "$3"
+
+elif [ "$1" = "fan" ]; then
+    fan_control "$2"
+
+elif [ "$1" = "sysinfo" ]; then
+    system_info
+
+elif [ "$1" = "hwmon" ]; then
+    hw_monitor
+
+### Features - User & Localization ###
+
+elif [ "$1" = "user" ]; then
+    manage_user "$2" "$3" "$4"
+
+elif [ "$1" = "locale" ]; then
+    locale "$2" "$3" "$4"
+
+elif [ "$1" = "font" ]; then
+    fonts "$2"
+
+elif [ "$1" = "time" ]; then
+    timezone "$2" "$3"
+
+elif [ "$1" = "keyboard" ]; then
+    keyboard "$2"
+
+elif [ "$1" = "alias" ]; then
+    if [ "$2" = "add" ] || [ "$2" = "create" ]; then
+        add_alias "${@:3}"
+    elif [ "$2" = "remove" ] || [ "$2" = "del" ]; then
+        colorecho "$RED" "REMOVE $NC | Are you sure to remove alias command $3? [y/N]:" 
+        read -r rmaconfirm
+        if [[ "$rmaconfirm" == [Yy] ]]; then
+            sudo rm -rf /usr/local/bin/$3
+            colorecho "$GREEN" "INFO $NC | Alias command $3 has been removed"
+        else
+            colorecho "$THEME" "INFO $NC | Alias command $3 is not removed"
+        fi
+    fi
+
+### For developer / API use and debugging ###
+elif [ "$1" = "parse" ]; then
+    if [ -z "$no_color_echo" ]; then
+        clear
+        colorecho "$BLUE" "ACU $NC| Parsed output of $2"
+        colorecho "$BLUE" "ACU $NC| $3"
+    fi
+    load_yaml "$2" "$3" "$4"
+
+### CLI ###
+elif [ "$1" = "cli" ]; then
+    check_util_updates
+    clear
+    colorecho "$THEME" "Enter a command or type help for usage" "center" "center"
+    while true; do
+        colorecho "$THEME" "                                                                " "top"
+        colorecho "$THEME" "                                                                " "bottom" "left" -n
+        colorecho "$THEME" "ACU | $utilname CLI $release" "top"
+        colorecho "$THEME" "ACU> " "bottom" "left" -n
+        read cmd
+        case "$cmd" in
+            exit)
+                break
+                ;;
+            help)
+                acu -h
+                ;;
+            sysinfo)
+                keypress=''
+                while [ "$keypress" != 'q' ]; do
+                    clear && system_info
+                    colorecho "$GREEN" "Press q to return to ACU CLI" "bottom" "center"
+                    read -t 3 -n 1 keypress
+                done
+                clear
+                ;;
+            hwmon)
+                keypress=''
+                while [ "$keypress" != 'q' ]; do
+                    clear && hw_monitor
+                    colorecho "$GREEN" "Press q to return to ACU CLI" "bottom" "center"
+                    read -t 3 -n 1 keypress
+                done
+                clear
+                ;;
+            menu)
+                config_options
+                ;;
+            apps)
+                apps
+                ;;
+            install | install*)
+                acu $cmd
+                ;;
+            "")
+                ;;
+            echo* | print* | printf*)
+                clear
+                cmd="${cmd#* }"
+                colorecho "$THEME" "$cmd" "center" "center"
+                ;;
+            *)
+                clear
+                tput cup 1 0
+                eval $cmd
+                ;;
+        esac
+    done
+
+elif [ "$1" = "settings" ]; then
+    settings
+
+### Main Menu ###
+elif [ "$1" != "-v" ] && [ "$1" != "--version" ]; then
+    check_util_updates
+    config_options
+fi
+
+################################################################
+# Restore terminal default background
+if [ -n "$BACKGROUND" ] && [ "$BACKGROUND" == "$THEME" ]; then
+    echo -e "$TDC"
+fi
+################################################################
