@@ -2032,11 +2032,23 @@ install_pkg() {
                 local j
                 for ((j=0; j<${#package[@]}; j++)); do
                     if [[ "${package[j]}" = "(needed)"* ]]; then
-                        acu install "${package[j]#"(needed)"}" --needed --skipapps
+                        if [ -z "$no_confirm" ]; then
+                            acu install "${package[j]#"(needed)"}" --needed --skipapps
+                        else
+                            acu install "${package[j]#"(needed)"}" --needed --skipapps --noconfirm
+                        fi
                     elif [[ "${package[j]}" != "(fallback)"* ]] && [[ "${package[j+1]}" == "(fallback)"* ]]; then
-                        acu install ${package[j]} "${package[j+1]#"(fallback)"}" --fallback --skipapps
+                        if [ -z "$no_confirm" ]; then
+                            acu install ${package[j]} "${package[j+1]#"(fallback)"}" --fallback --skipapps
+                        else
+                            acu install ${package[j]} "${package[j+1]#"(fallback)"}" --fallback --skipapps --noconfirm
+                        fi
                     else
-                        acu install ${package[j]} --skipapps
+                        if [ -z "$no_confirm" ]; then
+                            acu install ${package[j]} --skipapps
+                        else
+                            acu install ${package[j]} --skipapps --noconfirm
+                        fi
                     fi
                 done
             fi
