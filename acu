@@ -27,7 +27,7 @@
 utilname="Arch (ARM) Configuration Utility"
 
 # ACU Release Version : (github tags) (or branch*)
-release="0.0.9-dev"
+release="0.0.8-dev"
 
 # (DEPRECATED/OPTIONAL) ACU Build Number: utilver (YYMMDDNN)
 utilver=24031299
