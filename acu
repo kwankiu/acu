@@ -27,7 +27,7 @@
 utilname="Arch (ARM) Configuration Utility"
 
 # ACU Release Version : (github tags) (or branch*)
-release="0.0.8-dev"
+release="0.0.9-dev"
 
 # (DEPRECATED/OPTIONAL) ACU Build Number: utilver (YYMMDDNN)
 utilver=24031299
@@ -2032,11 +2032,11 @@ install_pkg() {
                 local j
                 for ((j=0; j<${#package[@]}; j++)); do
                     if [[ "${package[j]}" = "(needed)"* ]]; then
-                        acu install -y "${package[j]#"(needed)"}" --needed --skipapps
+                        acu install "${package[j]#"(needed)"}" --needed --skipapps
                     elif [[ "${package[j]}" != "(fallback)"* ]] && [[ "${package[j+1]}" == "(fallback)"* ]]; then
-                        acu install -y ${package[j]} "${package[j+1]#"(fallback)"}" --fallback --skipapps
+                        acu install ${package[j]} "${package[j+1]#"(fallback)"}" --fallback --skipapps
                     else
-                        acu install -y ${package[j]} --skipapps
+                        acu install ${package[j]} --skipapps
                     fi
                 done
             fi
