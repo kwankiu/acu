@@ -30,7 +30,7 @@ utilname="Arch (ARM) Configuration Utility"
 release="0.0.9-dev"
 
 # (DEPRECATED/OPTIONAL) ACU Build Number: utilver (YYMMDDNN)
-utilver=24031299
+#utilver=24031299
 
 # Remote Repository for update check
 remote_repo="https://github.com/kwankiu/acu"
@@ -2984,11 +2984,9 @@ for arg in "$@"; do
             ;;
         -v | --version)
             colorecho "$THEME" "$utilname $release"
-            colorecho "$DEBUG" "Build Number: $utilver"
             ;;
         -h | --help)
             colorecho "$THEME" "$utilname $release"
-            colorecho "$DEBUG" "Build Number: $utilver"
             echo
             colorecho "$GREEN" "Usage"
             echo
