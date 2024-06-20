@@ -1181,10 +1181,9 @@ config_options() {
     title
     colorecho "$NC" ""
     colorecho "$WARNING" "\t    WARNING $NC| $utilname is experimental |$GREEN $release" "bottom" "center" "-a" # Bottom Text
-    options=("System Maintenance \t Configure system settings, System utilites & infomation")
+    options=("System & Performance \t Configure system settings, utilites & performance tweaking")
     options+=("Manage Packages \t Upgrade or downgrade packages, Manage packages repositories")
     options+=("ACU Apps \t\t Curated collection of applications or packages to install")
-    options+=("Performance \t\t Tweak SoC Performance Settings, Enable PWM Fan, Overclocking")
     options+=("Localization \t\t Generate locale, Install fonts, Set date, time & timezone")
     options+=("User Accounts \t\t Add, Remove or Change user account settings")
     options+=("ACU Settings \t\t Customize ACU Theme, configurations & settings")
@@ -1200,7 +1199,7 @@ config_options() {
     # Choice
     case $choice in
         0)
-            system_maintenance
+            system_performance
             ;;
         1)
             manage_packages
@@ -1209,18 +1208,15 @@ config_options() {
             apps_menu
             ;;
         3)
-            performance_features
-            ;;
-        4)
             localization
             ;;
-        5)
+        4)
             manage_user
             ;;
-        6)
+        5)
             settings
             ;;
-        7)
+        6)
             update_util # Or Exit Utility if no update is available
             ;;
     esac
@@ -1228,15 +1224,20 @@ config_options() {
 }
 
 ########################################################################
-## System Maintenance
+## System & Performance
 ########################################################################
 
-# System Maintenance Main Menu
-system_maintenance() {
-    title "System Maintenance"
+# System & Performance Main Menu
+system_performance() {
+    title "System & Performance"
     options=("Flash Bootloader \t Flash Bootloader to eMMC/TF Card/SPI Flash")
     options+=("Copy System \t\t Backup, Restore, or Clone this system with partimage")
     options+=("System Infomation \t Print infomation of this system / device")
+    options+=("SoC Profile \t\t Available options are performance, ondemand and powersave")
+    options+=("HW Monitor \t\t Monitor Hardware infomations, temperatures & clock frequency")
+    #options+=("Fan Control \t\t (ROCK 5 ONLY) Configure PWM Fan-control service")
+    #options+=("Overclocking - Configure rk3588-unlock-opps overlay which increases CPU supply & CPU VDD supply")
+    #options+=("Overlay - Configure Device Tree Overlay")
     options+=("Return to Main Menu")
     select_option "${options[@]}"
     choice=$?
@@ -1255,7 +1256,7 @@ system_maintenance() {
                 acu install partimage
             fi
             sudo partimage
-            system_maintenance
+            system_performance
             ;;
         2)
             local keypress=''
@@ -1266,6 +1267,24 @@ system_maintenance() {
             done
             config_options
             ;;
+        3)
+            soc_profile
+            ;;
+        4)
+            local keypress=''
+            while [ "$keypress" != 'q' ]; do
+                hw_monitor --center
+                colorecho "$GREEN" "Press q to return to main menu" "bottom" "center"
+                read -t 3 -n 1 keypress
+            done
+            config_options
+            ;;
+        #5)
+            #overclocking
+            #;;
+        #6)
+            #overlays
+            #;;
         *)
             config_options
             ;;
@@ -1412,13 +1431,13 @@ flash_uboot() {
                 colorecho "$RED" "No available bootloader list" "" "center"
             fi
             echo
-            options=("Return to System Maintence Menu")
+            options=("Return to System & Performance Menu")
             select_option "${options[@]}"
             choice=$?
         else
             case $1 in
                 *)
-                    system_maintenance
+                    system_performance
                     ;;
             esac
         fi
@@ -1426,7 +1445,7 @@ flash_uboot() {
         # Choice
         case $choice in
             *)
-                system_maintenance
+                system_performance
                 return 0
                 ;;
         esac
@@ -2180,45 +2199,6 @@ downgrade() {
 ## Performance & Features
 ########################################################################
 
-# Performance & Features Main Menu
-performance_features() {
-    title "Performance & Features"
-    options=("SoC Profile \t\t Available options are performance, ondemand and powersave")
-    options+=("HW Monitor \t\t Monitor Hardware infomations, temperatures & clock frequency")
-    #options+=("Fan Control \t\t (ROCK 5 ONLY) Configure PWM Fan-control service")
-    #options+=("Overclocking - Configure rk3588-unlock-opps overlay which increases CPU supply & CPU VDD supply")
-    #options+=("Overlay - Configure Device Tree Overlay")
-    options+=("Return to Main Menu")
-    select_option "${options[@]}"
-    choice=$?
-
-    # Choice
-    case $choice in
-        0)
-            soc_profile
-            ;;
-        1)
-            local keypress=''
-            while [ "$keypress" != 'q' ]; do
-                hw_monitor --center
-                colorecho "$GREEN" "Press q to return to main menu" "bottom" "center"
-                read -t 3 -n 1 keypress
-            done
-            config_options
-            ;;
-        #2)
-            #overclocking
-            #;;
-        #3)
-            #overlays
-            #;;
-        *)
-            config_options
-            ;;
-    esac
-
-}
-
 # SoC Performance Profile
 soc_profile() {
 
@@ -2252,7 +2232,7 @@ soc_profile() {
                 colorecho "$GREEN" "Removed SoC Profile service"
                 ;;
             *)
-                performance_features
+                system_performance
                 ;;
         esac
         
@@ -3016,7 +2996,7 @@ for arg in "$@"; do
             echo
             colorecho "$GREEN" "Features"
             echo
-            colorecho "$THEME" "System Maintenance"
+            colorecho "$THEME" "System & Performance"
             echo
             echo "  bootloader <bootloader> : Flash Bootloader to eMMC/TF Card/SPI Flash. <bootloader> options: radxa, radxa-debug, edk2-rock5a, edk2-rock5b, armbian."
             #echo "  backup <save_path> : Backup a flashable image of this system."
