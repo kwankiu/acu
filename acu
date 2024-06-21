@@ -340,6 +340,10 @@ check_util_updates() {
 update_util() {
     if [ "$update_available" = true ] || [ -n "$argupdate" ]; then
         title
+        if [ -f "/usr/bin/acu" ]; then
+            # Backup existing ACU
+            sudo cp -r /usr/bin/acu /usr/bin/acu.old
+        fi
         colorecho "$GREEN" "Installing / Updating $utilname ..."
         local response_code=$(sudo curl --write-out '%{response_code}' -o /usr/bin/acu -L "https://raw.githubusercontent.com/kwankiu/acu/$remote_release/acu")
         sudo chmod +x /usr/bin/acu
@@ -349,8 +353,18 @@ update_util() {
                 colorecho "$DEBUG" "Renaming existing config.yaml to config.old ..."
                 mv "$config_file" "$config_dir/config.old"
             fi
+            if [ -f "/usr/bin/acu.old" ]; then
+                # Remove backup of old ACU
+                sudo rm -rf /usr/bin/acu.old
+            fi
         else
             colorecho "$RED" "ERROR $NC | failed to install / update $utilname. Check your internet or user permissions."
+            if [ -f "/usr/bin/acu.old" ]; then
+                # Restore existing ACU
+                sudo rm -rf /usr/bin/acu
+                sudo cp -r /usr/bin/acu.old /usr/bin/acu
+                sudo rm -rf /usr/bin/acu.old
+            fi
             exit 1
         fi
         args=("$@")
