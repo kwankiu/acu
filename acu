@@ -1841,6 +1841,7 @@ apps_menu() {
         selection=()
         apps_menu
     elif [ "${options[choice]}" = "Install selected apps" ]; then
+        no_confirm=1
         install_pkg
     else
         apps_menu_category $choice
@@ -2101,6 +2102,10 @@ install_pkg() {
                 sudo pacman -S $selection_base 
             else
                 sudo pacman -S $selection_base --noconfirm
+                if ! pacman -Q "${selection_base#*)}" > /dev/null 2>&1 ; then
+                    colorecho "$WARNING" "WARNING $NC | package $selection_base was not installed non-interactively, trying to install interactively."
+                    sudo pacman -S $selection_base
+                fi
             fi
         elif [ "$use_pm" = "git" ]; then
             #GIT
