@@ -292,19 +292,30 @@ title() {
   fi
 
   colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
-  colorecho "$THEME" "                  ##                     __   ____  _  _         " "" "$align"
-  colorecho "$THEME" "                 ####                   / _\ (  _ \( \/ )        " "" "$align"
-  colorecho "$THEME" "                ######                 /    \ )   // \/ \        " "" "$align"
-  colorecho "$THEME" "               ########                \_/\_/(__\_)\_)(_/        " "" "$align"
-  colorecho "$THEME" "              ##########          ___  __   __ _  ____  __  ___  " "" "$align"
-  colorecho "$THEME" "             ############        / __)/  \ (  ( \(  __)(  )/ __) " "" "$align"
-  colorecho "$THEME" "            ##############      ( (__(  O )/    / ) _)  )(( (_ \ " "" "$align"
-  colorecho "$THEME" "           ################      \___)\__/ \_)__)(__)  (__)\___/ " "" "$align"
-  colorecho "$THEME" "          ######      ######           _  _  ____  __  __        " "" "$align"
-  colorecho "$THEME" "         #######      #######         / )( \(_  _)(  )(  )       " "" "$align"
-  colorecho "$THEME" "       #######         #######        ) \/ (  )(   )( / (_/\     " "" "$align"
-  colorecho "$THEME" "      ######             ######       \____/ (__) (__)\____/     " "" "$align"
-  colorecho "$THEME" "     ###                     ###                                 " "" "$align"
+
+  if [ "$(tput lines)" -gt 30 ]; then
+    # FULL LOGO
+    colorecho "$THEME" "                  ##                     __   ____  _  _         " "" "$align"
+    colorecho "$THEME" "                 ####                   / _\ (  _ \( \/ )        " "" "$align"
+    colorecho "$THEME" "                ######                 /    \ )   // \/ \        " "" "$align"
+    colorecho "$THEME" "               ########                \_/\_/(__\_)\_)(_/        " "" "$align"
+    colorecho "$THEME" "              ##########          ___  __   __ _  ____  __  ___  " "" "$align"
+    colorecho "$THEME" "             ############        / __)/  \ (  ( \(  __)(  )/ __) " "" "$align"
+    colorecho "$THEME" "            ##############      ( (__(  O )/    / ) _)  )(( (_ \ " "" "$align"
+    colorecho "$THEME" "           ################      \___)\__/ \_)__)(__)  (__)\___/ " "" "$align"
+    colorecho "$THEME" "          ######      ######           _  _  ____  __  __        " "" "$align"
+    colorecho "$THEME" "         #######      #######         / )( \(_  _)(  )(  )       " "" "$align"
+    colorecho "$THEME" "       #######         #######        ) \/ (  )(   )( / (_/\     " "" "$align"
+    colorecho "$THEME" "      ######             ######       \____/ (__) (__)\____/     " "" "$align"
+    colorecho "$THEME" "     ###                     ###                                 " "" "$align"
+  else
+    # SMALL LOGO
+    colorecho "$THEME" "                  ##                    __     ___   _  _        " "" "$align"
+    colorecho "$THEME" "                 ####                  / _\   / __) / )( \       " "" "$align"
+    colorecho "$THEME" "                ######                /    \ ( (__  ) \/ (       " "" "$align"
+    colorecho "$THEME" "               ###  ###               \_/\_/  \___) \____/       " "" "$align"
+    colorecho "$THEME" "              ##      ##              _ARM_ _CONFIG_ _UTIL_      " "" "$align"
+  fi
   colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
   if [ -n "$1" ]; then
     text="$1"
@@ -1194,7 +1205,7 @@ manage_repositories() {
 config_options() {
     title
     colorecho "$NC" ""
-    colorecho "$WARNING" "\t    WARNING $NC| $utilname is experimental |$GREEN $release" "bottom" "center" "-a" # Bottom Text
+    colorecho "$THEME" "\t    $utilname |$GREEN $release $THEME| ${WARNING}EXPERIMENTAL${NC}" "bottom" "center" "-a" # Bottom Text
     options=("System & Performance \t Configure system settings, utilites & performance tweaking")
     options+=("Manage Packages \t Upgrade or downgrade packages, Manage packages repositories")
     options+=("ACU Apps \t\t Curated collection of applications or packages to install")
@@ -1203,7 +1214,7 @@ config_options() {
     options+=("ACU Settings \t\t Customize ACU Theme, configurations & settings")
 
     if [ "$update_available" = true ]; then 
-        options+=("Update Now $GREEN(Updates available)$NC Update Utility to latest version $GREEN($release -> $remote_release)$NC ")
+        options+=("${GREEN}(Updates available)${NC} \t Update this utility to $remote_release")
     fi
     
     options+=("Exit Utility")
