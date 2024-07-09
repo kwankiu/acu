@@ -144,7 +144,7 @@ function select_option {
                          local LEN=${#1}
                          hposition=$(( (COLS - LEN) / 2 ));
                          printf "$ESC[${hposition}G$1";}
-    print_selected()     { local COLS=$(tput cols);
+    print_selected()   { local COLS=$(tput cols);
                          local LEN=${#1}
                          hposition=$(( (COLS - LEN) / 2 ));
                          printf "$ESC[7m$ESC[${hposition}G$1$ESC[27m";}
@@ -182,8 +182,7 @@ function select_option {
             if [ "$LEN" -gt 100 ]; then
                 LEN=100
             fi
-            formatted_opt=$(echo "$formatted_opt" | cut -c1-$(echo ${LEN}))
-            formatted_opt=$(printf "%-${LEN}s" "$formatted_opt")
+            formatted_opt=$(printf "%-${LEN}s" "$formatted_opt" | cut -c1-$(echo ${LEN}))
             if [ $idx -eq $selected ]; then
                 print_selected "$formatted_opt"
             else
