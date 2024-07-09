@@ -1852,7 +1852,7 @@ apps_menu() {
     colorecho "$THEME" "INFO $NC | Loading apps list ..."
     load_apps # Load Apps List
     title "Apps - Categories"
-    colorecho "$GREEN" "\t Category \t \t Description" "" "center" "-a"
+    colorecho "$GREEN" "\t Category \t\t  Description" "" "center" "-a"
     options=()
     for ((i = 0; i < ${#apps_category_name[@]}; i++)); do
         padded_name=$(printf "%-24s" "${apps_category_name[i]}")
@@ -1889,7 +1889,7 @@ apps_menu_category() {
     local found
     colorecho "$THEME" "INFO $NC | Loading ${apps_category_name[catinx]} ..."
     title "Apps - ${apps_category_name[catinx]}"
-    colorecho "$GREEN" "\t Apps      \t \t Description" "" "center" "-a"
+    colorecho "$GREEN" "\t Apps      \t\t  Description" "" "center" "-a"
     options=()
     selinx=()
     checkbox_menu_checked=()
@@ -1952,7 +1952,7 @@ print_selected_pkg() {
     for ((i=0; i<${#selection[@]}; i++)); do
         selected="${selected} ${selection[i]}"
     done
-    colorecho "$GREEN" "Selected packages: ${selected}" "bottom"
+    colorecho "$GREEN" "  Selected packages: ${selected}" "bottom"
 }
 
 pkg_lookup_git() {
