@@ -1684,9 +1684,9 @@ move_system() {
 # Manage Packages Main Menu
 manage_packages() {
     title "Manage Packages"
-    options=( "Update Packages          Check & Perform Selective / Full System Upgrade")
+    options=( "Manage Repositories      List, add or remove ACU Managed and Pacman Repositories.")
     options+=("Downgrade Packages       Install / Downgrade any Arch Linux Packages from Archive")
-    options+=("Manage Repositories      List, add or remove ACU Managed and Pacman Repositories.")
+    #options+=("Update Packages          Check & Perform Selective / Full System Upgrade")
     options+=("Return to Main Menu")
     select_option "${options[@]}"
     choice=$?
@@ -1694,14 +1694,14 @@ manage_packages() {
     # Choice
     case $choice in
         0)
-            package_update
+            manage_repositories
             ;;
         1)
             downgrade
             ;;
-        2)
-            manage_repositories
-            ;;
+        #2)
+            #package_update
+            #;;
         *)
             config_options
             ;;
