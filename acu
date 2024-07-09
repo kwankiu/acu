@@ -141,11 +141,15 @@ function select_option {
     cursor_blink_off() { printf "$ESC[?25l"; }
     cursor_to()        { printf "$ESC[$1;${2:-1}H"; }
     print_option()     { local COLS=$(tput cols);
-                         local LEN=${#1}
+                         # Remove control characters for length
+                         local LEN=$(echo -e "$1" | sed 's/\x1b\[[0-9;]*m//g')
+                         local LEN=${#LEN}
                          hposition=$(( (COLS - LEN) / 2 ));
                          printf "$ESC[${hposition}G$1";}
     print_selected()   { local COLS=$(tput cols);
-                         local LEN=${#1}
+                         # Remove control characters for length
+                         local LEN=$(echo -e "$1" | sed 's/\x1b\[[0-9;]*m//g')
+                         local LEN=${#LEN}
                          hposition=$(( (COLS - LEN) / 2 ));
                          printf "$ESC[7m$ESC[${hposition}G$1$ESC[27m";}
     get_cursor_row()   { IFS=';' read -sdR -p $'\E[6n' ROW COL; echo ${ROW#*[}; }
@@ -178,10 +182,21 @@ function select_option {
             else
                 formatted_opt=" $((idx + 1)) \t $opt"
             fi
-            LEN=$(($(tput cols) - 20))
-            if [ "$LEN" -gt 100 ]; then
+            # Responsive terminal size
+            if [ "$(tput cols)" -gt 120 ]; then
                 LEN=100
+            elif [ "$(tput cols)" -gt 100 ]; then
+                LEN=$(($(tput cols) - 18))
+            elif [ "$(tput cols)" -gt 80 ]; then
+                LEN=$(($(tput cols) - 9))
+            else
+                LEN=$(($(tput cols) - 6))
             fi
+            # Remove control characters for length
+            local cclen=$(echo -e "${formatted_opt}" | sed 's/\x1b\[[0-9;]*m//g')
+            cclen=$((${#formatted_opt} - ${#cclen}))
+            LEN=$((LEN + cclen))
+            # Truncate
             formatted_opt=$(printf "%-${LEN}s" "$formatted_opt" | cut -c1-$(echo ${LEN}))
             if [ $idx -eq $selected ]; then
                 print_selected "$formatted_opt"
@@ -228,9 +243,15 @@ colorecho() {
         tput sc # Save cursor position
 
         if [[ "$arg" == "-a" ]]; then
-                LEN=$(($(tput cols) - 2))
-                if [ "$LEN" -gt 100 ]; then
+                # Responsive terminal size
+                if [ "$(tput cols)" -gt 120 ]; then
                     LEN=100
+                elif [ "$(tput cols)" -gt 100 ]; then
+                    LEN=$(($(tput cols) - 18))
+                elif [ "$(tput cols)" -gt 80 ]; then
+                    LEN=$(($(tput cols) - 9))
+                else
+                    LEN=$(($(tput cols) - 6))
                 fi
                 text=$(printf "%-${LEN}s" "$text" | cut -c1-$(echo ${LEN}))
         fi
@@ -296,26 +317,26 @@ title() {
 
   if [ "$(tput lines)" -gt 30 ]; then
     # FULL LOGO
-    colorecho "$THEME" "                  ##                     __   ____  _  _         " "" "$align"
-    colorecho "$THEME" "                 ####                   / _\ (  _ \( \/ )        " "" "$align"
-    colorecho "$THEME" "                ######                 /    \ )   // \/ \        " "" "$align"
-    colorecho "$THEME" "               ########                \_/\_/(__\_)\_)(_/        " "" "$align"
-    colorecho "$THEME" "              ##########          ___  __   __ _  ____  __  ___  " "" "$align"
-    colorecho "$THEME" "             ############        / __)/  \ (  ( \(  __)(  )/ __) " "" "$align"
-    colorecho "$THEME" "            ##############      ( (__(  O )/    / ) _)  )(( (_ \ " "" "$align"
-    colorecho "$THEME" "           ################      \___)\__/ \_)__)(__)  (__)\___/ " "" "$align"
-    colorecho "$THEME" "          ######      ######           _  _  ____  __  __        " "" "$align"
-    colorecho "$THEME" "         #######      #######         / )( \(_  _)(  )(  )       " "" "$align"
-    colorecho "$THEME" "       #######         #######        ) \/ (  )(   )( / (_/\     " "" "$align"
-    colorecho "$THEME" "      ######             ######       \____/ (__) (__)\____/     " "" "$align"
-    colorecho "$THEME" "     ###                     ###                                 " "" "$align"
+    colorecho "$THEME" "              ##                     __   ____  _  _         " "" "$align"
+    colorecho "$THEME" "             ####                   / _\ (  _ \( \/ )        " "" "$align"
+    colorecho "$THEME" "            ######                 /    \ )   // \/ \        " "" "$align"
+    colorecho "$THEME" "           ########                \_/\_/(__\_)\_)(_/        " "" "$align"
+    colorecho "$THEME" "          ##########          ___  __   __ _  ____  __  ___  " "" "$align"
+    colorecho "$THEME" "         ############        / __)/  \ (  ( \(  __)(  )/ __) " "" "$align"
+    colorecho "$THEME" "        ##############      ( (__(  O )/    / ) _)  )(( (_ \ " "" "$align"
+    colorecho "$THEME" "       ################      \___)\__/ \_)__)(__)  (__)\___/ " "" "$align"
+    colorecho "$THEME" "      ######      ######           _  _  ____  __  __        " "" "$align"
+    colorecho "$THEME" "     #######      #######         / )( \(_  _)(  )(  )       " "" "$align"
+    colorecho "$THEME" "   #######         #######        ) \/ (  )(   )( / (_/\     " "" "$align"
+    colorecho "$THEME" "  ######             ######       \____/ (__) (__)\____/     " "" "$align"
+    colorecho "$THEME" " ###                     ###                                 " "" "$align"
   else
     # SMALL LOGO
-    colorecho "$THEME" "                  ##                    __     ___   _  _        " "" "$align"
-    colorecho "$THEME" "                 ####                  / _\   / __) / )( \       " "" "$align"
-    colorecho "$THEME" "                ######                /    \ ( (__  ) \/ (       " "" "$align"
-    colorecho "$THEME" "               ###  ###               \_/\_/  \___) \____/       " "" "$align"
-    colorecho "$THEME" "              ##      ##              _ARM_ _CONFIG_ _UTIL_      " "" "$align"
+    colorecho "$THEME" "     ##                    __     ___   _  _   " "" "$align"
+    colorecho "$THEME" "    ####                  / _\   / __) / )( \  " "" "$align"
+    colorecho "$THEME" "   ######                /    \ ( (__  ) \/ (  " "" "$align"
+    colorecho "$THEME" "  ###  ###               \_/\_/  \___) \____/  " "" "$align"
+    colorecho "$THEME" " ##      ##              _ARM_ _CONFIG_ _UTIL_ " "" "$align"
   fi
   colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
   if [ -n "$1" ]; then
@@ -1207,15 +1228,15 @@ config_options() {
     title
     colorecho "$NC" ""
     colorecho "$THEME" "$utilname |$GREEN $release $THEME| ${WARNING}EXPERIMENTAL${NC}" "bottom" "center" # Bottom Text
-    options=("System & Performance \t Configure system settings, utilites & performance tweaking")
-    options+=("Manage Packages \t Upgrade or downgrade packages, Manage packages repositories")
-    options+=("ACU Apps \t\t Curated collection of applications or packages to install")
-    options+=("Localization \t\t Generate locale, Install fonts, Set date, time & timezone")
-    options+=("User Accounts \t\t Add, Remove or Change user account settings")
-    options+=("ACU Settings \t\t Customize ACU Theme, configurations & settings")
+    options=( "System & Performance     Configure system settings, utilites & performance tweaking")
+    options+=("Manage Packages          Upgrade or downgrade packages, Manage packages repositories")
+    options+=("ACU Apps                 Curated collection of applications or packages to install")
+    options+=("Localization             Generate locale, Install fonts, Set date, time & timezone")
+    options+=("User Accounts            Add, Remove or Change user account settings")
+    options+=("ACU Settings             Customize ACU Theme, configurations & settings")
 
     if [ "$update_available" = true ]; then 
-        options+=("${GREEN}(Updates available)${NC} \t Update this utility to $remote_release")
+        options+=("${GREEN}(Updates available)${NC}      Update this utility to $remote_release")
     fi
     
     options+=("Exit Utility")
@@ -1256,14 +1277,14 @@ config_options() {
 # System & Performance Main Menu
 system_performance() {
     title "System & Performance"
-    options=("Flash Bootloader \t Flash Bootloader to eMMC/TF Card/SPI Flash")
-    options+=("Copy System \t\t Backup, Restore, or Clone this system with partimage")
-    options+=("System Infomation \t Print infomation of this system / device")
-    options+=("SoC Profile \t\t Available options are performance, ondemand and powersave")
-    options+=("HW Monitor \t\t Monitor Hardware infomations, temperatures & clock frequency")
-    #options+=("Fan Control \t\t (ROCK 5 ONLY) Configure PWM Fan-control service")
-    #options+=("Overclocking - Configure rk3588-unlock-opps overlay which increases CPU supply & CPU VDD supply")
-    #options+=("Overlay - Configure Device Tree Overlay")
+    options=( "Flash Bootloader       Flash Bootloader to eMMC/TF Card/SPI Flash")
+    options+=("Copy System            Backup, Restore, or Clone this system with partimage")
+    options+=("System Infomation      Print infomation of this system / device")
+    options+=("SoC Profile            Available options are performance, ondemand and powersave")
+    options+=("HW Monitor             Monitor Hardware infomations, temperatures & clock frequency")
+    #options+=("Fan Control          (ROCK 5 ONLY) Configure PWM Fan-control service")
+    #options+=("Overclocking         Configure rk3588-unlock-opps overlay which increases CPU supply & CPU VDD supply")
+    #options+=("Overlay              Configure Device Tree Overlay")
     options+=("Return to Main Menu")
     select_option "${options[@]}"
     choice=$?
@@ -1662,9 +1683,9 @@ move_system() {
 # Manage Packages Main Menu
 manage_packages() {
     title "Manage Packages"
-    options=("Update Packages \t Check & Perform Selective / Full System Upgrade")
-    options+=("Downgrade Packages \t Install / Downgrade any Arch Linux Packages from Archive")
-    options+=("Manage Repositories \t List, add or remove ACU Managed and Pacman Repositories.")
+    options=( "Update Packages          Check & Perform Selective / Full System Upgrade")
+    options+=("Downgrade Packages       Install / Downgrade any Arch Linux Packages from Archive")
+    options+=("Manage Repositories      List, add or remove ACU Managed and Pacman Repositories.")
     options+=("Return to Main Menu")
     select_option "${options[@]}"
     choice=$?
@@ -2400,10 +2421,10 @@ hw_monitor() {
 # Localization Main Menu
 localization() {
     title "Localization"
-    options=("Locale \t\t Generate Locale Settings")
-    options+=("Fonts \t\t\t Install Fonts, TTF, Non-English Characters, Special Characters / Emoji")
-    options+=("Time \t\t\t Change Time Zone, Current Date and Time")
-    options+=("Keyboard Layout \t Change Keyboard Layout")
+    options=( "Locale                Generate Locale Settings")
+    options+=("Fonts                 Install Fonts, TTF, Non-English Characters, Special Characters / Emoji")
+    options+=("Time                  Change Time Zone, Current Date and Time")
+    options+=("Keyboard Layout       Change Keyboard Layout")
     options+=("Return to Main Menu")
     select_option "${options[@]}"
     choice=$?
