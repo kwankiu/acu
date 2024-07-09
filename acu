@@ -343,6 +343,7 @@ title() {
     text="$1"
     colorecho "$THEME" "${text}" "" "$align"
     colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
+    colorecho
   fi
 }
 
@@ -1851,13 +1852,11 @@ apps_menu() {
     colorecho "$THEME" "INFO $NC | Loading apps list ..."
     load_apps # Load Apps List
     title "Apps - Categories"
-    echo
-    colorecho "$GREEN" "\t Category \t\t Description" "" "center" "-a"
-    echo
+    colorecho "$GREEN" "\t Category \t \t Description" "" "center" "-a"
     options=()
     for ((i = 0; i < ${#apps_category_name[@]}; i++)); do
-        padded_name=$(printf "%-16s" "${apps_category_name[i]}")
-        options+=("$padded_name\t ${apps_category_description[i]}")
+        padded_name=$(printf "%-24s" "${apps_category_name[i]}")
+        options+=("$padded_name ${apps_category_description[i]}")
     done
     if [ ${#selection[@]} -gt 0 ]; then
         options+=("Install selected apps")
@@ -1890,16 +1889,14 @@ apps_menu_category() {
     local found
     colorecho "$THEME" "INFO $NC | Loading ${apps_category_name[catinx]} ..."
     title "Apps - ${apps_category_name[catinx]}"
-    echo
-    colorecho "$GREEN" "\t Apps \t\t Description" "" "center" "-a"
-    echo
+    colorecho "$GREEN" "\t Apps      \t \t Description" "" "center" "-a"
     options=()
     selinx=()
     checkbox_menu_checked=()
     for ((i = 0; i < ${#apps_package_name[@]}; i++)); do
         if [ "${apps_category[i]}" = "${apps_category_name[catinx]}" ]; then
-            padded_name=$(printf "%-20s" "${apps_pretty_name[i]}")
-            options+=("$padded_name \t ${apps_description[i]}")
+            padded_name=$(printf "%-24s" "${apps_pretty_name[i]}")
+            options+=("$padded_name ${apps_description[i]}")
             selinx+=("$i")
             found=0
             for ((j = 0; j < ${#selection[@]}; j++)); do
