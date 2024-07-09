@@ -225,6 +225,7 @@ colorecho() {
         local LINES=$(tput lines)
         local COLS=$(tput cols)
         local LEN
+        local text_length
         tput sc # Save cursor position
 
         if [[ "$arg" == "-a" ]]; then
@@ -232,7 +233,7 @@ colorecho() {
                 if [ "$LEN" -gt 100 ]; then
                     LEN=100
                 fi
-                text=$(printf "%-${LEN}s" "     $text" | cut -c1-$(echo ${LEN}))
+                text=$(printf "%-${LEN}s" "$text" | cut -c1-$(echo ${LEN}))
         fi
         
         if [ "$vposition" = "top" ]; then
@@ -248,7 +249,8 @@ colorecho() {
         elif [ "$hposition" = "right" ]; then
             hposition=$((COLS - 2))
         elif [ "$hposition" = "center" ]; then
-            text_length=${#text}
+            text_length=$(echo -e "${text}" | sed 's/\x1b\[[0-9;]*m//g')
+            text_length=${#text_length}
             hposition=$(( (COLS - text_length) / 2 ))
         fi
 
@@ -1205,7 +1207,7 @@ manage_repositories() {
 config_options() {
     title
     colorecho "$NC" ""
-    colorecho "$THEME" "\t    $utilname |$GREEN $release $THEME| ${WARNING}EXPERIMENTAL${NC}" "bottom" "center" "-a" # Bottom Text
+    colorecho "$THEME" "$utilname |$GREEN $release $THEME| ${WARNING}EXPERIMENTAL${NC}" "bottom" "center" # Bottom Text
     options=("System & Performance \t Configure system settings, utilites & performance tweaking")
     options+=("Manage Packages \t Upgrade or downgrade packages, Manage packages repositories")
     options+=("ACU Apps \t\t Curated collection of applications or packages to install")
