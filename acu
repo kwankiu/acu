@@ -1430,7 +1430,7 @@ system_info() {
     ppid=$(grep PPid: /proc/$$/status | awk '{print $2}')
     sys_terminal=$(basename $(cat "/proc/$ppid/comm"))
     if [ -n "$sys_session" ]; then
-        while [ "$sys_terminal" == "watch" ] || [ "$sys_terminal" == "bash" ]; do
+        while [ "$sys_terminal" == "watch" ] || [ "$sys_terminal" == "bash" ] || [ "$sys_terminal" == "sh" ]  || [ "$sys_terminal" == "zsh" ]; do
             ppid=$(grep PPid: /proc/${ppid}/status | awk '{print $2}')
             sys_terminal=$(basename $(cat "/proc/$ppid/comm"))
         done
@@ -2280,10 +2280,8 @@ soc_profile() {
                 sudo systemctl daemon-reload
                 colorecho "$GREEN" "Removed SoC Profile service"
                 ;;
-            *)
-                system_performance
-                ;;
         esac
+        system_performance
         
     elif [ "$1" = "set" ]; then
         case $2 in
