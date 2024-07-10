@@ -1157,7 +1157,7 @@ fetch_repositories() {
                     mkdir -p $HOME/.acu/cache/db
                     cp -r $HOME/.acu/cache/tmp/tmpdownload.yaml $HOME/.acu/cache/db/${repositories_repo_name[i]}.yaml
                     if [ "$1" == "list" ]; then
-                        apps_list
+                        apps_list "${repositories_repo_name[i]}" "-r"
                         colorecho "$GREEN" "INFO$NC |     Successfully fetched host"
                     fi
                 else
@@ -1799,8 +1799,10 @@ load_apps() {
                 if [ "$isfirst" = 0 ]; then
                     eval $(load_yaml "$HOME/.acu/cache/db/${repositories_repo_name[i]}.yaml" "apps")
                     isfirst=1
+                    apps_repo_index=("${repositories_repo_name[i]}" "${#apps_package_name[@]}")
                 else
                     eval $(load_yaml "$HOME/.acu/cache/db/${repositories_repo_name[i]}.yaml" "apps" append)
+                    apps_repo_index+=("${repositories_repo_name[i]}" "${#apps_package_name[@]}")
                 fi
                 # For apps list of ACU 0.0.6 or below
                 if [ -n "$apps_app_name" ]; then
@@ -1818,7 +1820,37 @@ apps_list() {
     local arg=$2
     local i
     load_apps # Load Apps List
-    if [ -n "$target" ]; then
+    if [ -z "$target" ] || [ "$arg" = "-r" ]; then
+        if [ "$arg" = "-r" ]; then
+            for ((i = 0; i < ${#apps_repo_index[@]}; i++)); do
+                if [ "${apps_repo_index[i]}" = "$target" ]; then
+                    local repo_endinx=${apps_repo_index[i+1]}
+                    if [ "$i" -gt 1 ]; then
+                        local repo_srtinx=${apps_repo_index[i-1]}
+                    else
+                        local repo_srtinx=0
+                    fi
+                    break
+                fi
+            done
+            for ((i = ${repo_srtinx}; i < ${repo_endinx}; i++)); do
+                colorecho "$THEME" "PKG  $NC | ${apps_package_name[i]}"
+                colorecho "$DEBUG" "INFO $NC | APP: ${apps_pretty_name[i]}, CAT: ${apps_category[i]}, DIS: ${apps_description[i]}"
+                colorecho "$DEBUG" "INFO $NC | Packages: ${apps_packages[i]}"
+                colorecho "$DEBUG" "INFO $NC | Commands: ${apps_commands[i]}"
+            done
+            i=$(($i - $repo_srtinx))
+        else
+            for ((i = 0; i < ${#apps_package_name[@]}; i++)); do
+                colorecho "$THEME" "PKG  $NC | ${apps_package_name[i]}"
+                colorecho "$DEBUG" "INFO $NC | APP: ${apps_pretty_name[i]}, CAT: ${apps_category[i]}, DIS: ${apps_description[i]}"
+                colorecho "$DEBUG" "INFO $NC | Packages: ${apps_packages[i]}"
+                colorecho "$DEBUG" "INFO $NC | Commands: ${apps_commands[i]}"
+            done
+        fi
+        colorecho "$GREEN" "INFO $NC |"
+        colorecho "$GREEN" "INFO $NC | $i packages found"
+    else
         for ((i = 0; i < ${#apps_package_name[@]}; i++)); do
             if [ "${apps_package_name[i]}" = "$target" ]; then
                 if [ "$arg" = "-i" ]; then
@@ -1835,15 +1867,6 @@ apps_list() {
         done
         colorecho "$RED" "ERROR $NC| Package $target not found"
         return 1
-    else
-        for ((i = 0; i < ${#apps_package_name[@]}; i++)); do
-            colorecho "$THEME" "PKG  $NC | ${apps_package_name[i]}"
-            colorecho "$DEBUG" "INFO $NC | APP: ${apps_pretty_name[i]}, CAT: ${apps_category[i]}, DIS: ${apps_description[i]}"
-            colorecho "$DEBUG" "INFO $NC | Packages: ${apps_packages[i]}"
-            colorecho "$DEBUG" "INFO $NC | Commands: ${apps_commands[i]}"
-        done
-        colorecho "$GREEN" "INFO $NC |"
-        colorecho "$GREEN" "INFO $NC | $i packages found"
     fi
 }
 
@@ -3265,6 +3288,8 @@ elif [ "$1" = "apps" ] ; then
         apps_list "$3"
     elif [ "$2" = "index" ]; then
         apps_list "$3" -i
+    elif [ "$2" = "repo" ]; then
+        apps_list "$3" -r
     fi
 
 elif [ "$1" = "install" ] || [ "$1" = "-S" ] ; then
