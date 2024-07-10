@@ -2834,13 +2834,12 @@ keyboard() {
 # ACU Settings
 settings() {
     title "ACU Settings"
-    echo
-    colorecho "$NC" "\t\tTheme:          ${THEME_NAME:-"(unset)"}" "" "center" "-a"
-    colorecho "$NC" "\t\tTheme Color:   $THEME This is an example $NC" "" "center" "-a"
-    colorecho "$NC" "\t\tWarning Color: $WARNING This is a warning message $NC" "" "center" "-a"
-    colorecho "$NC" "\t\tDebug Color:   $DEBUG This is a debug message $NC" "" "center" "-a"
-    colorecho "$NC" "\t\tConfig File:    $config_file" "" "center" "-a"
-    colorecho "$WARNING" "\t    WARNING $NC| $utilname is experimental |$GREEN $release" "bottom" "center" "-a" # Bottom Text
+    colorecho "$THEME" "$utilname |$GREEN $release $THEME| ${WARNING}EXPERIMENTAL${NC}" "bottom" "center" # Bottom Text
+    colorecho "$NC" "Theme:          ${THEME_NAME:-"(unset)"}               " "" "center"
+    colorecho "$NC" "Theme Color:   $THEME This is an example $NC        " "" "center"
+    colorecho "$NC" "Warning Color: $WARNING This is a warning message $NC" "" "center"
+    colorecho "$NC" "Debug Color:   $DEBUG This is a debug message $NC  " "" "center"
+    colorecho "$NC" "        Config File:    $config_file" "" "center"
     echo
     select_options=("Change ACU Theme" "Change Theme Color" "Edit ACU Configurations" "Load Default ACU Configurations" "Return to Main Menu")
     select_option "${select_options[@]}"
