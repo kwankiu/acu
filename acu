@@ -282,6 +282,13 @@ colorecho() {
             text="\033[${hposition}G${text}"
         fi
         
+        #Random
+        if [[ "$THEME_NAME" == "Rainbow - "* ]]; then
+            local randc=$(( ( RANDOM % 7 )  + 30 ))
+            color="\033[${randc}m"
+            NC="\033[${randc}m"
+        fi
+
         [ -n "$no_warning" ] && [ "$color" = "$WARNING" ] || [ "$color" = "$DEBUG" ] && [ -z "$debug_log" ] || echo -e "${color}${text}${NC}"
         
         if [ "$arg" = "-n" ]; then
@@ -2872,9 +2879,9 @@ settings() {
         0)
             title "ACU Themes"
             echo
-            select_options=(   "ACU - Light" "ACU - Dark" "ACU - Gaming")
-            local theme_color=("\$BLUE"      "\$LTBLUE"     "\$RED"       )
-            local theme_bg=(   "\$BGWHITE"   "\$BGBLACK"  "\$BGBLACK"   )
+            select_options=(   "ACU - Light" "ACU - Dark" "ACU - Gaming" "Rainbow - Light" "Rainbow - Dark")
+            local theme_color=("\$BLUE"      "\$LTBLUE"   "\$RED"        "\$BLUE"          "\$LTBLUE")
+            local theme_bg=(   "\$BGWHITE"   "\$BGBLACK"  "\$BGBLACK"    "\$BGWHITE"       "\$BGBLACK")
             select_option "${select_options[@]}" "Reset to default (theme unset)" "Return to Main Menu"
             choice=$?
             if [ "$choice" -lt "${#select_options[@]}" ]; then
