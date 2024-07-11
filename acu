@@ -2823,7 +2823,6 @@ timezone() {
     if [ -z "$1" ]; then
 
         title "Time Zone"
-        echo
         colorecho "$GREEN" "Network Time Zone: $network_timezone" "" "center"
 
         if [ "$current_timezone" = "$network_timezone" ]; then
@@ -2833,26 +2832,26 @@ timezone() {
         fi
 
         echo
-        select_options=("Return to Localization Menu" "Set Time Zone Manually" "Set Date & Time Manually")
+        select_options=("Set Time Zone Manually" "Set Date & Time Manually")
 
         if [ "$current_timezone" != "$network_timezone" ]; then
             select_options+=("Synchronize Time Zone with Network")
         fi
 
-        select_option "${select_options[@]}"
+        select_option "${select_options[@]}" "Return to Localization Menu"
         choice=$?
     
     elif [ "$1" = "set-time-zone" ]; then
         if [ -z "$2" ]; then
-            choice=1
+            choice=0
         elif [ "$2" = "sync" ]; then
-            choice=3
+            choice=2
         else
-            choice=1
+            choice=0
             new_timezone=$2
         fi
     elif [ "$1" = "set-time-date" ]; then
-        choice=2
+        choice=1
     elif [ "$1" = "network-time-zone" ]; then
         echo $network_timezone
     elif [ "$1" = "system-time-zone" ]; then
@@ -2861,9 +2860,6 @@ timezone() {
 
     case $choice in
         0)
-            localization
-            ;;
-        1)
             if [ -z "$new_timezone" ]; then
                 read -p "Enter new time zone (e.g., Asia/Tokyo): " new_timezone
             fi
@@ -2871,14 +2867,21 @@ timezone() {
             echo "Time Zone updated to $new_timezone"
             sudo timedatectl set-ntp true
             ;;
-        2)
+        1)
             read -p "Enter the new date and time in format 'YYYY-MM-DD HH:MM:SS': " new_datetime
             sudo timedatectl set-time "$new_datetime"
             ;;
+        2)
+            if [ -n "${select_options[2]}" ] || [ -z "${select_options}" ]; then
+                sudo timedatectl set-timezone "$network_timezone"
+                sudo timedatectl set-ntp true
+                colorecho "$GREEN" "Time Zone synchronized with network."
+            else
+                localization
+            fi
+            ;;
         3)
-            sudo timedatectl set-timezone "$network_timezone"
-            sudo timedatectl set-ntp true
-            colorecho "$GREEN" "Time Zone synchronized with network."
+            localization
             ;;
     esac
 }
@@ -3169,7 +3172,12 @@ for arg in "$@"; do
             echo "  locale generate <lang_code> : generate locale of a language code (eg. en_US)."
             echo "  locale set-lang <lang_code> : set a generated locale as system locale (eg. en_US)."
             echo "  font : Install Fonts, TTF, Non-English Characters, Special Characters / Emoji."
-            echo "  time <option> : Change Time Zone, Current Date and Time. options: set-time-zone, set-time-date, network-time-zone, system-time-zone"
+            echo "  time : show interactive menu to manage system date, time and timezone."
+            echo "  time set-time-zone <timezone>: set system time zone (eg. Asia/Tokyo)."
+            echo "  time set-time-zone sync: synchronize system time zone with network time zone."
+            echo "  time set-time-date <date>: set system time & date (format YYYY-MM-DD HH:MM:SS)."
+            echo "  time network-time-zone : print current network time zone."
+            echo "  time system-time-zone : print current system time zone."
             echo "  keyboard : Change Keyboard Layout."
             #echo "  wifi : Change WiFi Country Settings."
             echo
