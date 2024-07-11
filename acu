@@ -229,7 +229,7 @@ colorecho() {
     local color="$1"
     local text="$2"
 
-    if [ -n "$no_color_echo" ]; then
+    if [ -n "$no_styling" ]; then
         text=$(echo -e ${text} | sed 's/\x1b\[[0-9;]*m//g')
         [ -n "$no_warning" ] && [ "$color" = "$WARNING" ] || [ "$color" = "$DEBUG" ] && [ -z "$debug_log" ] || echo -e "${text}"
     else
@@ -3053,8 +3053,8 @@ for arg in "$@"; do
         --loadconfig=*)
             config_file="${arg#*=}"
             ;;
-        --nocolorecho)
-            no_color_echo=1
+        --nocolorecho | --nostyling)
+            no_styling=1
             ;;
     esac
 done
@@ -3098,7 +3098,7 @@ for arg in "$@"; do
             echo "  --nowarning : Do not show warning messages."
             echo "  --noclear : Do not clear terminal output."
             echo "  --nowarning : Do not show warning messages."
-            echo "  --nocolorecho : Disable color or cursor position in output, useful for non-interactive usage."
+            echo "  --nostyling : Disable color or cursor position in output, useful for non-interactive usage."
             echo
             colorecho "$GREEN" "Features"
             echo
@@ -3209,7 +3209,7 @@ for arg in "$@"; do
         ;;
         -*)
             case "$arg" in
-                -S | -R | -D | -B | --loadconfig=* | --nocolorecho) 
+                -S | -R | -D | -B | --loadconfig=* | --nocolorecho | --nostyling) 
                     # Add more excluded arguments as needed (these args are handled before or after this loop)
                     ;;
                 *)
@@ -3432,7 +3432,7 @@ elif [ "$1" = "alias" ]; then
 
 ### For developer / API use and debugging ###
 elif [ "$1" = "parse" ]; then
-    if [ -z "$no_color_echo" ]; then
+    if [ -z "$no_styling" ]; then
         clear
         colorecho "$BLUE" "ACU $NC| Parsed output of $2"
         colorecho "$BLUE" "ACU $NC| $3"
