@@ -2288,31 +2288,31 @@ soc_profile() {
         colorecho "$THEME" "Memory Profile: $(cat /sys/class/devfreq/dmc/governor 2>/dev/null)" "" "center" "-a"
         colorecho "$THEME" "GPU Profile: $(cat /sys/class/devfreq/fb000000.gpu/governor 2>/dev/null)" "" "center" "-a"
         echo
-        options=("Performance - Run SoC at full performance" "On Demand - Run SoC on CPU usage demand" "Power Save - Run SoC on Power Saving Mode" "System Default - Run SoC with system default settings" "Return to Main Menu")
+        options=("Performance - Run SoC at full performance" "On Demand - Run SoC on CPU usage demand" "Power Save - Run SoC on Power Saving Mode" "System Default - Run SoC with system default settings" "Return to System & Performance Menu")
         select_option "${options[@]}"
         choice=$?
 
         case $choice in
             0)
-                create_soc_profile_service "performance"
-                colorecho "$GREEN" "Profile set to Performance"
+                soc_profile "set-profile" "performance"
+                soc_profile
                 ;;
             1)
-                create_soc_profile_service "ondemand"
-                colorecho "$GREEN" "Profile set to On Demand"
+                soc_profile "set-profile" "ondemand"
+                soc_profile
                 ;;
             2)
-                create_soc_profile_service "powersave"
-                colorecho "$GREEN" "Profile set to Power Save"
+                soc_profile "set-profile" "powersave"
+                soc_profile
                 ;;
             3)
-                sudo rm /etc/systemd/system/soc_profile.service
-                sudo systemctl daemon-reload
-                colorecho "$GREEN" "Removed SoC Profile service"
+                soc_profile "remove-profile"
+                soc_profile
+                ;;
+            *)
+                system_performance
                 ;;
         esac
-        system_performance
-        
     elif [ "$1" = "set" ]; then
         case $2 in
             "performance")
@@ -2334,6 +2334,29 @@ soc_profile() {
                 exit 1
                 ;;
         esac
+    elif [ "$1" = "set-profile" ]; then
+        case $2 in
+            "performance")
+                create_soc_profile_service "performance"
+                colorecho "$GREEN" "Profile set to Performance"
+                ;;
+            "ondemand")
+                create_soc_profile_service "ondemand"
+                colorecho "$GREEN" "Profile set to On Demand"
+                ;;
+            "powersave")
+                create_soc_profile_service "powersave"
+                colorecho "$GREEN" "Profile set to Power Save"
+                ;;
+            *)
+                colorecho "$RED" "ERROR $NC | Invalid SoC Governor"
+                exit 1
+                ;;
+        esac
+    elif [ "$1" = "remove-profile" ]; then
+            sudo rm /etc/systemd/system/soc_profile.service
+            sudo systemctl daemon-reload
+            colorecho "$GREEN" "Removed SoC Profile service"
     fi
 }
 
@@ -3108,7 +3131,10 @@ for arg in "$@"; do
             #echo "  restore <img_path> : Restore this system from a flashable image. <img_path> : path to the image to restore."
             #echo "  clone <disk> : Clone this system to another disk. <disk> : disk location, example /dev/nvme0n1."
             echo "  sysinfo : Print infomation of this system / device."
-            echo "  soc set <governor> : Manage SoC Settings. options: performance, ondemand, powersave."
+            echo "  soc : show interactive menu to manage SoC settings"
+            echo "  soc set <governor> : Set SoC governor. options: performance, ondemand, powersave."
+            echo "  soc set-profile <governor> : Create an SoC Profile to automatically apply SoC settings on boot. options: performance, ondemand, powersave."
+            echo "  soc remove-profile : Remove the SoC Profile."
             echo "  hwmon : Print hardware infomations like cpu clock freq, temps and gpu info."
             echo "  alias add / create : add an alias / shortcut of a command."
             echo "  alias remove / del : remove an alias created by acu."
