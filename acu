@@ -3160,6 +3160,7 @@ for arg in "$@"; do
             echo "  apps / install / -S : show interactive menu to install a collection of apps / packages."
             echo "  apps list : show all available packages of acu apps list."
             echo "  apps list <package> : find a packages from acu apps list."
+            echo "  apps repo <repo> : show all available packages of an ACU repository."
             echo "  apps index <package> : find a packages from acu apps list and return only its list item index."
             echo "  -S / install <package> : install a package using acu, you can install multiple packages with one command, example: acu install package1 package4 package3"
             echo "  update : Fetch pacman repositories, acu managed repositories and update lists defined in config."
@@ -3177,7 +3178,7 @@ for arg in "$@"; do
             echo
             colorecho "$THEME" "Localization"
             echo
-            echo "  locale : show interactive locale menu to manage locales settings."
+            echo "  locale : show interactive menu to manage locales settings."
             echo "  locale list-generated : list all generated locales."
             echo "  locale list-available : list all available locales."
             echo "  locale generate <lang_code> : generate locale of a language code (eg. en_US)."
@@ -3194,7 +3195,13 @@ for arg in "$@"; do
             echo
             colorecho "$THEME" "User Accounts"
             echo
-            echo "  user <option> : Add, Remove and Change User Account Settings. options: add, remove, manage"
+            echo "  user : show interactive menu to manage User Account Settings"
+            echo "  user add : create & initalize a user account, with prompt to setup username and password."
+            echo "  user add <username> : create & initalize a user account, with prompt to setup password."
+            echo "  user add <username> <password> : create & initalize a user account without interactive prompt."
+            echo "  user remove <username> : remove a user account from the system."
+            echo "  user manage <username> : show interactive menu to manage the specified User Account."
+            echo "  user manage <username> <option> : enable/disable a specified user options, options are sudopw and rebootpw."
             echo
             colorecho "$THEME" "ACU Settings"
             echo
