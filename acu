@@ -283,7 +283,7 @@ colorecho() {
         fi
         
         #Random
-        if [[ "$THEME_NAME" == "Rainbow - "* ]]; then
+        if [[ "$THEME_NAME" == "Rainbow - "* ]] && [ "$color" != "$DEBUG" ] && [ "$color" != "$WARNING" ]; then
             local randc=$(( ( RANDOM % 6 )  + 31 ))
             color="\033[${randc}m"
             NC="\033[${randc}m"
