@@ -897,6 +897,16 @@ add_repository() {
         fi
     fi
 
+    if [ -z "$1" ]; then
+        title "Add a Repository"
+        colorecho "$WARNING" "Confirm adding repository $repo_name ?"
+        select_option "Cancel" "Confirm"
+        choice=$?
+        if [ "$choice" = 0 ]; then
+            return 1
+        fi
+    fi
+
     case "$repo_type" in
         acu | agr | git | archive)
             # Apply git branch to url if exists
@@ -1200,8 +1210,9 @@ manage_repositories() {
     # Choice
     case $choice in
         0)
-            add_repository
-            acu update
+            if add_repository; then
+                acu update
+            fi
             manage_repositories
             ;;
         1)
