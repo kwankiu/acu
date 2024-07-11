@@ -2680,8 +2680,10 @@ locale() {
                         echo "$((i + 1))) ${langcode[$i]}"
                     done
 
-                    read -p "Enter the locale number: " chosen_number
-                    chosen_locale=${langcode[$((chosen_number - 1))]}
+                    read -p "Enter the locale number or code: " chosen_locale
+                    if [[ "$chosen_locale" =~ ^[0-9]+$ ]]; then
+                        chosen_locale=${langcode[$((chosen_locale - 1))]}
+                    fi
                     colorecho "$GREEEN" "Picked $chosen_locale"
                 else
                     chosen_locale=$2
