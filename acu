@@ -3095,7 +3095,6 @@ for arg in "$@"; do
             echo "  --device=<tag> : Specify target device tag. By default if not set, ACU will auto detect it from /proc/device-tree/compatitble."
             echo "  --branch=<branch> : Specify a git branch for setting or cloning from remote repository."
             echo "  --noconfirm : Do not ask for confirmation when resolving dependencies and installing packages managed by pacman / makepkg."
-            echo "  --nowarning : Do not show warning messages."
             echo "  --noclear : Do not clear terminal output."
             echo "  --nowarning : Do not show warning messages."
             echo "  --nostyling : Disable color or cursor position in output, useful for non-interactive usage."
