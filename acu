@@ -2642,9 +2642,9 @@ locale() {
     if [ -z "$1" ]; then
         title "Locale"
         # List available locales
+        colorecho "$GREEN" "System Locale: ${LANG:-"(unset)"}" "" "center"
         echo
         colorecho "$GREEN" "Generated Locales:" "" "center"
-        echo
         generated_locales=($(echo $generated_locales))
         for ((i = 0; i < ${#generated_locales[@]}; i++)); do
             colorecho "$NC" "${generated_locales[i]}" "" "center"
@@ -2652,14 +2652,16 @@ locale() {
         echo
 
         # Prompt to select and generate locale
-        select_options=("Generate New Locales" "Return to Localization Menu")
+        select_options=("Generate New Locales" "Set System Locale" "Return to Localization Menu")
         select_option "${select_options[@]}"
         choice=$?
     elif [ "$1" = "list-generated" ]; then
         echo "$generated_locales"
-        exit 1
+        exit 0
     elif [ "$1" = "list-available" ] || [ "$1" = "generate" ]; then
         choice=0
+    elif [ "$1" = "set-lang" ]; then
+        choice=1
     else
         colorecho "$RED" "ERROR $NC | Invalid option"
         exit 1
@@ -2699,7 +2701,6 @@ locale() {
                 done
                 
                 title "Generate Locale"
-                echo
                 colorecho "$GREEN" "The following locales will be added:" "" "center"
                 echo
                 for ((i = 0; i < ${#matches[@]}; i++)); do
@@ -2729,6 +2730,33 @@ locale() {
                 for ((i = 0; i < ${#langcode[@]}; i++)); do
                     echo "${langcode[$i]}"
                 done
+            fi
+            ;;
+        1)
+            local selected_lang=$2
+            if [ ! "$1" = "set-lang" ]; then
+                local genlocales=()
+                title "Set System Locale"
+                colorecho "$GREEN" "Available locales:" "" "center"
+                echo
+                for locale in "${generated_locales[@]}"; do
+                    if [[ "$locale" =~ (.*)(\.utf8|\.UTF-8)$ ]]; then
+                        genlocales+=("${BASH_REMATCH[1]}")
+                    fi
+                done
+                select_option "${genlocales[@]}" "Back to locale menu"
+                choice=$?
+                if [ "$choice" -lt "${#genlocales[@]}" ]; then
+                    selected_lang="${genlocales[choice]}"
+                fi
+            fi
+            if [ -n "$selected_lang" ]; then
+                echo -e "LANG=${selected_lang}.UTF-8" | sudo tee /etc/locale.conf
+                source /etc/locale.conf
+                colorecho "$THEME" "Set LANG to $selected_lang"
+            fi
+            if [ ! "$1" = "set-lang" ]; then
+                locale
             fi
             ;;
         *)
@@ -3081,9 +3109,12 @@ for arg in "$@"; do
             #echo "  restore <img_path> : Restore this system from a flashable image. <img_path> : path to the image to restore."
             #echo "  clone <disk> : Clone this system to another disk. <disk> : disk location, example /dev/nvme0n1."
             echo "  sysinfo : Print infomation of this system / device."
+            echo "  soc set <governor> : Manage SoC Settings. options: performance, ondemand, powersave."
+            echo "  hwmon : Print hardware infomations like cpu clock freq, temps and gpu info."
             echo "  alias add / create : add an alias / shortcut of a command."
             echo "  alias remove / del : remove an alias created by acu."
             echo "  update-boot-config <pkgname> : Update boot config for booting to a new kernel."
+            #echo "  fan <option> : Configure PWM Fan-control. options: install, enable, disable and status."
             echo
             colorecho "$THEME" "Manage Packages"
             echo
@@ -3105,15 +3136,13 @@ for arg in "$@"; do
             echo "  rem remove / rem del <name> : remove a repository from acu."
             echo "  rem remove / rem del pacman <name>: remove a repository from pacman."
             echo
-            colorecho "$THEME" "Performance"
-            echo
-            echo "  soc set <governor> : Manage SoC Settings. options: performance, ondemand, powersave."
-            echo "  hwmon : Print hardware infomations like cpu clock freq, temps and gpu info."
-            #echo "  fan <option> : Configure PWM Fan-control. options: install, enable, disable and status."
-            echo
             colorecho "$THEME" "Localization"
             echo
-            echo "  locale : Generate Locale Settings. options: list-generated, list-available, generate <country_code>"
+            echo "  locale : show interactive locale menu to manage locales settings."
+            echo "  locale list-generated : list all generated locales."
+            echo "  locale list-available : list all available locales."
+            echo "  locale generate <lang_code> : generate locale of a language code (eg. en_US)."
+            echo "  locale set-lang <lang_code> : set a generated locale as system locale (eg. en_US)."
             echo "  font : Install Fonts, TTF, Non-English Characters, Special Characters / Emoji."
             echo "  time <option> : Change Time Zone, Current Date and Time. options: set-time-zone, set-time-date, network-time-zone, system-time-zone"
             echo "  keyboard : Change Keyboard Layout."
