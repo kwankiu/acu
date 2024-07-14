@@ -2172,8 +2172,7 @@ install_pkg() {
             if [ -z "$no_confirm" ]; then
                 sudo pacman -S $selection_base 
             else
-                sudo pacman -S $selection_base --noconfirm
-                if ! pacman -Q "${selection_base#*)}" > /dev/null 2>&1 ; then
+                if ! sudo pacman -S $selection_base --noconfirm; then
                     colorecho "$WARNING" "WARNING $NC | package $selection_base was not installed non-interactively, trying to install interactively."
                     sudo pacman -S $selection_base
                 fi
