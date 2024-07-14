@@ -19,9 +19,5 @@ repositories:
  
 - repo_name: ALAA
   repo_type: archive
-  repo_url: https://alaa.ad24.cz
- 
-- repo_name: AARM
-  repo_type: archive
   repo_url: http://tardis.tiny-vps.com/aarm
  

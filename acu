@@ -27,10 +27,10 @@
 utilname="Arch (ARM) Configuration Utility"
 
 # ACU Release Version : (github tags) (or branch*)
-release="0.0.8"
+release="0.1.2"
 
 # (DEPRECATED/OPTIONAL) ACU Build Number: utilver (YYMMDDNN)
-utilver=24031299
+#utilver=24031299
 
 # Remote Repository for update check
 remote_repo="https://github.com/kwankiu/acu"
@@ -141,11 +141,15 @@ function select_option {
     cursor_blink_off() { printf "$ESC[?25l"; }
     cursor_to()        { printf "$ESC[$1;${2:-1}H"; }
     print_option()     { local COLS=$(tput cols);
-                         local LEN=${#1}
+                         # Remove control characters for length
+                         local LEN=$(echo -e "$1" | sed 's/\x1b\[[0-9;]*m//g')
+                         local LEN=${#LEN}
                          hposition=$(( (COLS - LEN) / 2 ));
                          printf "$ESC[${hposition}G$1";}
-    print_selected()     { local COLS=$(tput cols);
-                         local LEN=${#1}
+    print_selected()   { local COLS=$(tput cols);
+                         # Remove control characters for length
+                         local LEN=$(echo -e "$1" | sed 's/\x1b\[[0-9;]*m//g')
+                         local LEN=${#LEN}
                          hposition=$(( (COLS - LEN) / 2 ));
                          printf "$ESC[7m$ESC[${hposition}G$1$ESC[27m";}
     get_cursor_row()   { IFS=';' read -sdR -p $'\E[6n' ROW COL; echo ${ROW#*[}; }
@@ -178,12 +182,22 @@ function select_option {
             else
                 formatted_opt=" $((idx + 1)) \t $opt"
             fi
-            LEN=$(($(tput cols) - 20))
-            if [ "$LEN" -gt 100 ]; then
+            # Responsive terminal size
+            if [ "$(tput cols)" -gt 120 ]; then
                 LEN=100
+            elif [ "$(tput cols)" -gt 100 ]; then
+                LEN=$(($(tput cols) - 18))
+            elif [ "$(tput cols)" -gt 80 ]; then
+                LEN=$(($(tput cols) - 9))
+            else
+                LEN=$(($(tput cols) - 6))
             fi
-            formatted_opt=$(echo "$formatted_opt" | cut -c1-$(echo ${LEN}))
-            formatted_opt=$(printf "%-${LEN}s" "$formatted_opt")
+            # Remove control characters for length
+            local cclen=$(echo -e "${formatted_opt}" | sed 's/\x1b\[[0-9;]*m//g')
+            cclen=$((${#formatted_opt} - ${#cclen}))
+            LEN=$((LEN + cclen))
+            # Truncate
+            formatted_opt=$(printf "%-${LEN}s" "$formatted_opt" | cut -c1-$(echo ${LEN}))
             if [ $idx -eq $selected ]; then
                 print_selected "$formatted_opt"
             else
@@ -215,7 +229,7 @@ colorecho() {
     local color="$1"
     local text="$2"
 
-    if [ -n "$no_color_echo" ]; then
+    if [ -n "$no_styling" ]; then
         text=$(echo -e ${text} | sed 's/\x1b\[[0-9;]*m//g')
         [ -n "$no_warning" ] && [ "$color" = "$WARNING" ] || [ "$color" = "$DEBUG" ] && [ -z "$debug_log" ] || echo -e "${text}"
     else
@@ -225,14 +239,21 @@ colorecho() {
         local LINES=$(tput lines)
         local COLS=$(tput cols)
         local LEN
+        local text_length
         tput sc # Save cursor position
 
         if [[ "$arg" == "-a" ]]; then
-                LEN=$(($(tput cols) - 2))
-                if [ "$LEN" -gt 100 ]; then
+                # Responsive terminal size
+                if [ "$(tput cols)" -gt 120 ]; then
                     LEN=100
+                elif [ "$(tput cols)" -gt 100 ]; then
+                    LEN=$(($(tput cols) - 18))
+                elif [ "$(tput cols)" -gt 80 ]; then
+                    LEN=$(($(tput cols) - 9))
+                else
+                    LEN=$(($(tput cols) - 6))
                 fi
-                text=$(printf "%-${LEN}s" "     $text" | cut -c1-$(echo ${LEN}))
+                text=$(printf "%-${LEN}s" "$text" | cut -c1-$(echo ${LEN}))
         fi
         
         if [ "$vposition" = "top" ]; then
@@ -248,7 +269,8 @@ colorecho() {
         elif [ "$hposition" = "right" ]; then
             hposition=$((COLS - 2))
         elif [ "$hposition" = "center" ]; then
-            text_length=${#text}
+            text_length=$(echo -e "${text}" | sed 's/\x1b\[[0-9;]*m//g')
+            text_length=${#text_length}
             hposition=$(( (COLS - text_length) / 2 ))
         fi
 
@@ -260,6 +282,13 @@ colorecho() {
             text="\033[${hposition}G${text}"
         fi
         
+        #Random
+        if [[ "$THEME_NAME" == "Rainbow - "* ]] && [ "$color" != "$DEBUG" ] && [ "$color" != "$WARNING" ]; then
+            local randc=$(( ( RANDOM % 6 )  + 31 ))
+            color="\033[${randc}m"
+            NC="\033[${randc}m"
+        fi
+
         [ -n "$no_warning" ] && [ "$color" = "$WARNING" ] || [ "$color" = "$DEBUG" ] && [ -z "$debug_log" ] || echo -e "${color}${text}${NC}"
         
         if [ "$arg" = "-n" ]; then
@@ -292,24 +321,36 @@ title() {
   fi
 
   colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
-  colorecho "$THEME" "                  ##                     __   ____  _  _         " "" "$align"
-  colorecho "$THEME" "                 ####                   / _\ (  _ \( \/ )        " "" "$align"
-  colorecho "$THEME" "                ######                 /    \ )   // \/ \        " "" "$align"
-  colorecho "$THEME" "               ########                \_/\_/(__\_)\_)(_/        " "" "$align"
-  colorecho "$THEME" "              ##########          ___  __   __ _  ____  __  ___  " "" "$align"
-  colorecho "$THEME" "             ############        / __)/  \ (  ( \(  __)(  )/ __) " "" "$align"
-  colorecho "$THEME" "            ##############      ( (__(  O )/    / ) _)  )(( (_ \ " "" "$align"
-  colorecho "$THEME" "           ################      \___)\__/ \_)__)(__)  (__)\___/ " "" "$align"
-  colorecho "$THEME" "          ######      ######           _  _  ____  __  __        " "" "$align"
-  colorecho "$THEME" "         #######      #######         / )( \(_  _)(  )(  )       " "" "$align"
-  colorecho "$THEME" "       #######         #######        ) \/ (  )(   )( / (_/\     " "" "$align"
-  colorecho "$THEME" "      ######             ######       \____/ (__) (__)\____/     " "" "$align"
-  colorecho "$THEME" "     ###                     ###                                 " "" "$align"
+
+  if [ "$(tput lines)" -gt 30 ]; then
+    # FULL LOGO
+    colorecho "$THEME" "              ##                     __   ____  _  _         " "" "$align"
+    colorecho "$THEME" "             ####                   / _\ (  _ \( \/ )        " "" "$align"
+    colorecho "$THEME" "            ######                 /    \ )   // \/ \        " "" "$align"
+    colorecho "$THEME" "           ########                \_/\_/(__\_)\_)(_/        " "" "$align"
+    colorecho "$THEME" "          ##########          ___  __   __ _  ____  __  ___  " "" "$align"
+    colorecho "$THEME" "         ############        / __)/  \ (  ( \(  __)(  )/ __) " "" "$align"
+    colorecho "$THEME" "        ##############      ( (__(  O )/    / ) _)  )(( (_ \ " "" "$align"
+    colorecho "$THEME" "       ################      \___)\__/ \_)__)(__)  (__)\___/ " "" "$align"
+    colorecho "$THEME" "      ######      ######           _  _  ____  __  __        " "" "$align"
+    colorecho "$THEME" "     #######      #######         / )( \(_  _)(  )(  )       " "" "$align"
+    colorecho "$THEME" "   #######         #######        ) \/ (  )(   )( / (_/\     " "" "$align"
+    colorecho "$THEME" "  ######             ######       \____/ (__) (__)\____/     " "" "$align"
+    colorecho "$THEME" " ###                     ###                                 " "" "$align"
+  else
+    # SMALL LOGO
+    colorecho "$THEME" "     ##                    __     ___   _  _   " "" "$align"
+    colorecho "$THEME" "    ####                  / _\   / __) / )( \  " "" "$align"
+    colorecho "$THEME" "   ######                /    \ ( (__  ) \/ (  " "" "$align"
+    colorecho "$THEME" "  ###  ###               \_/\_/  \___) \____/  " "" "$align"
+    colorecho "$THEME" " ##      ##              _ARM_ _CONFIG_ _UTIL_ " "" "$align"
+  fi
   colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
   if [ -n "$1" ]; then
     text="$1"
     colorecho "$THEME" "${text}" "" "$align"
     colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
+    colorecho
   fi
 }
 
@@ -340,6 +381,10 @@ check_util_updates() {
 update_util() {
     if [ "$update_available" = true ] || [ -n "$argupdate" ]; then
         title
+        if [ -f "/usr/bin/acu" ]; then
+            # Backup existing ACU
+            sudo cp -r /usr/bin/acu /usr/bin/acu.old
+        fi
         colorecho "$GREEN" "Installing / Updating $utilname ..."
         local response_code=$(sudo curl --write-out '%{response_code}' -o /usr/bin/acu -L "https://raw.githubusercontent.com/kwankiu/acu/$remote_release/acu")
         sudo chmod +x /usr/bin/acu
@@ -349,8 +394,18 @@ update_util() {
                 colorecho "$DEBUG" "Renaming existing config.yaml to config.old ..."
                 mv "$config_file" "$config_dir/config.old"
             fi
+            if [ -f "/usr/bin/acu.old" ]; then
+                # Remove backup of old ACU
+                sudo rm -rf /usr/bin/acu.old
+            fi
         else
             colorecho "$RED" "ERROR $NC | failed to install / update $utilname. Check your internet or user permissions."
+            if [ -f "/usr/bin/acu.old" ]; then
+                # Restore existing ACU
+                sudo rm -rf /usr/bin/acu
+                sudo cp -r /usr/bin/acu.old /usr/bin/acu
+                sudo rm -rf /usr/bin/acu.old
+            fi
             exit 1
         fi
         args=("$@")
@@ -842,6 +897,16 @@ add_repository() {
         fi
     fi
 
+    if [ -z "$1" ]; then
+        title "Add a Repository"
+        colorecho "$WARNING" "Confirm adding repository $repo_name ?"
+        select_option "Cancel" "Confirm"
+        choice=$?
+        if [ "$choice" = 0 ]; then
+            return 1
+        fi
+    fi
+
     case "$repo_type" in
         acu | agr | git | archive)
             # Apply git branch to url if exists
@@ -1109,7 +1174,7 @@ fetch_repositories() {
                     mkdir -p $HOME/.acu/cache/db
                     cp -r $HOME/.acu/cache/tmp/tmpdownload.yaml $HOME/.acu/cache/db/${repositories_repo_name[i]}.yaml
                     if [ "$1" == "list" ]; then
-                        apps_list
+                        apps_list "${repositories_repo_name[i]}" "-r"
                         colorecho "$GREEN" "INFO$NC |     Successfully fetched host"
                     fi
                 else
@@ -1145,8 +1210,9 @@ manage_repositories() {
     # Choice
     case $choice in
         0)
-            add_repository
-            acu update
+            if add_repository; then
+                acu update
+            fi
             manage_repositories
             ;;
         1)
@@ -1180,17 +1246,16 @@ manage_repositories() {
 config_options() {
     title
     colorecho "$NC" ""
-    colorecho "$WARNING" "\t    WARNING $NC| $utilname is experimental |$GREEN $release" "bottom" "center" "-a" # Bottom Text
-    options=("System Maintenance \t Configure system settings, System utilites & infomation")
-    options+=("Manage Packages \t Upgrade or downgrade packages, Manage packages repositories")
-    options+=("ACU Apps \t\t Curated collection of applications or packages to install")
-    options+=("Performance \t\t Tweak SoC Performance Settings, Enable PWM Fan, Overclocking")
-    options+=("Localization \t\t Generate locale, Install fonts, Set date, time & timezone")
-    options+=("User Accounts \t\t Add, Remove or Change user account settings")
-    options+=("ACU Settings \t\t Customize ACU Theme, configurations & settings")
+    colorecho "$THEME" "$utilname |$GREEN $release $THEME| ${WARNING}EXPERIMENTAL${NC}" "bottom" "center" # Bottom Text
+    options=( "System & Performance     Configure system settings, utilites & performance tweaking")
+    options+=("Manage Packages          Upgrade or downgrade packages, Manage packages repositories")
+    options+=("ACU Apps                 Curated collection of applications or packages to install")
+    options+=("Localization             Generate locale, Install fonts, Set date, time & timezone")
+    options+=("User Accounts            Add, Remove or Change user account settings")
+    options+=("ACU Settings             Customize ACU Theme, configurations & settings")
 
     if [ "$update_available" = true ]; then 
-        options+=("Update Now $GREEN(Updates available)$NC Update Utility to latest version $GREEN($release -> $remote_release)$NC ")
+        options+=("${GREEN}(Updates available)${NC}      Update this utility to $remote_release")
     fi
     
     options+=("Exit Utility")
@@ -1200,7 +1265,7 @@ config_options() {
     # Choice
     case $choice in
         0)
-            system_maintenance
+            system_performance
             ;;
         1)
             manage_packages
@@ -1209,18 +1274,15 @@ config_options() {
             apps_menu
             ;;
         3)
-            performance_features
-            ;;
-        4)
             localization
             ;;
-        5)
+        4)
             manage_user
             ;;
-        6)
+        5)
             settings
             ;;
-        7)
+        6)
             update_util # Or Exit Utility if no update is available
             ;;
     esac
@@ -1228,15 +1290,20 @@ config_options() {
 }
 
 ########################################################################
-## System Maintenance
+## System & Performance
 ########################################################################
 
-# System Maintenance Main Menu
-system_maintenance() {
-    title "System Maintenance"
-    options=("Flash Bootloader \t Flash Bootloader to eMMC/TF Card/SPI Flash")
-    options+=("Copy System \t\t Backup, Restore, or Clone this system with partimage")
-    options+=("System Infomation \t Print infomation of this system / device")
+# System & Performance Main Menu
+system_performance() {
+    title "System & Performance"
+    options=( "Flash Bootloader       Flash Bootloader to eMMC/TF Card/SPI Flash")
+    options+=("Copy System            Backup, Restore, or Clone this system with partimage")
+    options+=("System Infomation      Print infomation of this system / device")
+    options+=("SoC Profile            Available options are performance, ondemand and powersave")
+    options+=("HW Monitor             Monitor Hardware infomations, temperatures & clock frequency")
+    #options+=("Fan Control          (ROCK 5 ONLY) Configure PWM Fan-control service")
+    #options+=("Overclocking         Configure rk3588-unlock-opps overlay which increases CPU supply & CPU VDD supply")
+    #options+=("Overlay              Configure Device Tree Overlay")
     options+=("Return to Main Menu")
     select_option "${options[@]}"
     choice=$?
@@ -1255,7 +1322,7 @@ system_maintenance() {
                 acu install partimage
             fi
             sudo partimage
-            system_maintenance
+            system_performance
             ;;
         2)
             local keypress=''
@@ -1266,6 +1333,24 @@ system_maintenance() {
             done
             config_options
             ;;
+        3)
+            soc_profile
+            ;;
+        4)
+            local keypress=''
+            while [ "$keypress" != 'q' ]; do
+                hw_monitor --center
+                colorecho "$GREEN" "Press q to return to main menu" "bottom" "center"
+                read -t 3 -n 1 keypress
+            done
+            config_options
+            ;;
+        #5)
+            #overclocking
+            #;;
+        #6)
+            #overlays
+            #;;
         *)
             config_options
             ;;
@@ -1363,7 +1448,7 @@ system_info() {
     ppid=$(grep PPid: /proc/$$/status | awk '{print $2}')
     sys_terminal=$(basename $(cat "/proc/$ppid/comm"))
     if [ -n "$sys_session" ]; then
-        while [ "$sys_terminal" == "watch" ] || [ "$sys_terminal" == "bash" ]; do
+        while [ "$sys_terminal" == "watch" ] || [ "$sys_terminal" == "bash" ] || [ "$sys_terminal" == "sh" ]  || [ "$sys_terminal" == "zsh" ]; do
             ppid=$(grep PPid: /proc/${ppid}/status | awk '{print $2}')
             sys_terminal=$(basename $(cat "/proc/$ppid/comm"))
         done
@@ -1412,13 +1497,13 @@ flash_uboot() {
                 colorecho "$RED" "No available bootloader list" "" "center"
             fi
             echo
-            options=("Return to System Maintence Menu")
+            options=("Return to System & Performance Menu")
             select_option "${options[@]}"
             choice=$?
         else
             case $1 in
                 *)
-                    system_maintenance
+                    system_performance
                     ;;
             esac
         fi
@@ -1426,7 +1511,7 @@ flash_uboot() {
         # Choice
         case $choice in
             *)
-                system_maintenance
+                system_performance
                 return 0
                 ;;
         esac
@@ -1617,9 +1702,9 @@ move_system() {
 # Manage Packages Main Menu
 manage_packages() {
     title "Manage Packages"
-    options=("Update Packages \t Check & Perform Selective / Full System Upgrade")
-    options+=("Downgrade Packages \t Install / Downgrade any Arch Linux Packages from Archive")
-    options+=("Manage Repositories \t List, add or remove ACU Managed and Pacman Repositories.")
+    options=( "Manage Repositories      List, add or remove ACU Managed and Pacman Repositories.")
+    options+=("Downgrade Packages       Install / Downgrade any Arch Linux Packages from Archive")
+    #options+=("Update Packages          Check & Perform Selective / Full System Upgrade")
     options+=("Return to Main Menu")
     select_option "${options[@]}"
     choice=$?
@@ -1627,14 +1712,14 @@ manage_packages() {
     # Choice
     case $choice in
         0)
-            package_update
+            manage_repositories
             ;;
         1)
             downgrade
             ;;
-        2)
-            manage_repositories
-            ;;
+        #2)
+            #package_update
+            #;;
         *)
             config_options
             ;;
@@ -1732,8 +1817,10 @@ load_apps() {
                 if [ "$isfirst" = 0 ]; then
                     eval $(load_yaml "$HOME/.acu/cache/db/${repositories_repo_name[i]}.yaml" "apps")
                     isfirst=1
+                    apps_repo_index=("${repositories_repo_name[i]}" "${#apps_package_name[@]}")
                 else
                     eval $(load_yaml "$HOME/.acu/cache/db/${repositories_repo_name[i]}.yaml" "apps" append)
+                    apps_repo_index+=("${repositories_repo_name[i]}" "${#apps_package_name[@]}")
                 fi
                 # For apps list of ACU 0.0.6 or below
                 if [ -n "$apps_app_name" ]; then
@@ -1751,7 +1838,37 @@ apps_list() {
     local arg=$2
     local i
     load_apps # Load Apps List
-    if [ -n "$target" ]; then
+    if [ -z "$target" ] || [ "$arg" = "-r" ]; then
+        if [ "$arg" = "-r" ]; then
+            for ((i = 0; i < ${#apps_repo_index[@]}; i++)); do
+                if [ "${apps_repo_index[i]}" = "$target" ]; then
+                    local repo_endinx=${apps_repo_index[i+1]}
+                    if [ "$i" -gt 1 ]; then
+                        local repo_srtinx=${apps_repo_index[i-1]}
+                    else
+                        local repo_srtinx=0
+                    fi
+                    break
+                fi
+            done
+            for ((i = ${repo_srtinx}; i < ${repo_endinx}; i++)); do
+                colorecho "$THEME" "PKG  $NC | ${apps_package_name[i]}"
+                colorecho "$DEBUG" "INFO $NC | APP: ${apps_pretty_name[i]}, CAT: ${apps_category[i]}, DIS: ${apps_description[i]}"
+                colorecho "$DEBUG" "INFO $NC | Packages: ${apps_packages[i]}"
+                colorecho "$DEBUG" "INFO $NC | Commands: ${apps_commands[i]}"
+            done
+            i=$(($i - $repo_srtinx))
+        else
+            for ((i = 0; i < ${#apps_package_name[@]}; i++)); do
+                colorecho "$THEME" "PKG  $NC | ${apps_package_name[i]}"
+                colorecho "$DEBUG" "INFO $NC | APP: ${apps_pretty_name[i]}, CAT: ${apps_category[i]}, DIS: ${apps_description[i]}"
+                colorecho "$DEBUG" "INFO $NC | Packages: ${apps_packages[i]}"
+                colorecho "$DEBUG" "INFO $NC | Commands: ${apps_commands[i]}"
+            done
+        fi
+        colorecho "$GREEN" "INFO $NC |"
+        colorecho "$GREEN" "INFO $NC | $i packages found"
+    else
         for ((i = 0; i < ${#apps_package_name[@]}; i++)); do
             if [ "${apps_package_name[i]}" = "$target" ]; then
                 if [ "$arg" = "-i" ]; then
@@ -1768,15 +1885,6 @@ apps_list() {
         done
         colorecho "$RED" "ERROR $NC| Package $target not found"
         return 1
-    else
-        for ((i = 0; i < ${#apps_package_name[@]}; i++)); do
-            colorecho "$THEME" "PKG  $NC | ${apps_package_name[i]}"
-            colorecho "$DEBUG" "INFO $NC | APP: ${apps_pretty_name[i]}, CAT: ${apps_category[i]}, DIS: ${apps_description[i]}"
-            colorecho "$DEBUG" "INFO $NC | Packages: ${apps_packages[i]}"
-            colorecho "$DEBUG" "INFO $NC | Commands: ${apps_commands[i]}"
-        done
-        colorecho "$GREEN" "INFO $NC |"
-        colorecho "$GREEN" "INFO $NC | $i packages found"
     fi
 }
 
@@ -1785,13 +1893,11 @@ apps_menu() {
     colorecho "$THEME" "INFO $NC | Loading apps list ..."
     load_apps # Load Apps List
     title "Apps - Categories"
-    echo
-    colorecho "$GREEN" "\t Category \t\t Description" "" "center" "-a"
-    echo
+    colorecho "$GREEN" "\t Category \t\t  Description" "" "center" "-a"
     options=()
     for ((i = 0; i < ${#apps_category_name[@]}; i++)); do
-        padded_name=$(printf "%-16s" "${apps_category_name[i]}")
-        options+=("$padded_name\t ${apps_category_description[i]}")
+        padded_name=$(printf "%-24s" "${apps_category_name[i]}")
+        options+=("$padded_name ${apps_category_description[i]}")
     done
     if [ ${#selection[@]} -gt 0 ]; then
         options+=("Install selected apps")
@@ -1808,6 +1914,7 @@ apps_menu() {
         selection=()
         apps_menu
     elif [ "${options[choice]}" = "Install selected apps" ]; then
+        no_confirm=1
         install_pkg
     else
         apps_menu_category $choice
@@ -1823,16 +1930,14 @@ apps_menu_category() {
     local found
     colorecho "$THEME" "INFO $NC | Loading ${apps_category_name[catinx]} ..."
     title "Apps - ${apps_category_name[catinx]}"
-    echo
-    colorecho "$GREEN" "\t Apps \t\t Description" "" "center" "-a"
-    echo
+    colorecho "$GREEN" "\t Apps      \t\t  Description" "" "center" "-a"
     options=()
     selinx=()
     checkbox_menu_checked=()
     for ((i = 0; i < ${#apps_package_name[@]}; i++)); do
         if [ "${apps_category[i]}" = "${apps_category_name[catinx]}" ]; then
-            padded_name=$(printf "%-20s" "${apps_pretty_name[i]}")
-            options+=("$padded_name \t ${apps_description[i]}")
+            padded_name=$(printf "%-24s" "${apps_pretty_name[i]}")
+            options+=("$padded_name ${apps_description[i]}")
             selinx+=("$i")
             found=0
             for ((j = 0; j < ${#selection[@]}; j++)); do
@@ -1888,7 +1993,7 @@ print_selected_pkg() {
     for ((i=0; i<${#selection[@]}; i++)); do
         selected="${selected} ${selection[i]}"
     done
-    colorecho "$GREEN" "Selected packages: ${selected}" "bottom"
+    colorecho "$GREEN" "  Selected packages: ${selected}" "bottom"
 }
 
 pkg_lookup_git() {
@@ -2032,11 +2137,23 @@ install_pkg() {
                 local j
                 for ((j=0; j<${#package[@]}; j++)); do
                     if [[ "${package[j]}" = "(needed)"* ]]; then
-                        acu install -y "${package[j]#"(needed)"}" --needed --skipapps
+                        if [ -z "$no_confirm" ]; then
+                            acu install "${package[j]#"(needed)"}" --needed --skipapps
+                        else
+                            acu install "${package[j]#"(needed)"}" --needed --skipapps --noconfirm
+                        fi
                     elif [[ "${package[j]}" != "(fallback)"* ]] && [[ "${package[j+1]}" == "(fallback)"* ]]; then
-                        acu install -y ${package[j]} "${package[j+1]#"(fallback)"}" --fallback --skipapps
+                        if [ -z "$no_confirm" ]; then
+                            acu install ${package[j]} "${package[j+1]#"(fallback)"}" --fallback --skipapps
+                        else
+                            acu install ${package[j]} "${package[j+1]#"(fallback)"}" --fallback --skipapps --noconfirm
+                        fi
                     else
-                        acu install -y ${package[j]} --skipapps
+                        if [ -z "$no_confirm" ]; then
+                            acu install ${package[j]} --skipapps
+                        else
+                            acu install ${package[j]} --skipapps --noconfirm
+                        fi
                     fi
                 done
             fi
@@ -2055,7 +2172,10 @@ install_pkg() {
             if [ -z "$no_confirm" ]; then
                 sudo pacman -S $selection_base 
             else
-                sudo pacman -S $selection_base --noconfirm
+                if ! sudo pacman -S $selection_base --noconfirm; then
+                    colorecho "$WARNING" "WARNING $NC | package $selection_base was not installed non-interactively, trying to install interactively."
+                    sudo pacman -S $selection_base
+                fi
             fi
         elif [ "$use_pm" = "git" ]; then
             #GIT
@@ -2168,45 +2288,6 @@ downgrade() {
 ## Performance & Features
 ########################################################################
 
-# Performance & Features Main Menu
-performance_features() {
-    title "Performance & Features"
-    options=("SoC Profile \t\t Available options are performance, ondemand and powersave")
-    options+=("HW Monitor \t\t Monitor Hardware infomations, temperatures & clock frequency")
-    #options+=("Fan Control \t\t (ROCK 5 ONLY) Configure PWM Fan-control service")
-    #options+=("Overclocking - Configure rk3588-unlock-opps overlay which increases CPU supply & CPU VDD supply")
-    #options+=("Overlay - Configure Device Tree Overlay")
-    options+=("Return to Main Menu")
-    select_option "${options[@]}"
-    choice=$?
-
-    # Choice
-    case $choice in
-        0)
-            soc_profile
-            ;;
-        1)
-            local keypress=''
-            while [ "$keypress" != 'q' ]; do
-                hw_monitor --center
-                colorecho "$GREEN" "Press q to return to main menu" "bottom" "center"
-                read -t 3 -n 1 keypress
-            done
-            config_options
-            ;;
-        #2)
-            #overclocking
-            #;;
-        #3)
-            #overlays
-            #;;
-        *)
-            config_options
-            ;;
-    esac
-
-}
-
 # SoC Performance Profile
 soc_profile() {
 
@@ -2217,33 +2298,31 @@ soc_profile() {
         colorecho "$THEME" "Memory Profile: $(cat /sys/class/devfreq/dmc/governor 2>/dev/null)" "" "center" "-a"
         colorecho "$THEME" "GPU Profile: $(cat /sys/class/devfreq/fb000000.gpu/governor 2>/dev/null)" "" "center" "-a"
         echo
-        options=("Performance - Run SoC at full performance" "On Demand - Run SoC on CPU usage demand" "Power Save - Run SoC on Power Saving Mode" "System Default - Run SoC with system default settings" "Return to Main Menu")
+        options=("Performance - Run SoC at full performance" "On Demand - Run SoC on CPU usage demand" "Power Save - Run SoC on Power Saving Mode" "System Default - Run SoC with system default settings" "Return to System & Performance Menu")
         select_option "${options[@]}"
         choice=$?
 
         case $choice in
             0)
-                create_soc_profile_service "performance"
-                colorecho "$GREEN" "Profile set to Performance"
+                soc_profile "set-profile" "performance"
+                soc_profile
                 ;;
             1)
-                create_soc_profile_service "ondemand"
-                colorecho "$GREEN" "Profile set to On Demand"
+                soc_profile "set-profile" "ondemand"
+                soc_profile
                 ;;
             2)
-                create_soc_profile_service "powersave"
-                colorecho "$GREEN" "Profile set to Power Save"
+                soc_profile "set-profile" "powersave"
+                soc_profile
                 ;;
             3)
-                sudo rm /etc/systemd/system/soc_profile.service
-                sudo systemctl daemon-reload
-                colorecho "$GREEN" "Removed SoC Profile service"
+                soc_profile "remove-profile"
+                soc_profile
                 ;;
             *)
-                performance_features
+                system_performance
                 ;;
         esac
-        
     elif [ "$1" = "set" ]; then
         case $2 in
             "performance")
@@ -2265,6 +2344,29 @@ soc_profile() {
                 exit 1
                 ;;
         esac
+    elif [ "$1" = "set-profile" ]; then
+        case $2 in
+            "performance")
+                create_soc_profile_service "performance"
+                colorecho "$GREEN" "Profile set to Performance"
+                ;;
+            "ondemand")
+                create_soc_profile_service "ondemand"
+                colorecho "$GREEN" "Profile set to On Demand"
+                ;;
+            "powersave")
+                create_soc_profile_service "powersave"
+                colorecho "$GREEN" "Profile set to Power Save"
+                ;;
+            *)
+                colorecho "$RED" "ERROR $NC | Invalid SoC Governor"
+                exit 1
+                ;;
+        esac
+    elif [ "$1" = "remove-profile" ]; then
+            sudo rm /etc/systemd/system/soc_profile.service
+            sudo systemctl daemon-reload
+            colorecho "$GREEN" "Removed SoC Profile service"
     fi
 }
 
@@ -2377,10 +2479,10 @@ hw_monitor() {
 # Localization Main Menu
 localization() {
     title "Localization"
-    options=("Locale \t\t Generate Locale Settings")
-    options+=("Fonts \t\t\t Install Fonts, TTF, Non-English Characters, Special Characters / Emoji")
-    options+=("Time \t\t\t Change Time Zone, Current Date and Time")
-    options+=("Keyboard Layout \t Change Keyboard Layout")
+    options=( "Locale                Generate Locale Settings")
+    options+=("Fonts                 Install Fonts, TTF, Non-English Characters, Special Characters / Emoji")
+    options+=("Time                  Change Time Zone, Current Date and Time")
+    options+=("Keyboard Layout       Change Keyboard Layout")
     options+=("Return to Main Menu")
     select_option "${options[@]}"
     choice=$?
@@ -2573,9 +2675,9 @@ locale() {
     if [ -z "$1" ]; then
         title "Locale"
         # List available locales
+        colorecho "$GREEN" "System Locale: ${LANG:-"(unset)"}" "" "center"
         echo
         colorecho "$GREEN" "Generated Locales:" "" "center"
-        echo
         generated_locales=($(echo $generated_locales))
         for ((i = 0; i < ${#generated_locales[@]}; i++)); do
             colorecho "$NC" "${generated_locales[i]}" "" "center"
@@ -2583,14 +2685,16 @@ locale() {
         echo
 
         # Prompt to select and generate locale
-        select_options=("Generate New Locales" "Return to Localization Menu")
+        select_options=("Generate New Locales" "Set System Locale" "Return to Localization Menu")
         select_option "${select_options[@]}"
         choice=$?
     elif [ "$1" = "list-generated" ]; then
         echo "$generated_locales"
-        exit 1
+        exit 0
     elif [ "$1" = "list-available" ] || [ "$1" = "generate" ]; then
         choice=0
+    elif [ "$1" = "set-lang" ]; then
+        choice=1
     else
         colorecho "$RED" "ERROR $NC | Invalid option"
         exit 1
@@ -2611,8 +2715,10 @@ locale() {
                         echo "$((i + 1))) ${langcode[$i]}"
                     done
 
-                    read -p "Enter the locale number: " chosen_number
-                    chosen_locale=${langcode[$((chosen_number - 1))]}
+                    read -p "Enter the locale number or code: " chosen_locale
+                    if [[ "$chosen_locale" =~ ^[0-9]+$ ]]; then
+                        chosen_locale=${langcode[$((chosen_locale - 1))]}
+                    fi
                     colorecho "$GREEEN" "Picked $chosen_locale"
                 else
                     chosen_locale=$2
@@ -2628,7 +2734,6 @@ locale() {
                 done
                 
                 title "Generate Locale"
-                echo
                 colorecho "$GREEN" "The following locales will be added:" "" "center"
                 echo
                 for ((i = 0; i < ${#matches[@]}; i++)); do
@@ -2658,6 +2763,33 @@ locale() {
                 for ((i = 0; i < ${#langcode[@]}; i++)); do
                     echo "${langcode[$i]}"
                 done
+            fi
+            ;;
+        1)
+            local selected_lang=$2
+            if [ ! "$1" = "set-lang" ]; then
+                local genlocales=()
+                title "Set System Locale"
+                colorecho "$GREEN" "Available locales:" "" "center"
+                echo
+                for locale in "${generated_locales[@]}"; do
+                    if [[ "$locale" =~ (.*)(\.utf8|\.UTF-8)$ ]]; then
+                        genlocales+=("${BASH_REMATCH[1]}")
+                    fi
+                done
+                select_option "${genlocales[@]}" "Back to locale menu"
+                choice=$?
+                if [ "$choice" -lt "${#genlocales[@]}" ]; then
+                    selected_lang="${genlocales[choice]}"
+                fi
+            fi
+            if [ -n "$selected_lang" ]; then
+                echo -e "LANG=${selected_lang}.UTF-8" | sudo tee /etc/locale.conf
+                source /etc/locale.conf
+                colorecho "$THEME" "Set LANG to $selected_lang"
+            fi
+            if [ ! "$1" = "set-lang" ]; then
+                locale
             fi
             ;;
         *)
@@ -2701,7 +2833,6 @@ timezone() {
     if [ -z "$1" ]; then
 
         title "Time Zone"
-        echo
         colorecho "$GREEN" "Network Time Zone: $network_timezone" "" "center"
 
         if [ "$current_timezone" = "$network_timezone" ]; then
@@ -2711,26 +2842,26 @@ timezone() {
         fi
 
         echo
-        select_options=("Return to Localization Menu" "Set Time Zone Manually" "Set Date & Time Manually")
+        select_options=("Set Time Zone Manually" "Set Date & Time Manually")
 
         if [ "$current_timezone" != "$network_timezone" ]; then
             select_options+=("Synchronize Time Zone with Network")
         fi
 
-        select_option "${select_options[@]}"
+        select_option "${select_options[@]}" "Return to Localization Menu"
         choice=$?
     
     elif [ "$1" = "set-time-zone" ]; then
         if [ -z "$2" ]; then
-            choice=1
+            choice=0
         elif [ "$2" = "sync" ]; then
-            choice=3
+            choice=2
         else
-            choice=1
+            choice=0
             new_timezone=$2
         fi
     elif [ "$1" = "set-time-date" ]; then
-        choice=2
+        choice=1
     elif [ "$1" = "network-time-zone" ]; then
         echo $network_timezone
     elif [ "$1" = "system-time-zone" ]; then
@@ -2739,9 +2870,6 @@ timezone() {
 
     case $choice in
         0)
-            localization
-            ;;
-        1)
             if [ -z "$new_timezone" ]; then
                 read -p "Enter new time zone (e.g., Asia/Tokyo): " new_timezone
             fi
@@ -2749,14 +2877,21 @@ timezone() {
             echo "Time Zone updated to $new_timezone"
             sudo timedatectl set-ntp true
             ;;
-        2)
+        1)
             read -p "Enter the new date and time in format 'YYYY-MM-DD HH:MM:SS': " new_datetime
             sudo timedatectl set-time "$new_datetime"
             ;;
+        2)
+            if [ -n "${select_options[2]}" ] || [ -z "${select_options}" ]; then
+                sudo timedatectl set-timezone "$network_timezone"
+                sudo timedatectl set-ntp true
+                colorecho "$GREEN" "Time Zone synchronized with network."
+            else
+                localization
+            fi
+            ;;
         3)
-            sudo timedatectl set-timezone "$network_timezone"
-            sudo timedatectl set-ntp true
-            colorecho "$GREEN" "Time Zone synchronized with network."
+            localization
             ;;
     esac
 }
@@ -2795,13 +2930,12 @@ keyboard() {
 # ACU Settings
 settings() {
     title "ACU Settings"
-    echo
-    colorecho "$NC" "\t\tTheme:          ${THEME_NAME:-"(unset)"}" "" "center" "-a"
-    colorecho "$NC" "\t\tTheme Color:   $THEME This is an example $NC" "" "center" "-a"
-    colorecho "$NC" "\t\tWarning Color: $WARNING This is a warning message $NC" "" "center" "-a"
-    colorecho "$NC" "\t\tDebug Color:   $DEBUG This is a debug message $NC" "" "center" "-a"
-    colorecho "$NC" "\t\tConfig File:    $config_file" "" "center" "-a"
-    colorecho "$WARNING" "\t    WARNING $NC| $utilname is experimental |$GREEN $release" "bottom" "center" "-a" # Bottom Text
+    colorecho "$THEME" "$utilname |$GREEN $release $THEME| ${WARNING}EXPERIMENTAL${NC}" "bottom" "center" # Bottom Text
+    colorecho "$NC" "Theme:          ${THEME_NAME:-"(unset)"}               " "" "center"
+    colorecho "$NC" "Theme Color:   $THEME This is an example $NC        " "" "center"
+    colorecho "$NC" "Warning Color: $WARNING This is a warning message $NC" "" "center"
+    colorecho "$NC" "Debug Color:   $DEBUG This is a debug message $NC  " "" "center"
+    colorecho "$NC" "        Config File:    $config_file" "" "center"
     echo
     select_options=("Change ACU Theme" "Change Theme Color" "Edit ACU Configurations" "Load Default ACU Configurations" "Return to Main Menu")
     select_option "${select_options[@]}"
@@ -2811,9 +2945,9 @@ settings() {
         0)
             title "ACU Themes"
             echo
-            select_options=(   "ACU - Light" "ACU - Dark" "ACU - Gaming")
-            local theme_color=("\$BLUE"      "\$LTBLUE"     "\$RED"       )
-            local theme_bg=(   "\$BGWHITE"   "\$BGBLACK"  "\$BGBLACK"   )
+            select_options=(   "ACU - Light" "ACU - Dark" "ACU - Gaming" "Rainbow - Light" "Rainbow - Dark")
+            local theme_color=("\$BLUE"      "\$LTBLUE"   "\$RED"        "\$BLUE"          "\$LTBLUE")
+            local theme_bg=(   "\$BGWHITE"   "\$BGBLACK"  "\$BGBLACK"    "\$BGWHITE"       "\$BGBLACK")
             select_option "${select_options[@]}" "Reset to default (theme unset)" "Return to Main Menu"
             choice=$?
             if [ "$choice" -lt "${#select_options[@]}" ]; then
@@ -2955,8 +3089,8 @@ for arg in "$@"; do
         --loadconfig=*)
             config_file="${arg#*=}"
             ;;
-        --nocolorecho)
-            no_color_echo=1
+        --nocolorecho | --nostyling)
+            no_styling=1
             ;;
     esac
 done
@@ -2972,11 +3106,9 @@ for arg in "$@"; do
             ;;
         -v | --version)
             colorecho "$THEME" "$utilname $release"
-            colorecho "$DEBUG" "Build Number: $utilver"
             ;;
         -h | --help)
             colorecho "$THEME" "$utilname $release"
-            colorecho "$DEBUG" "Build Number: $utilver"
             echo
             colorecho "$GREEN" "Usage"
             echo
@@ -2985,43 +3117,50 @@ for arg in "$@"; do
             echo
             colorecho "$GREEN" "Options"
             echo
-            echo "  -h / --help : Usage and Infomation of this configuration utility."
-            echo "  -v / --version : Version of this configuration utility."
-            echo "  -d / --debug : Show more logs, useful for debugging."
-            echo "  -u / --update : Install / Update to latest configuration utility."
-            echo "  -y / --yes : Automatically confirm y / yes for everything, not recommended for install command."
-            echo "  --loadconfig=<path/url> : load an acu config file from path or url. (use with -u to install this config as default config file)"
-            echo "  --update=<release> : Install / Update configuration utility to a specified release tag."
-            echo "  --usepm=<pm> : Specify a package manager to use when installing packages. <pm> options: pacman, agr, git."
+            echo "  -h / --help : Usage and information of this configuration utility"
+            echo "  -v / --version : Version of this configuration utility"
+            echo "  -d / --debug : Show more logs, useful for debugging"
+            echo "  -u / --update : Install/Update to the latest configuration utility"
+            echo "  -y / --yes : Automatically confirm 'y' / 'yes' for everything (not recommended for install command)"
+            echo "  --loadconfig=<path/url> : Load an ACU config file from a path or URL (use with -u to install this config as the default config file)"
+            echo "  --update=<release> : Install/Update the configuration utility to a specified release tag"
+            echo "  --usepm=<pm> : Specify a package manager to use when installing packages. <pm> options: pacman, agr, git"
             echo "  --skipapps : Skip looking up apps list when using the install command"
-            echo "  --needed : Skip already installed package when using the install command"
+            echo "  --needed : Skip already installed packages when using the install command"
             echo "  --fallback : Install an alternative package if the first one fails when using the install command"
-            echo "  --device=<tag> : Specify target device tag. By default if not set, ACU will auto detect it from /proc/device-tree/compatitble."
-            echo "  --branch=<branch> : Specify a git branch for setting or cloning from remote repository."
-            echo "  --noconfirm : Do not ask for confirmation when resolving dependencies and installing packages managed by pacman / makepkg."
-            echo "  --nowarning : Do not show warning messages."
-            echo "  --noclear : Do not clear terminal output."
-            echo "  --nowarning : Do not show warning messages."
-            echo "  --nocolorecho : Disable color or cursor position in output, useful for non-interactive usage."
+            echo "  --device=<tag> : Specify target device tag. By default, if not set, ACU will auto-detect it from /proc/device-tree/compatitble"
+            echo "  --branch=<branch> : Specify a Git branch for setting or cloning from a remote repository"
+            echo "  --noconfirm : Do not ask for confirmation when resolving dependencies and installing packages managed by pacman / makepkg"
+            echo "  --noclear : Do not clear terminal output"
+            echo "  --nowarning : Do not show warning messages"
+            echo "  --nostyling : Disable color or cursor position in output, useful for non-interactive usage"
             echo
             colorecho "$GREEN" "Features"
             echo
-            colorecho "$THEME" "System Maintenance"
+            colorecho "$THEME" "System & Performance"
             echo
             echo "  bootloader <bootloader> : Flash Bootloader to eMMC/TF Card/SPI Flash. <bootloader> options: radxa, radxa-debug, edk2-rock5a, edk2-rock5b, armbian."
             #echo "  backup <save_path> : Backup a flashable image of this system."
             #echo "  restore <img_path> : Restore this system from a flashable image. <img_path> : path to the image to restore."
             #echo "  clone <disk> : Clone this system to another disk. <disk> : disk location, example /dev/nvme0n1."
             echo "  sysinfo : Print infomation of this system / device."
+            echo "  soc : Show interactive menu to manage SoC settings"
+            echo "  soc set <governor> : Set SoC governor. options: performance, ondemand, powersave."
+            echo "  soc set-profile <governor> : Create an SoC Profile to automatically apply SoC settings on boot. options: performance, ondemand, powersave."
+            echo "  soc remove-profile : Remove the SoC Profile."
+            echo "  hwmon : Print hardware infomations like cpu clock freq, temps and gpu info."
             echo "  alias add / create : add an alias / shortcut of a command."
             echo "  alias remove / del : remove an alias created by acu."
             echo "  update-boot-config <pkgname> : Update boot config for booting to a new kernel."
+            #echo "  fan <option> : Configure PWM Fan-control. options: install, enable, disable and status."
             echo
+
             colorecho "$THEME" "Manage Packages"
             echo
             echo "  apps / install / -S : show interactive menu to install a collection of apps / packages."
             echo "  apps list : show all available packages of acu apps list."
             echo "  apps list <package> : find a packages from acu apps list."
+            echo "  apps repo <repo> : show all available packages of an ACU repository."
             echo "  apps index <package> : find a packages from acu apps list and return only its list item index."
             echo "  -S / install <package> : install a package using acu, you can install multiple packages with one command, example: acu install package1 package4 package3"
             echo "  update : Fetch pacman repositories, acu managed repositories and update lists defined in config."
@@ -3037,27 +3176,37 @@ for arg in "$@"; do
             echo "  rem remove / rem del <name> : remove a repository from acu."
             echo "  rem remove / rem del pacman <name>: remove a repository from pacman."
             echo
-            colorecho "$THEME" "Performance"
-            echo
-            echo "  soc set <governor> : Manage SoC Settings. options: performance, ondemand, powersave."
-            echo "  hwmon : Print hardware infomations like cpu clock freq, temps and gpu info."
-            #echo "  fan <option> : Configure PWM Fan-control. options: install, enable, disable and status."
-            echo
             colorecho "$THEME" "Localization"
             echo
-            echo "  locale : Generate Locale Settings. options: list-generated, list-available, generate <country_code>"
-            echo "  font : Install Fonts, TTF, Non-English Characters, Special Characters / Emoji."
-            echo "  time <option> : Change Time Zone, Current Date and Time. options: set-time-zone, set-time-date, network-time-zone, system-time-zone"
-            echo "  keyboard : Change Keyboard Layout."
-            #echo "  wifi : Change WiFi Country Settings."
+            echo "  locale : Show interactive menu to manage locale settings."
+            echo "  locale list-generated : List all generated locales."
+            echo "  locale list-available : List all available locales."
+            echo "  locale generate <lang_code> : Generate locale for a language code (e.g., en_US)."
+            echo "  locale set-lang <lang_code> : Set a generated locale as the system locale (e.g., en_US)."
+            echo "  font : Install fonts, TTF, non-English characters, special characters, and emojis."
+            echo "  time : Show interactive menu to manage system date, time, and timezone."
+            echo "  time set-time-zone <timezone> : Set the system timezone (e.g., Asia/Tokyo)."
+            echo "  time set-time-zone sync : Synchronize the system timezone with the network timezone."
+            echo "  time set-time-date <date> : Set the system time and date (format: YYYY-MM-DD HH:MM:SS)."
+            echo "  time network-time-zone : Print the current network timezone."
+            echo "  time system-time-zone : Print the current system timezone."
+            echo "  keyboard : Change the keyboard layout."
+            #echo "  wifi : Change WiFi country settings."
             echo
             colorecho "$THEME" "User Accounts"
             echo
-            echo "  user <option> : Add, Remove and Change User Account Settings. options: add, remove, manage"
+            echo "  user : Show interactive menu to manage user account settings."
+            echo "  user add : Create and initialize a user account, with a prompt to set the username and password."
+            echo "  user add <username> : Create and initialize a user account, with a prompt to set the password."
+            echo "  user add <username> <password> : Create and initialize a user account without an interactive prompt."
+            echo "  user remove <username> : Remove a user account from the system."
+            echo "  user manage <username> : Show interactive menu to manage the specified user account."
+            echo "  user manage <username> <option> : Enable/disable a specified user option, where options are sudopw and rebootpw."
             echo
             colorecho "$THEME" "ACU Settings"
             echo
-            echo "  settings : Config ACU Settings, change theme, color , edit ACU Configurations, etc."
+            echo "  settings : Configure ACU settings, change theme, color, edit ACU configurations, etc."
+            echo
             exit 0
             ;;
         -u | --update)
@@ -3112,7 +3261,7 @@ for arg in "$@"; do
         ;;
         -*)
             case "$arg" in
-                -S | -R | -D | -B | --loadconfig=* | --nocolorecho) 
+                -S | -R | -D | -B | --loadconfig=* | --nocolorecho | --nostyling) 
                     # Add more excluded arguments as needed (these args are handled before or after this loop)
                     ;;
                 *)
@@ -3229,6 +3378,8 @@ elif [ "$1" = "apps" ] ; then
         apps_list "$3"
     elif [ "$2" = "index" ]; then
         apps_list "$3" -i
+    elif [ "$2" = "repo" ]; then
+        apps_list "$3" -r
     fi
 
 elif [ "$1" = "install" ] || [ "$1" = "-S" ] ; then
@@ -3333,7 +3484,7 @@ elif [ "$1" = "alias" ]; then
 
 ### For developer / API use and debugging ###
 elif [ "$1" = "parse" ]; then
-    if [ -z "$no_color_echo" ]; then
+    if [ -z "$no_styling" ]; then
         clear
         colorecho "$BLUE" "ACU $NC| Parsed output of $2"
         colorecho "$BLUE" "ACU $NC| $3"
