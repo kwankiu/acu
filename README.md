@@ -24,7 +24,7 @@ The configuration utility is pre-installed with Arch Linux installed and provide
 
 ### New Install :
 ```
-bash <(curl -fsSL https://raw.githubusercontent.com/kwankiu/acu/0.0.5-dev/acu) -u
+bash <(curl -fsSL https://raw.githubusercontent.com/kwankiu/acu/main/acu) -u
 ```
 (Notes: ACU automatically installs the latest version available using the -u command)
 
