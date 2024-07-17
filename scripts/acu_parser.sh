@@ -19,6 +19,7 @@ colorecho() {
 debug_log=1
 # ACU File Pre-Parser
 # source: https://github.com/mrbaseman/pasrse_yaml.git
+# sed : handle pre-existing '\n'
 # awk : process multi-line text (handle YAML pipe) (added a space for better syntax / readability)
 # sed : replace '-' with a space
 pre_parser() {
@@ -44,6 +45,7 @@ pre_parser() {
     local s='[[:space:]]*' sm='[ \t]*' w='[a-zA-Z0-9_.]*' fs=${fs:-$(echo @|tr @ '\034')} i=${i:-  }
 
     cat $target_file | \
+    sed 's/\\n/\\\\\\n/g' | \
     awk -F$fs "{multi=0;
         if(match(\$0,/$sm\|$sm$/)){multi=1; sub(/$sm\|$sm$/,\" \");}
         if(match(\$0,/$sm>$sm$/)){multi=2; sub(/$sm>$sm$/,\" \");}
