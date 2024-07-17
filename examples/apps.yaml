@@ -710,7 +710,7 @@ apps:
   # Others
 
       - package_name: intel-ax210-fw
-        pretty_name: AX210 Firmware
+        pretty_name: AX210 FW
         category: Others
         description: Intel AX210 WiFi+BT Firmware (for BSP Kernel)
         compatible: null
@@ -721,7 +721,22 @@ apps:
           sudo mv /lib/firmware/iwlwifi-ty-a0-gf-a0.pnvm /lib/firmware/iwlwifi-ty-a0-gf-a0.pnvm.bak
           # bt
           sudo curl -o /lib/firmware/intel/ibt-0041-0041.sfi https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/intel/ibt-0041-0041.sfi
-          sudo curl -o /lib/firmware/intel/ibt-0041-0041.ddc https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/intel/ibt-0041-0041.ddc          
+          sudo curl -o /lib/firmware/intel/ibt-0041-0041.ddc https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git/plain/intel/ibt-0041-0041.ddc        
+
+      - package_name: rtl8851bu
+        pretty_name: RTL8851BU FW
+        category: Others
+        description: RTL8831/8851BU Driver
+        compatible: null
+        packages: null
+        commands: |
+          # wifi
+          echo "Installing RTL8851BU WiFi Driver ..."
+          cd ~/.acu/cache
+          git clone https://github.com/kwankiu/rtl8851bu.git
+          cd rtl8851bu
+          make
+          sudo make install
 
       - package_name: yay
         pretty_name: Yay
