@@ -312,45 +312,47 @@ title() {
     clear
   fi
 
-  if [ "$2" = "left" ]; then
-    local align="left"
-  elif [ "$2" = "right" ]; then
-    local align="right"
-  else
-    local align="center"
-  fi
+  if [ "$no_title" != 1 ]; then
+    if [ "$2" = "left" ]; then
+        local align="left"
+    elif [ "$2" = "right" ]; then
+        local align="right"
+    else
+        local align="center"
+    fi
 
-  colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
-
-  if [ "$(tput lines)" -gt 30 ]; then
-    # FULL LOGO
-    colorecho "$THEME" "              ##                     __   ____  _  _         " "" "$align"
-    colorecho "$THEME" "             ####                   / _\ (  _ \( \/ )        " "" "$align"
-    colorecho "$THEME" "            ######                 /    \ )   // \/ \        " "" "$align"
-    colorecho "$THEME" "           ########                \_/\_/(__\_)\_)(_/        " "" "$align"
-    colorecho "$THEME" "          ##########          ___  __   __ _  ____  __  ___  " "" "$align"
-    colorecho "$THEME" "         ############        / __)/  \ (  ( \(  __)(  )/ __) " "" "$align"
-    colorecho "$THEME" "        ##############      ( (__(  O )/    / ) _)  )(( (_ \ " "" "$align"
-    colorecho "$THEME" "       ################      \___)\__/ \_)__)(__)  (__)\___/ " "" "$align"
-    colorecho "$THEME" "      ######      ######           _  _  ____  __  __        " "" "$align"
-    colorecho "$THEME" "     #######      #######         / )( \(_  _)(  )(  )       " "" "$align"
-    colorecho "$THEME" "   #######         #######        ) \/ (  )(   )( / (_/\     " "" "$align"
-    colorecho "$THEME" "  ######             ######       \____/ (__) (__)\____/     " "" "$align"
-    colorecho "$THEME" " ###                     ###                                 " "" "$align"
-  else
-    # SMALL LOGO
-    colorecho "$THEME" "     ##                    __     ___   _  _   " "" "$align"
-    colorecho "$THEME" "    ####                  / _\   / __) / )( \  " "" "$align"
-    colorecho "$THEME" "   ######                /    \ ( (__  ) \/ (  " "" "$align"
-    colorecho "$THEME" "  ###  ###               \_/\_/  \___) \____/  " "" "$align"
-    colorecho "$THEME" " ##      ##              _ARM_ _CONFIG_ _UTIL_ " "" "$align"
-  fi
-  colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
-  if [ -n "$1" ]; then
-    text="$1"
-    colorecho "$THEME" "${text}" "" "$align"
     colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
-    colorecho
+
+    if [ "$(tput lines)" -gt 30 ]; then
+        # FULL LOGO
+        colorecho "$THEME" "              ##                     __   ____  _  _         " "" "$align"
+        colorecho "$THEME" "             ####                   / _\ (  _ \( \/ )        " "" "$align"
+        colorecho "$THEME" "            ######                 /    \ )   // \/ \        " "" "$align"
+        colorecho "$THEME" "           ########                \_/\_/(__\_)\_)(_/        " "" "$align"
+        colorecho "$THEME" "          ##########          ___  __   __ _  ____  __  ___  " "" "$align"
+        colorecho "$THEME" "         ############        / __)/  \ (  ( \(  __)(  )/ __) " "" "$align"
+        colorecho "$THEME" "        ##############      ( (__(  O )/    / ) _)  )(( (_ \ " "" "$align"
+        colorecho "$THEME" "       ################      \___)\__/ \_)__)(__)  (__)\___/ " "" "$align"
+        colorecho "$THEME" "      ######      ######           _  _  ____  __  __        " "" "$align"
+        colorecho "$THEME" "     #######      #######         / )( \(_  _)(  )(  )       " "" "$align"
+        colorecho "$THEME" "   #######         #######        ) \/ (  )(   )( / (_/\     " "" "$align"
+        colorecho "$THEME" "  ######             ######       \____/ (__) (__)\____/     " "" "$align"
+        colorecho "$THEME" " ###                     ###                                 " "" "$align"
+    else
+        # SMALL LOGO
+        colorecho "$THEME" "     ##                    __     ___   _  _   " "" "$align"
+        colorecho "$THEME" "    ####                  / _\   / __) / )( \  " "" "$align"
+        colorecho "$THEME" "   ######                /    \ ( (__  ) \/ (  " "" "$align"
+        colorecho "$THEME" "  ###  ###               \_/\_/  \___) \____/  " "" "$align"
+        colorecho "$THEME" " ##      ##              _ARM_ _CONFIG_ _UTIL_ " "" "$align"
+    fi
+    colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
+    if [ -n "$1" ]; then
+        text="$1"
+        colorecho "$THEME" "${text}" "" "$align"
+        colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
+        colorecho
+    fi
   fi
 }
 
@@ -3094,6 +3096,9 @@ for arg in "$@"; do
         --nocolorecho | --nostyling)
             no_styling=1
             ;;
+        --notitle)
+            no_title=1
+            ;;
     esac
 done
 
@@ -3136,6 +3141,7 @@ for arg in "$@"; do
             echo "  --noclear : Do not clear terminal output"
             echo "  --nowarning : Do not show warning messages"
             echo "  --nostyling : Disable color or cursor position in output, useful for non-interactive usage"
+            echo "  --notitle : Disable logo / title in output,  useful for non-interactive usage"
             echo
             colorecho "$GREEN" "Features"
             echo
@@ -3263,7 +3269,7 @@ for arg in "$@"; do
         ;;
         -*)
             case "$arg" in
-                -S | -R | -D | -B | --loadconfig=* | --nocolorecho | --nostyling) 
+                -S | -R | -D | -B | --loadconfig=* | --nocolorecho | --nostyling | --notitle) 
                     # Add more excluded arguments as needed (these args are handled before or after this loop)
                     ;;
                 *)
