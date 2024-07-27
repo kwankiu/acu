@@ -2374,7 +2374,7 @@ soc_profile() {
 
 create_soc_profile_service() {
     local governor=$1
-    echo -e "[Unit]\nDescription=SoC Profile\nAfter=multi-user.target\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/acu soc set $governor \nRemainAfterExit=no\n\n[Install]\nWantedBy=multi-user.target" | sudo tee /etc/systemd/system/soc_profile.service > /dev/null
+    echo -e "[Unit]\nDescription=SoC Profile\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/acu soc set $governor \nRemainAfterExit=no\n\n[Install]\nWantedBy=multi-user.target" | sudo tee /etc/systemd/system/soc_profile.service > /dev/null
     sudo systemctl enable soc_profile.service
     sudo systemctl restart soc_profile.service
 }
