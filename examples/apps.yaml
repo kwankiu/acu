@@ -610,7 +610,7 @@ apps:
         description: The GitHub CLI
         compatible: null
         packages:
-          - git
+          - github-cli
         commands: null
 
       - package_name: github-desktop-bin
