@@ -370,6 +370,15 @@ apps:
           - gnome-2048
         commands: null
 
+      - package_name: xonotic
+        pretty_name: Xonotic
+        category: Gaming
+        description: The Free and Fast Arena Shooter
+        compatible: null
+        packages:
+          - xonotic-git
+        commands: null
+
       - package_name: lutris
         pretty_name: Lutris
         category: Gaming
@@ -539,31 +548,6 @@ apps:
           sudo ln -s /usr/local/lib/wine/\${pkg}/bin/wineboot /usr/local/bin/wineboot
           echo "Installed Wine (64-Bit)"
           echo -e "To test Wine on ARM64, run:"" box64 wine winecfg"
-
-      - package_name: malior-droid
-        pretty_name: Malior Droid
-        category: Virtualization
-        description: MaliorDroid (Redroid-based) Android emulator for RK3588
-        compatible:
-          - rockchip
-        packages:
-          - wget
-          - unzip
-          - docker
-          - android-tools
-          - scrcpy
-        commands: |
-          systemctl start docker --now
-          echo "Starting docker ..."
-          sleep 2
-          echo "Installing malior ..."
-          bash <(curl -fsSL https://github.com/ChisBread/malior/raw/main/install.sh)
-          malior update
-          sudo mkdir /dev/binderfs
-          sudo mount -t binder binder /dev/binderfs
-          echo "Installing malior-droid ..."
-          malior install malior-droid
-          malior-droid update
 
 ########################################################################
   # Development
