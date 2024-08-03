@@ -2156,6 +2156,7 @@ install_pkg() {
                     # Install Package by calling a nested install_pkg
                     # Needs to unset some variables to create a clean environment
                     skip_apps=1
+                    no_sync=1
                     unset use_pm
                     selection=(${ipkg})
                     install_pkg
@@ -2163,6 +2164,7 @@ install_pkg() {
                     unset fallback
                     unset needed
                     unset skip_apps
+                    unset no_sync
                 done
             fi
             use_pm="acu" # set back to acu just in case
@@ -2178,7 +2180,7 @@ install_pkg() {
                 # run the script
                 bash $HOME/.acu/cache/pkgs/$selection_base/postinstall.sh
                 # remove package cache directory
-                rm $HOME/.acu/cache/pkgs/$selection_base
+                rm -rf $HOME/.acu/cache/pkgs/$selection_base
             fi
         elif [ "$use_pm" = "pacman" ]; then
             # Pacman
