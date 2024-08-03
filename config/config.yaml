@@ -38,6 +38,9 @@ configurations:
   # do not confirm when installing a package using pacman -S / -U or makepkg -si
   #no_confirm: 1
 
+  # do not synchronize package databases when using the install command
+  #no_sync: 1
+
   # do not print warning ($WARNING) messages
   #no_warning: 1
 

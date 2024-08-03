@@ -2061,6 +2061,9 @@ install_pkg() {
     # Handle each packages installation
     if [ -n "$use_pm" ]; then
         local gpm=$use_pm
+    elif [ -z "$no_sync" ]; then
+        colorecho "$THEME" "INFO $NC | Synchronizing package databases ..."
+        sudo pacman -Sy > /dev/null
     fi
     for ((i=0; i<${#selection[@]}; i++)); do
         local selection_base=$(basename ${selection[i]})
@@ -2072,7 +2075,7 @@ install_pkg() {
             pm_repo_url="${selection[i]}"
             use_pm="git"
         elif [ "$(dirname ${selection[i]})" != "." ] && [ -n "$(dirname ${selection[i]})" ]; then
-            if (sudo pacman -Ssy "^$selection_base$" | grep ${selection[i]} &> /dev/null); then
+            if (sudo pacman -Ss "^$selection_base$" | grep ${selection[i]} &> /dev/null); then
                 use_pm="pacman"
             elif pkg_lookup_git $selection_base "$(dirname ${selection[i]})"; then
                 pm_repo_name="$(dirname ${selection[i]})"
@@ -2111,7 +2114,7 @@ install_pkg() {
             if [ -z "$skip_apps" ] && apps_list "$selection_base" &> /dev/null; then
                 # ACU Apps
                 use_pm="acu"
-            elif (sudo pacman -Ssy "^$selection_base$" &> /dev/null); then
+            elif (sudo pacman -Ss "^$selection_base$" &> /dev/null); then
                 # Pacman
                 use_pm="pacman"
             elif pkg_lookup_git $selection_base; then
@@ -2142,35 +2145,40 @@ install_pkg() {
                 colorecho "$GREEN" "APPS $NC | Resolving packages ..."
                 local j
                 for ((j=0; j<${#package[@]}; j++)); do
+                    local ipkg="${package[j]}"
                     if [[ "${package[j]}" = "(needed)"* ]]; then
-                        if [ -z "$no_confirm" ]; then
-                            acu install "${package[j]#"(needed)"}" --needed --skipapps
-                        else
-                            acu install "${package[j]#"(needed)"}" --needed --skipapps --noconfirm
-                        fi
+                        ipkg="${package[j]#"(needed)"}"
+                        needed=1
                     elif [[ "${package[j]}" != "(fallback)"* ]] && [[ "${package[j+1]}" == "(fallback)"* ]]; then
-                        if [ -z "$no_confirm" ]; then
-                            acu install ${package[j]} "${package[j+1]#"(fallback)"}" --fallback --skipapps
-                        else
-                            acu install ${package[j]} "${package[j+1]#"(fallback)"}" --fallback --skipapps --noconfirm
-                        fi
-                    else
-                        if [ -z "$no_confirm" ]; then
-                            acu install ${package[j]} --skipapps
-                        else
-                            acu install ${package[j]} --skipapps --noconfirm
-                        fi
+                        ipkg+=" ${package[j+1]#"(fallback)"}"
+                        fallback=1
                     fi
+                    # Install Package by calling a nested install_pkg
+                    # Needs to unset some variables to create a clean environment
+                    skip_apps=1
+                    unset use_pm
+                    selection=(${ipkg})
+                    install_pkg
+                    # Unset package variables for next package
+                    unset fallback
+                    unset needed
+                    unset skip_apps
                 done
             fi
+            use_pm="acu" # set back to acu just in case
             local commands="${apps_commands[index]}"
             colorecho "$DEBUG" "APPS $NC | Commands: $commands"
             if [ "$commands" != "null" ]; then 
                 colorecho "$GREEN" "APPS $NC | Running Package commands ..."
-                mkdir -p $HOME/.acu/cache/pkgs
-                echo -e $commands | tee $HOME/.acu/cache/pkgs/install-$selection_base.sh >/dev/null
-                bash $HOME/.acu/cache/pkgs/install-$selection_base.sh
-                rm $HOME/.acu/cache/pkgs/install-$selection_base.sh
+                mkdir -p $HOME/.acu/cache/pkgs/$selection_base
+                # make sure the script initally runs at its own directory
+                echo -e "cd $HOME/.acu/cache/pkgs/$selection_base \n" | tee $HOME/.acu/cache/pkgs/$selection_base/postinstall.sh >/dev/null
+                # append the commands into the script
+                echo -e $commands | tee -a $HOME/.acu/cache/pkgs/$selection_base/postinstall.sh >/dev/null
+                # run the script
+                bash $HOME/.acu/cache/pkgs/$selection_base/postinstall.sh
+                # remove package cache directory
+                rm $HOME/.acu/cache/pkgs/$selection_base
             fi
         elif [ "$use_pm" = "pacman" ]; then
             # Pacman
@@ -3135,6 +3143,7 @@ for arg in "$@"; do
             echo "  --update=<release> : Install/Update the configuration utility to a specified release tag"
             echo "  --usepm=<pm> : Specify a package manager to use when installing packages. <pm> options: pacman, agr, git"
             echo "  --skipapps : Skip looking up apps list when using the install command"
+            echo "  --nosync : Do not synchronize package databases when using the install command"
             echo "  --needed : Skip already installed packages when using the install command"
             echo "  --fallback : Install an alternative package if the first one fails when using the install command"
             echo "  --device=<tag> : Specify target device tag. By default, if not set, ACU will auto-detect it from /proc/device-tree/compatitble"
@@ -3257,7 +3266,10 @@ for arg in "$@"; do
         ;;
         --skipapps)
             skip_apps=1
-        ;;    
+        ;;
+        --nosync)
+            no_sync=1
+        ;;
         --device=*)
             device_config="${arg#*=}"
             colorecho "$DEBUG" "INFO $NC | use target device : $device_config"
