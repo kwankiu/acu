@@ -53,7 +53,7 @@ configurations:
   # print debug ($DEBUG) messages
   #debug_log: 1
 
-  # auto update acu when launch without asking
+  # auto update (unset=1, 0: Do not check updates, 1: Auto check updates but do not install, 2: Auto check & install updates at launch)
   #auto_update: 1
 
   ## ACU Configurable Files and Path ##

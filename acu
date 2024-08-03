@@ -3303,7 +3303,7 @@ if [ -n "$debug_log" ]; then
 fi
 
 # Install / Reinstall / Updates / Auto Update
-if [ -n "$argupdate" ] || [ -n "$auto_update" ]; then
+if [ -n "$argupdate" ] || [ "$auto_update" = 2 ]; then
     if [ -z "$remote_release" ]; then
         check_util_updates
     fi
@@ -3566,7 +3566,9 @@ elif [ "$1" = "settings" ]; then
 
 ### Main Menu ###
 elif [ "$1" != "-v" ] && [ "$1" != "--version" ]; then
-    check_util_updates
+    if [ "$auto_update" != 0 ]; then
+        check_util_updates
+    fi
     config_options
 fi
 
