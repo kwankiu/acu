@@ -699,7 +699,8 @@ load_yaml() {
             # Ignore comments and empty lines
             if ! [[ $line =~ ^[[:space:]]*($|#) ]]; then
                 # Count indentation
-                local indentation=$(expr "$line" : '^ *' / 2)
+                [[ "$line" =~ ^([[:space:]]+) ]]
+                local indentation=$((${#BASH_REMATCH[1]} / 2))
                 # Remove indent spaces
                 line="${line#"${line%%[![:space:]]*}"}"
                 # Handle double quotes
@@ -719,7 +720,8 @@ load_yaml() {
                     fi
                     if [ "$output_format" != "non-list" ]; then
                         found_exist=0
-                        current_var=$(awk -F':' '{print $1}' <<< "${current_value}${line}")
+                        IFS=':' read -ra fields <<< "${current_value}${line}"
+                        current_var=${fields[0]}
                         for item in "${head_list[@]}"; do
                             if [ "$item" = "$current_var" ]; then
                                 found_exist=1
