@@ -2065,6 +2065,7 @@ install_pkg() {
         colorecho "$THEME" "INFO $NC | Synchronizing package databases ..."
         sudo pacman -Sy > /dev/null
     fi
+    local i
     for ((i=0; i<${#selection[@]}; i++)); do
         local selection_base=$(basename ${selection[i]})
         colorecho "$THEME" "INFO $NC | Looking for package: $selection_base"
@@ -2153,13 +2154,18 @@ install_pkg() {
                         ipkg+=" ${package[j+1]#"(fallback)"}"
                         fallback=1
                     fi
-                    # Install Package by calling a nested install_pkg
-                    # Needs to unset some variables to create a clean environment
+                    # Install Package
+                    # Unset some variables to create a clean environment
                     skip_apps=1
                     no_sync=1
                     unset use_pm
+                    # Backup var selection as we have to overwrite var selection temporarily
+                    local iselection=("${selection[@]}")
+                    # Install Package by calling a nested install_pkg
                     selection=(${ipkg})
                     install_pkg
+                    # Restore var selection
+                    selection=("${iselection[@]}")
                     # Unset package variables for next package
                     unset fallback
                     unset needed
