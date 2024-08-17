@@ -27,7 +27,7 @@
 utilname="Arch (ARM) Configuration Utility"
 
 # ACU Release Version : (github tags) (or branch*)
-release="0.1.2"
+release="0.1.5"
 
 # (DEPRECATED/OPTIONAL) ACU Build Number: utilver (YYMMDDNN)
 #utilver=24031299
@@ -312,45 +312,47 @@ title() {
     clear
   fi
 
-  if [ "$2" = "left" ]; then
-    local align="left"
-  elif [ "$2" = "right" ]; then
-    local align="right"
-  else
-    local align="center"
-  fi
+  if [ "$no_title" != 1 ]; then
+    if [ "$2" = "left" ]; then
+        local align="left"
+    elif [ "$2" = "right" ]; then
+        local align="right"
+    else
+        local align="center"
+    fi
 
-  colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
-
-  if [ "$(tput lines)" -gt 30 ]; then
-    # FULL LOGO
-    colorecho "$THEME" "              ##                     __   ____  _  _         " "" "$align"
-    colorecho "$THEME" "             ####                   / _\ (  _ \( \/ )        " "" "$align"
-    colorecho "$THEME" "            ######                 /    \ )   // \/ \        " "" "$align"
-    colorecho "$THEME" "           ########                \_/\_/(__\_)\_)(_/        " "" "$align"
-    colorecho "$THEME" "          ##########          ___  __   __ _  ____  __  ___  " "" "$align"
-    colorecho "$THEME" "         ############        / __)/  \ (  ( \(  __)(  )/ __) " "" "$align"
-    colorecho "$THEME" "        ##############      ( (__(  O )/    / ) _)  )(( (_ \ " "" "$align"
-    colorecho "$THEME" "       ################      \___)\__/ \_)__)(__)  (__)\___/ " "" "$align"
-    colorecho "$THEME" "      ######      ######           _  _  ____  __  __        " "" "$align"
-    colorecho "$THEME" "     #######      #######         / )( \(_  _)(  )(  )       " "" "$align"
-    colorecho "$THEME" "   #######         #######        ) \/ (  )(   )( / (_/\     " "" "$align"
-    colorecho "$THEME" "  ######             ######       \____/ (__) (__)\____/     " "" "$align"
-    colorecho "$THEME" " ###                     ###                                 " "" "$align"
-  else
-    # SMALL LOGO
-    colorecho "$THEME" "     ##                    __     ___   _  _   " "" "$align"
-    colorecho "$THEME" "    ####                  / _\   / __) / )( \  " "" "$align"
-    colorecho "$THEME" "   ######                /    \ ( (__  ) \/ (  " "" "$align"
-    colorecho "$THEME" "  ###  ###               \_/\_/  \___) \____/  " "" "$align"
-    colorecho "$THEME" " ##      ##              _ARM_ _CONFIG_ _UTIL_ " "" "$align"
-  fi
-  colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
-  if [ -n "$1" ]; then
-    text="$1"
-    colorecho "$THEME" "${text}" "" "$align"
     colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
-    colorecho
+
+    if [ "$(tput lines)" -gt 30 ]; then
+        # FULL LOGO
+        colorecho "$THEME" "              ##                     __   ____  _  _         " "" "$align"
+        colorecho "$THEME" "             ####                   / _\ (  _ \( \/ )        " "" "$align"
+        colorecho "$THEME" "            ######                 /    \ )   // \/ \        " "" "$align"
+        colorecho "$THEME" "           ########                \_/\_/(__\_)\_)(_/        " "" "$align"
+        colorecho "$THEME" "          ##########          ___  __   __ _  ____  __  ___  " "" "$align"
+        colorecho "$THEME" "         ############        / __)/  \ (  ( \(  __)(  )/ __) " "" "$align"
+        colorecho "$THEME" "        ##############      ( (__(  O )/    / ) _)  )(( (_ \ " "" "$align"
+        colorecho "$THEME" "       ################      \___)\__/ \_)__)(__)  (__)\___/ " "" "$align"
+        colorecho "$THEME" "      ######      ######           _  _  ____  __  __        " "" "$align"
+        colorecho "$THEME" "     #######      #######         / )( \(_  _)(  )(  )       " "" "$align"
+        colorecho "$THEME" "   #######         #######        ) \/ (  )(   )( / (_/\     " "" "$align"
+        colorecho "$THEME" "  ######             ######       \____/ (__) (__)\____/     " "" "$align"
+        colorecho "$THEME" " ###                     ###                                 " "" "$align"
+    else
+        # SMALL LOGO
+        colorecho "$THEME" "     ##                    __     ___   _  _   " "" "$align"
+        colorecho "$THEME" "    ####                  / _\   / __) / )( \  " "" "$align"
+        colorecho "$THEME" "   ######                /    \ ( (__  ) \/ (  " "" "$align"
+        colorecho "$THEME" "  ###  ###               \_/\_/  \___) \____/  " "" "$align"
+        colorecho "$THEME" " ##      ##              _ARM_ _CONFIG_ _UTIL_ " "" "$align"
+    fi
+    colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
+    if [ -n "$1" ]; then
+        text="$1"
+        colorecho "$THEME" "${text}" "" "$align"
+        colorecho "$NC" "---------------------------------------------------------------------" "" "$align"
+        colorecho
+    fi
   fi
 }
 
@@ -611,6 +613,7 @@ install_ghrel_packages() {
 ########################################################################
 # ACU File Pre-Parser
 # source: https://github.com/mrbaseman/pasrse_yaml.git
+# sed : handle pre-existing '\n'
 # awk : process multi-line text (handle YAML pipe) (added a space for better syntax / readability)
 # sed : replace '-' with a space
 pre_parser() {
@@ -636,6 +639,7 @@ pre_parser() {
     local s='[[:space:]]*' sm='[ \t]*' w='[a-zA-Z0-9_.]*' fs=${fs:-$(echo @|tr @ '\034')} i=${i:-  }
 
     cat $target_file | \
+    sed 's/\\n/\\\\\\n/g' | \
     awk -F$fs "{multi=0;
         if(match(\$0,/$sm\|$sm$/)){multi=1; sub(/$sm\|$sm$/,\" \");}
         if(match(\$0,/$sm>$sm$/)){multi=2; sub(/$sm>$sm$/,\" \");}
@@ -695,7 +699,8 @@ load_yaml() {
             # Ignore comments and empty lines
             if ! [[ $line =~ ^[[:space:]]*($|#) ]]; then
                 # Count indentation
-                local indentation=$(expr "$line" : '^ *' / 2)
+                [[ "$line" =~ ^([[:space:]]+) ]]
+                local indentation=$((${#BASH_REMATCH[1]} / 2))
                 # Remove indent spaces
                 line="${line#"${line%%[![:space:]]*}"}"
                 # Handle double quotes
@@ -715,7 +720,8 @@ load_yaml() {
                     fi
                     if [ "$output_format" != "non-list" ]; then
                         found_exist=0
-                        current_var=$(awk -F':' '{print $1}' <<< "${current_value}${line}")
+                        IFS=':' read -ra fields <<< "${current_value}${line}"
+                        current_var=${fields[0]}
                         for item in "${head_list[@]}"; do
                             if [ "$item" = "$current_var" ]; then
                                 found_exist=1
@@ -2055,7 +2061,11 @@ install_pkg() {
     # Handle each packages installation
     if [ -n "$use_pm" ]; then
         local gpm=$use_pm
+    elif [ -z "$no_sync" ]; then
+        colorecho "$THEME" "INFO $NC | Synchronizing package databases ..."
+        sudo pacman -Sy > /dev/null
     fi
+    local i
     for ((i=0; i<${#selection[@]}; i++)); do
         local selection_base=$(basename ${selection[i]})
         colorecho "$THEME" "INFO $NC | Looking for package: $selection_base"
@@ -2066,7 +2076,7 @@ install_pkg() {
             pm_repo_url="${selection[i]}"
             use_pm="git"
         elif [ "$(dirname ${selection[i]})" != "." ] && [ -n "$(dirname ${selection[i]})" ]; then
-            if (sudo pacman -Ssy "^$selection_base$" | grep ${selection[i]} &> /dev/null); then
+            if (sudo pacman -Ss "^$selection_base$" | grep ${selection[i]} &> /dev/null); then
                 use_pm="pacman"
             elif pkg_lookup_git $selection_base "$(dirname ${selection[i]})"; then
                 pm_repo_name="$(dirname ${selection[i]})"
@@ -2105,7 +2115,7 @@ install_pkg() {
             if [ -z "$skip_apps" ] && apps_list "$selection_base" &> /dev/null; then
                 # ACU Apps
                 use_pm="acu"
-            elif (sudo pacman -Ssy "^$selection_base$" &> /dev/null); then
+            elif (sudo pacman -Ss "^$selection_base$" &> /dev/null); then
                 # Pacman
                 use_pm="pacman"
             elif pkg_lookup_git $selection_base; then
@@ -2136,35 +2146,47 @@ install_pkg() {
                 colorecho "$GREEN" "APPS $NC | Resolving packages ..."
                 local j
                 for ((j=0; j<${#package[@]}; j++)); do
+                    local ipkg="${package[j]}"
                     if [[ "${package[j]}" = "(needed)"* ]]; then
-                        if [ -z "$no_confirm" ]; then
-                            acu install "${package[j]#"(needed)"}" --needed --skipapps
-                        else
-                            acu install "${package[j]#"(needed)"}" --needed --skipapps --noconfirm
-                        fi
+                        ipkg="${package[j]#"(needed)"}"
+                        needed=1
                     elif [[ "${package[j]}" != "(fallback)"* ]] && [[ "${package[j+1]}" == "(fallback)"* ]]; then
-                        if [ -z "$no_confirm" ]; then
-                            acu install ${package[j]} "${package[j+1]#"(fallback)"}" --fallback --skipapps
-                        else
-                            acu install ${package[j]} "${package[j+1]#"(fallback)"}" --fallback --skipapps --noconfirm
-                        fi
-                    else
-                        if [ -z "$no_confirm" ]; then
-                            acu install ${package[j]} --skipapps
-                        else
-                            acu install ${package[j]} --skipapps --noconfirm
-                        fi
+                        ipkg+=" ${package[j+1]#"(fallback)"}"
+                        fallback=1
                     fi
+                    # Install Package
+                    # Unset some variables to create a clean environment
+                    skip_apps=1
+                    no_sync=1
+                    unset use_pm
+                    # Backup var selection as we have to overwrite var selection temporarily
+                    local iselection=("${selection[@]}")
+                    # Install Package by calling a nested install_pkg
+                    selection=(${ipkg})
+                    install_pkg
+                    # Restore var selection
+                    selection=("${iselection[@]}")
+                    # Unset package variables for next package
+                    unset fallback
+                    unset needed
+                    unset skip_apps
+                    unset no_sync
                 done
             fi
+            use_pm="acu" # set back to acu just in case
             local commands="${apps_commands[index]}"
             colorecho "$DEBUG" "APPS $NC | Commands: $commands"
             if [ "$commands" != "null" ]; then 
                 colorecho "$GREEN" "APPS $NC | Running Package commands ..."
-                mkdir -p $HOME/.acu/cache/pkgs
-                echo -e $commands | tee $HOME/.acu/cache/pkgs/install-$selection_base.sh >/dev/null
-                bash $HOME/.acu/cache/pkgs/install-$selection_base.sh
-                rm $HOME/.acu/cache/pkgs/install-$selection_base.sh
+                mkdir -p $HOME/.acu/cache/pkgs/$selection_base
+                # make sure the script initally runs at its own directory
+                echo -e "cd $HOME/.acu/cache/pkgs/$selection_base \n" | tee $HOME/.acu/cache/pkgs/$selection_base/postinstall.sh >/dev/null
+                # append the commands into the script
+                echo -e $commands | tee -a $HOME/.acu/cache/pkgs/$selection_base/postinstall.sh >/dev/null
+                # run the script
+                bash $HOME/.acu/cache/pkgs/$selection_base/postinstall.sh
+                # remove package cache directory
+                rm -rf $HOME/.acu/cache/pkgs/$selection_base
             fi
         elif [ "$use_pm" = "pacman" ]; then
             # Pacman
@@ -2372,7 +2394,7 @@ soc_profile() {
 
 create_soc_profile_service() {
     local governor=$1
-    echo -e "[Unit]\nDescription=SoC Profile\nAfter=multi-user.target\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/acu soc set $governor \nRemainAfterExit=no\n\n[Install]\nWantedBy=multi-user.target" | sudo tee /etc/systemd/system/soc_profile.service > /dev/null
+    echo -e "[Unit]\nDescription=SoC Profile\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/acu soc set $governor \nRemainAfterExit=no\n\n[Install]\nWantedBy=multi-user.target" | sudo tee /etc/systemd/system/soc_profile.service > /dev/null
     sudo systemctl enable soc_profile.service
     sudo systemctl restart soc_profile.service
 }
@@ -3092,6 +3114,9 @@ for arg in "$@"; do
         --nocolorecho | --nostyling)
             no_styling=1
             ;;
+        --notitle)
+            no_title=1
+            ;;
     esac
 done
 
@@ -3126,6 +3151,7 @@ for arg in "$@"; do
             echo "  --update=<release> : Install/Update the configuration utility to a specified release tag"
             echo "  --usepm=<pm> : Specify a package manager to use when installing packages. <pm> options: pacman, agr, git"
             echo "  --skipapps : Skip looking up apps list when using the install command"
+            echo "  --nosync : Do not synchronize package databases when using the install command"
             echo "  --needed : Skip already installed packages when using the install command"
             echo "  --fallback : Install an alternative package if the first one fails when using the install command"
             echo "  --device=<tag> : Specify target device tag. By default, if not set, ACU will auto-detect it from /proc/device-tree/compatitble"
@@ -3134,6 +3160,7 @@ for arg in "$@"; do
             echo "  --noclear : Do not clear terminal output"
             echo "  --nowarning : Do not show warning messages"
             echo "  --nostyling : Disable color or cursor position in output, useful for non-interactive usage"
+            echo "  --notitle : Disable logo / title in output,  useful for non-interactive usage"
             echo
             colorecho "$GREEN" "Features"
             echo
@@ -3247,7 +3274,10 @@ for arg in "$@"; do
         ;;
         --skipapps)
             skip_apps=1
-        ;;    
+        ;;
+        --nosync)
+            no_sync=1
+        ;;
         --device=*)
             device_config="${arg#*=}"
             colorecho "$DEBUG" "INFO $NC | use target device : $device_config"
@@ -3261,7 +3291,7 @@ for arg in "$@"; do
         ;;
         -*)
             case "$arg" in
-                -S | -R | -D | -B | --loadconfig=* | --nocolorecho | --nostyling) 
+                -S | -R | -D | -B | --loadconfig=* | --nocolorecho | --nostyling | --notitle) 
                     # Add more excluded arguments as needed (these args are handled before or after this loop)
                     ;;
                 *)
@@ -3293,7 +3323,7 @@ if [ -n "$debug_log" ]; then
 fi
 
 # Install / Reinstall / Updates / Auto Update
-if [ -n "$argupdate" ] || [ -n "$auto_update" ]; then
+if [ -n "$argupdate" ] || [ "$auto_update" = 2 ]; then
     if [ -z "$remote_release" ]; then
         check_util_updates
     fi
@@ -3556,7 +3586,9 @@ elif [ "$1" = "settings" ]; then
 
 ### Main Menu ###
 elif [ "$1" != "-v" ] && [ "$1" != "--version" ]; then
-    check_util_updates
+    if [ "$auto_update" != 0 ]; then
+        check_util_updates
+    fi
     config_options
 fi
 
