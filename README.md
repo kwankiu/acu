@@ -44,7 +44,7 @@ acu -u
 ```
 To update to a specific version or channel:
 ```
-acu --update=0.0.5-dev
+acu --update=main
 ```
 
 ### Removing ACU

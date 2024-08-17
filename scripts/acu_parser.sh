@@ -1,4 +1,4 @@
-# /bin/bash
+#!/bin/bash
 
 # Define terminal color codes
 RED='\033[0;31m'
@@ -19,6 +19,7 @@ colorecho() {
 debug_log=1
 # ACU File Pre-Parser
 # source: https://github.com/mrbaseman/pasrse_yaml.git
+# sed : handle pre-existing '\n'
 # awk : process multi-line text (handle YAML pipe) (added a space for better syntax / readability)
 # sed : replace '-' with a space
 pre_parser() {
@@ -44,6 +45,7 @@ pre_parser() {
     local s='[[:space:]]*' sm='[ \t]*' w='[a-zA-Z0-9_.]*' fs=${fs:-$(echo @|tr @ '\034')} i=${i:-  }
 
     cat $target_file | \
+    sed 's/\\n/\\\\\\n/g' | \
     awk -F$fs "{multi=0;
         if(match(\$0,/$sm\|$sm$/)){multi=1; sub(/$sm\|$sm$/,\" \");}
         if(match(\$0,/$sm>$sm$/)){multi=2; sub(/$sm>$sm$/,\" \");}
@@ -103,7 +105,8 @@ load_yaml() {
             # Ignore comments and empty lines
             if ! [[ $line =~ ^[[:space:]]*($|#) ]]; then
                 # Count indentation
-                local indentation=$(expr "$line" : '^ *' / 2)
+                [[ "$line" =~ ^([[:space:]]+) ]]
+                local indentation=$((${#BASH_REMATCH[1]} / 2))
                 # Remove indent spaces
                 line="${line#"${line%%[![:space:]]*}"}"
                 # Handle double quotes
@@ -123,7 +126,8 @@ load_yaml() {
                     fi
                     if [ "$output_format" != "non-list" ]; then
                         found_exist=0
-                        current_var=$(awk -F':' '{print $1}' <<< "${current_value}${line}")
+                        IFS=':' read -ra fields <<< "${current_value}${line}"
+                        current_var=${fields[0]}
                         for item in "${head_list[@]}"; do
                             if [ "$item" = "$current_var" ]; then
                                 found_exist=1
