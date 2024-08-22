@@ -433,16 +433,15 @@ apps:
           - pegasus-frontend-git
         commands: null
       
-      - package_name: steam
+      - package_name: steam-win
         pretty_name: Steam
         category: Gaming
-        description: (For Testing) Wine 64-Bit WoW64, Winetricks & Steam (Windows)
+        description: Steam (Windows) via Wine 64-Bit WoW64 & Winetricks
         compatible: null
         packages:
           - box64
           - zenity
           - cabextract
-
         commands: |
           echo "Installing Wine (64-Bit with WoW64) ..."
           acu install -y wine
@@ -475,6 +474,21 @@ apps:
         packages:
           - qemu-full
         commands: null
+
+      - package_name: waydroid-panthor
+        pretty_name: Waydroid
+        category: Virtualization
+        description: (RK3588 Panthor only) Run Android Apps on Wayland
+        compatible: null
+        packages:
+          - waydroid
+        commands: |
+          echo "Downloading Waydroid Image for Panthor ..."
+          curl -LO https://github.com/WillzenZou/armbian_fork_build/releases/download/willzen-armbian-24.5.0/2.waydroid-panthorv10-240416-v1.img.tar.gz
+          sudo mv 2.waydroid-panthorv10-240416-v1.img.tar.gz /usr/share/waydroid-extra/images/
+          echo "Setting up Waydroid Container ..."
+          sudo waydroid init -f -i /usr/share/waydroid-extra/images
+          sudo systemctl enable --now waydroid-container
 
       - package_name: box64
         pretty_name: Box64
