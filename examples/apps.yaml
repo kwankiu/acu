@@ -62,17 +62,7 @@ apps:
           - chromium-mpp
         commands: |
           sudo systemctl enable --now libv4l-rkmpp-setup.service
-          # Check if the file /etc/chromium-browser exists
-          if [ ! -e "/etc/chromium-browser" ]; then
-              # Create the directory /etc/chromium-browser
-              sudo mkdir -p "/etc/chromium-browser"
-          fi
-          echo "# Default settings for chromium-browser. This file is sourced by /bin/sh from" | sudo tee /etc/chromium-browser/default >/dev/null
-          echo "# /usr/bin/chromium-browser" | sudo tee -a /etc/chromium-browser/default >/dev/null
-          echo "" | sudo tee -a /etc/chromium-browser/default >/dev/null
-          echo "# Options to pass to chromium-browser" | sudo tee -a /etc/chromium-browser/default >/dev/null
-          echo "LD_LIBRARY_PATH=/usr/lib/mali-valhall-g610/x11-wayland-gbm" | sudo tee -a /etc/chromium-browser/default >/dev/null
-          echo "CHROMIUM_FLAGS=\\"--use-gl=egl\\"" | sudo tee -a /etc/chromium-browser/default >/dev/null
+          echo "For Wayland, please go to chrome://flags and set Ozone Platform to Wayland."
 
       - package_name: ungoogled-chromium
         pretty_name: Ungoogled Chromium
