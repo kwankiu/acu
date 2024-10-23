@@ -62,6 +62,7 @@ apps:
           - chromium-mpp
         commands: |
           sudo systemctl enable --now libv4l-rkmpp-setup.service
+          echo "For Wayland, please go to chrome://flags and set Ozone Platform to Wayland."
 
       - package_name: ungoogled-chromium
         pretty_name: Ungoogled Chromium
