@@ -110,7 +110,7 @@ apps:
         commands: null
 
       - package_name: torbrowser
-        pretty_name: TorBrowser
+        pretty_name: Tor Browser
         category: Web
         description: Web Browser for Tor Network
         compatible: null
@@ -176,7 +176,7 @@ apps:
         commands: null
 
       - package_name: aria2
-        pretty_name: Aria2
+        pretty_name: Aria 2
         category: Web
         description: Powerful multi-protocol download utility
         compatible: null
@@ -802,6 +802,15 @@ apps:
           - stress
         commands: null
 
+      - package_name: mesa-utils
+        pretty_name: Mesa Utils
+        category: System
+        description: Utilities & Tools for Mesa
+        compatible: null
+        packages:
+          - mesa-utils
+        commands: null
+
       - package_name: glmark2
         pretty_name: GL Mark 2
         category: System
@@ -809,6 +818,15 @@ apps:
         compatible: null
         packages:
           - glmark2
+        commands: null
+
+      - package_name: vkmark
+        pretty_name: VK Mark
+        category: System
+        description: Vulkan Benchmarking
+        compatible: null
+        packages:
+          - vkmark
         commands: null
 
       - package_name: geekbench
@@ -851,6 +869,15 @@ apps:
           cd rtl8851bu
           make
           sudo make install
+
+      - package_name: flatpak
+        pretty_name: Flatpak
+        category: Others
+        description: Build, install & run applications & runtimes
+        compatible: null
+        packages:
+          - flatpak
+        commands: null
 
       - package_name: yay
         pretty_name: Yay
