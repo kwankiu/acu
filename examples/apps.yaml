@@ -82,6 +82,42 @@ apps:
           - firefox
         commands: null
 
+      - package_name: brave
+        pretty_name: Brave
+        category: Web
+        description: Privacy-focused browser with ad-blocking
+        compatible: null
+        packages:
+          - brave-bin
+        commands: null
+
+      - package_name: epiphany
+        pretty_name: Epiphany
+        category: Web
+        description: Gnome's web-kit based web browser
+        compatible: null
+        packages:
+          - epiphany
+        commands: null
+
+      - package_name: lynx
+        pretty_name: Lynx
+        category: Web
+        description: lightweight text-based web browser
+        compatible: null
+        packages:
+          - lynx
+        commands: null
+
+      - package_name: torbrowser
+        pretty_name: TorBrowser
+        category: Web
+        description: Web Browser for Tor Network
+        compatible: null
+        packages:
+          - torbrowser-launcher
+        commands: null
+
       - package_name: openssh
         pretty_name: OpenSSH
         category: Web
@@ -89,6 +125,33 @@ apps:
         compatible: null
         packages:
           - openssh
+        commands: null
+
+      - package_name: nginx
+        pretty_name: Nginx
+        category: Web
+        description: High-performance web server & reverse proxy
+        compatible: null
+        packages:
+          - nginx
+        commands: null
+
+      - package_name: apache
+        pretty_name: Apache
+        category: Web
+        description: Classic feature-rich HTTP server
+        compatible: null
+        packages:
+          - apache
+        commands: null
+
+      - package_name: caddy
+        pretty_name: Caddy
+        category: Web
+        description: Modern web server with automatic HTTPS
+        compatible: null
+        packages:
+          - caddy
         commands: null
 
       - package_name: nvm
@@ -110,6 +173,69 @@ apps:
         compatible: null
         packages:
           - wget
+        commands: null
+
+      - package_name: aria2
+        pretty_name: Aria2
+        category: Web
+        description: Powerful multi-protocol download utility
+        compatible: null
+        packages:
+          - aria2
+        commands: null
+
+      - package_name: rsync
+        pretty_name: Rsync
+        category: Web
+        description: Fast incremental file transfer utility
+        compatible: null
+        packages:
+          - rsync
+        commands: null
+
+      - package_name: openvpn
+        pretty_name: OpenVPN
+        category: Web
+        description: Robust open-source VPN client & server
+        compatible: null
+        packages:
+          - openvpn
+        commands: null
+
+      - package_name: wireguard
+        pretty_name: WireGuard
+        category: Web
+        description: Modern lightweight VPN protocol & tools
+        compatible: null
+        packages:
+          - wireguard-tools
+        commands: null
+
+      - package_name: speedtest
+        pretty_name: SpeedTest
+        category: Web
+        description: CLI tool for speedtest.net
+        compatible: null
+        packages:
+          - speedtest-cli
+        commands: null
+
+      - package_name: librespeed-cli
+        pretty_name: LibreSpeed
+        category: Web
+        description: Command-line client for LibreSpeed
+        compatible: null
+        packages:
+          - librespeed-cli
+        commands: null
+
+      - package_name: librespeed-gui
+        pretty_name: LibreSpeed
+        category: Web
+        description: Graphical client for LibreSpeed
+        compatible: null
+        packages:
+          - speedtest-librespeed
         commands: null
 
 ########################################################################
