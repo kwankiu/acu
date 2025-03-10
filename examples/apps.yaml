@@ -555,16 +555,11 @@ apps:
         description: Steam (Windows) via Wine 64-Bit WoW64 & Winetricks
         compatible: null
         packages:
-          - box64
           - zenity
           - cabextract
         commands: |
-          echo "Installing Wine (64-Bit with WoW64) ..."
-          acu install -y wine
-          cd ~/.acu/cache
-          curl -LJO https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks
-          sudo chmod +x winetricks
-          sudo mv winetricks /usr/local/bin/
+          echo "Installing Wine & Winetricks..."
+          acu install -y wine winetricks
           echo "Installing required software using Winetricks ..."
           echo "(This can take some time ...)"
           winetricks -q dotnet20sp2 dotnet40 vcrun6 corefonts
@@ -687,6 +682,20 @@ apps:
           sudo ln -s /usr/local/lib/wine/\${pkg}/bin/wineboot /usr/local/bin/wineboot
           echo "Installed Wine (64-Bit with WoW64)"
           echo -e "To test Wine on ARM64, run:"" box64 wine winecfg"
+
+      - package_name: winetricks
+        pretty_name: Winetricks
+        category: Virtualization
+        description: Easy way to work around problems in Wine
+        compatible: null
+        packages:
+          - git
+        commands: |
+          echo "Installing Winetricks ..."
+          cd ~/.acu/cache
+          git clone https://github.com/Winetricks/winetricks --single-branch --depth 1 --no-tags
+          cd winetricks
+          sudo make install
 
 ########################################################################
   # Development
