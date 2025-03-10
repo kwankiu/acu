@@ -260,12 +260,12 @@ apps:
         commands: null
 
       - package_name: discord
-        pretty_name: Discord (Armcord)
+        pretty_name: Discord (Legcord)
         category: Communication
         description: Discord desktop app for ARM
         compatible: null
         packages:
-          - armcord-bin
+          - legcord-bin
         commands: null
 
       - package_name: signal
