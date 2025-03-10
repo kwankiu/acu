@@ -591,19 +591,28 @@ apps:
           - qemu-full
         commands: null
 
-      - package_name: waydroid-panthor
-        pretty_name: Waydroid
+      - package_name: distrobox
+        pretty_name: Distro Box
         category: Virtualization
-        description: (RK3588 Panthor only) Run Android Apps on Wayland
+        description: Use any linux distribution inside your terminal
         compatible: null
         packages:
+          - distrobox
+        commands: null
+
+      - package_name: waydroid
+        pretty_name: Waydroid
+        category: Virtualization
+        description: Run Android Apps on Wayland
+        compatible: null
+        packages:
+          - libglibutil
+          - libgbinder
+          - python-gbinder
           - waydroid
         commands: |
-          echo "Downloading Waydroid Image for Panthor ..."
-          curl -LO https://github.com/WillzenZou/armbian_fork_build/releases/download/willzen-armbian-24.5.0/2.waydroid-panthorv10-240416-v1.img.tar.gz
-          sudo mv 2.waydroid-panthorv10-240416-v1.img.tar.gz /usr/share/waydroid-extra/images/
-          echo "Setting up Waydroid Container ..."
-          sudo waydroid init -f -i /usr/share/waydroid-extra/images
+          echo "Setting up Waydroid ..."
+          sudo waydroid init -s GAPPS
           sudo systemctl enable --now waydroid-container
 
       - package_name: box64
@@ -616,17 +625,17 @@ apps:
         commands: null
 
       - package_name: wine
-        pretty_name: Wine (WoW64)
+        pretty_name: Wine 10.3
         category: Virtualization
-        description: (For Testing) Wine (64-Bit with WoW64) for running Windows applications
+        description: Wine (64-Bit with WoW64) for running Windows applications
         compatible: null
         packages:
           - box64
         commands: |
           echo "Installing Wine (64-Bit with WoW64) ..."
           cd ~/.acu/cache
-          url="https://github.com/kwankiu/PKGBUILDs/releases/download/wine"
-          pkg="wine-9.7-exp-wow64-amd64"
+          url="https://github.com/Kron4ek/Wine-Builds/releases/download/10.3"
+          pkg="wine-10.3-amd64-wow64"
           curl -LJO \${url}/\${pkg}.tar.xz
           tar -xf \${pkg}.tar.xz
           sudo mkdir -p /usr/local/lib/wine
@@ -647,18 +656,18 @@ apps:
           echo "Installed Wine (64-Bit with WoW64)"
           echo -e "To test Wine on ARM64, run:"" box64 wine winecfg"
 
-      - package_name: wine-8.18
-        pretty_name: Wine 8.18 (64-bit)
+      - package_name: wine-staging
+        pretty_name: Wine 9.22 Staging
         category: Virtualization
-        description: (For Testing) Wine 8.18 Staging (64-Bit) needed for some games
+        description: Wine Staging (64-Bit with WoW64) maybe better for some games
         compatible: null
         packages:
           - box64
         commands: |
-          echo "Installing Wine (64-Bit) ..."
+          echo "Installing Wine (64-Bit with WoW64) ..."
           cd ~/.acu/cache
-          url="https://github.com/Kron4ek/Wine-Builds/releases/download/8.18"
-          pkg="wine-8.18-staging-amd64"
+          url="https://github.com/Kron4ek/Wine-Builds/releases/download/9.22"
+          pkg="wine-9.22-staging-amd64-wow64"
           curl -LJO \${url}/\${pkg}.tar.xz
           tar -xf \${pkg}.tar.xz
           sudo mkdir -p /usr/local/lib/wine
@@ -676,7 +685,7 @@ apps:
           sudo ln -s /usr/local/lib/wine/\${pkg}/bin/wineserver /usr/local/bin/wineserver
           sudo ln -s /usr/local/lib/wine/\${pkg}/bin/winecfg /usr/local/bin/winecfg
           sudo ln -s /usr/local/lib/wine/\${pkg}/bin/wineboot /usr/local/bin/wineboot
-          echo "Installed Wine (64-Bit)"
+          echo "Installed Wine (64-Bit with WoW64)"
           echo -e "To test Wine on ARM64, run:"" box64 wine winecfg"
 
 ########################################################################
