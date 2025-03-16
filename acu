@@ -1132,13 +1132,20 @@ fetch_repositories() {
                         local agr_url="${repositories_repo_url[i]%:*}"
                         local agr_branch="${repositories_repo_url[i]##*:}"  # Remove everything up to the last ":"
                         local success=0
-                        if git clone "$agr_url" "${repositories_repo_name[i]}" --single-branch -b "$agr_branch" --depth 1 --no-tags --recursive &> /dev/null; then
+                        if git clone "$agr_url" "${repositories_repo_name[i]}" --single-branch -b "$agr_branch" --depth 1 --no-tags &> /dev/null; then
                             success=1
                         fi
                     else
-                        if git clone "${repositories_repo_url[i]}" "${repositories_repo_name[i]}" --single-branch --depth 1 --no-tags --recursive &> /dev/null; then
+                        if git clone "${repositories_repo_url[i]}" "${repositories_repo_name[i]}" --single-branch --depth 1 --no-tags &> /dev/null; then
                             success=1
                         fi
+                    fi
+                    # Fetch latest submodules
+                    if [ -f "${repositories_repo_name[i]}/.gitmodules" ]; then
+                        cd ${repositories_repo_name[i]}
+                        colorecho "$GREEN" "INFO$NC |     Fetching submodules ..."
+                        git submodule update --init --remote
+                        cd ..
                     fi
                     if [ "$success" = 1 ]; then
                         if [ "$1" == "list" ]; then
