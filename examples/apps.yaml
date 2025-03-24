@@ -897,6 +897,15 @@ apps:
           - flatpak
         commands: null
 
+      - package_name: appimage
+        pretty_name: AppImage Launcher
+        category: Others
+        description: Linux apps that run anywhere
+        compatible: null
+        packages:
+          - appimagelauncher
+        commands: null
+
       - package_name: yay
         pretty_name: Yay
         category: Others
@@ -904,6 +913,15 @@ apps:
         compatible: null
         packages:
           - yay-bin
+        commands: null
+
+      - package_name: paru
+        pretty_name: Paru
+        category: Others
+        description: Feature packed AUR helper
+        compatible: null
+        packages:
+          - paru-git
         commands: null
 
       - package_name: agr
@@ -920,7 +938,7 @@ apps:
       - package_name: gnome-terminal
         pretty_name: GNOME Terminal
         category: Others
-        description: Terminal Emulator
+        description: Gnome/GTK Terminal Emulator
         compatible: null
         packages:
           - gnome-terminal
@@ -929,16 +947,25 @@ apps:
       - package_name: konsole
         pretty_name: Konsole
         category: Others
-        description: Terminal Emulator
+        description: KDE/Qt Terminal Emulator
         compatible: null
         packages:
           - konsole
         commands: null
 
+      - package_name: alacritty
+        pretty_name: Alacritty
+        category: Others
+        description: OpenGL Terminal Emulator
+        compatible: null
+        packages:
+          - alacritty
+        commands: null
+
       - package_name: xterm
         pretty_name: Xterm
         category: Others
-        description: Terminal Emulator
+        description: X11 Terminal Emulator
         compatible: null
         packages:
           - xterm
