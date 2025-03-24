@@ -253,7 +253,7 @@ apps:
       - package_name: teams
         pretty_name: Microsoft Teams
         category: Communication
-        description: Microsoft Teams meeting desktop app
+        description: Unofficial Microsoft Teams desktop app
         compatible: null
         packages:
           - teams-for-linux
@@ -262,20 +262,38 @@ apps:
       - package_name: discord
         pretty_name: Discord (Legcord)
         category: Communication
-        description: Discord desktop app for ARM
+        description: Unofficial Discord desktop app for ARM
         compatible: null
         packages:
           - legcord-bin
         commands: null
 
+      - package_name: slack
+        pretty_name: Slack (Slacky)
+        category: Communication
+        description: Unofficial Slack desktop app for ARM
+        compatible: null
+        packages:
+          - electron28-bin
+          - slacky-git
+        commands: null
+
       - package_name: signal
         pretty_name: Signal
         category: Communication
-        description: Signal Messenger desktop app
+        description: Signal Messenger desktop app (beta)
         compatible: null
         packages:
+          - ruby-cabin
+          - ruby-arr-pm
+          - ruby-backports
+          - ruby-clamp
+          - ruby-dotenv
+          - ruby-insist
+          - ruby-stud
+          - ruby-pleaserun
           - fpm
-          - signal-desktop-arm
+          - signal-desktop-beta
         commands: null
 
 ########################################################################
