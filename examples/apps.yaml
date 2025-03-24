@@ -575,7 +575,20 @@ apps:
         compatible: null
         packages:
           - virt-manager
-        commands: null
+          - virt-viewer
+          - qemu-base
+          - qemu-system-aarch64
+          - dnsmasq
+        commands: |
+          echo "Setting up Virt Manager ..."
+          sudo systemctl enable --now libvirtd
+          sudo virsh net-start default
+          sudo virsh net-autostart default
+          sudo usermod -aG libvirt $(whoami)
+          echo "Finish setting up Virt Manager ..."
+          echo "Ensure that your user account is added to the libvirt group."
+          echo "For full functionality, you may need to download & install the package edk2-aarch64 manually from Arch Linux (x64)."
+          echo "Visit https://archlinux.org/packages/extra/any/edk2-aarch64 for more infomation."
 
       - package_name: qemu-full
         pretty_name: QEMU
