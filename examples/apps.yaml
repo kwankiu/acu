@@ -62,17 +62,7 @@ apps:
           - chromium-mpp
         commands: |
           sudo systemctl enable --now libv4l-rkmpp-setup.service
-          # Check if the file /etc/chromium-browser exists
-          if [ ! -e "/etc/chromium-browser" ]; then
-              # Create the directory /etc/chromium-browser
-              sudo mkdir -p "/etc/chromium-browser"
-          fi
-          echo "# Default settings for chromium-browser. This file is sourced by /bin/sh from" | sudo tee /etc/chromium-browser/default >/dev/null
-          echo "# /usr/bin/chromium-browser" | sudo tee -a /etc/chromium-browser/default >/dev/null
-          echo "" | sudo tee -a /etc/chromium-browser/default >/dev/null
-          echo "# Options to pass to chromium-browser" | sudo tee -a /etc/chromium-browser/default >/dev/null
-          echo "LD_LIBRARY_PATH=/usr/lib/mali-valhall-g610/x11-wayland-gbm" | sudo tee -a /etc/chromium-browser/default >/dev/null
-          echo "CHROMIUM_FLAGS=\\"--use-gl=egl\\"" | sudo tee -a /etc/chromium-browser/default >/dev/null
+          echo "For Wayland, please go to chrome://flags and set Ozone Platform to Wayland."
 
       - package_name: ungoogled-chromium
         pretty_name: Ungoogled Chromium
@@ -92,6 +82,42 @@ apps:
           - firefox
         commands: null
 
+      - package_name: brave
+        pretty_name: Brave
+        category: Web
+        description: Privacy-focused browser with ad-blocking
+        compatible: null
+        packages:
+          - brave-bin
+        commands: null
+
+      - package_name: epiphany
+        pretty_name: Epiphany
+        category: Web
+        description: Gnome's web-kit based web browser
+        compatible: null
+        packages:
+          - epiphany
+        commands: null
+
+      - package_name: lynx
+        pretty_name: Lynx
+        category: Web
+        description: lightweight text-based web browser
+        compatible: null
+        packages:
+          - lynx
+        commands: null
+
+      - package_name: torbrowser
+        pretty_name: Tor Browser
+        category: Web
+        description: Web Browser for Tor Network
+        compatible: null
+        packages:
+          - torbrowser-launcher
+        commands: null
+
       - package_name: openssh
         pretty_name: OpenSSH
         category: Web
@@ -99,6 +125,33 @@ apps:
         compatible: null
         packages:
           - openssh
+        commands: null
+
+      - package_name: nginx
+        pretty_name: Nginx
+        category: Web
+        description: High-performance web server & reverse proxy
+        compatible: null
+        packages:
+          - nginx
+        commands: null
+
+      - package_name: apache
+        pretty_name: Apache
+        category: Web
+        description: Classic feature-rich HTTP server
+        compatible: null
+        packages:
+          - apache
+        commands: null
+
+      - package_name: caddy
+        pretty_name: Caddy
+        category: Web
+        description: Modern web server with automatic HTTPS
+        compatible: null
+        packages:
+          - caddy
         commands: null
 
       - package_name: nvm
@@ -122,6 +175,69 @@ apps:
           - wget
         commands: null
 
+      - package_name: aria2
+        pretty_name: Aria 2
+        category: Web
+        description: Powerful multi-protocol download utility
+        compatible: null
+        packages:
+          - aria2
+        commands: null
+
+      - package_name: rsync
+        pretty_name: Rsync
+        category: Web
+        description: Fast incremental file transfer utility
+        compatible: null
+        packages:
+          - rsync
+        commands: null
+
+      - package_name: openvpn
+        pretty_name: OpenVPN
+        category: Web
+        description: Robust open-source VPN client & server
+        compatible: null
+        packages:
+          - openvpn
+        commands: null
+
+      - package_name: wireguard
+        pretty_name: WireGuard
+        category: Web
+        description: Modern lightweight VPN protocol & tools
+        compatible: null
+        packages:
+          - wireguard-tools
+        commands: null
+
+      - package_name: speedtest
+        pretty_name: SpeedTest
+        category: Web
+        description: CLI tool for speedtest.net
+        compatible: null
+        packages:
+          - speedtest-cli
+        commands: null
+
+      - package_name: librespeed-cli
+        pretty_name: LibreSpeed
+        category: Web
+        description: Command-line client for LibreSpeed
+        compatible: null
+        packages:
+          - librespeed-cli
+        commands: null
+
+      - package_name: librespeed-gui
+        pretty_name: LibreSpeed
+        category: Web
+        description: Graphical client for LibreSpeed
+        compatible: null
+        packages:
+          - speedtest-librespeed
+        commands: null
+
 ########################################################################
   # Communication
 
@@ -137,29 +253,47 @@ apps:
       - package_name: teams
         pretty_name: Microsoft Teams
         category: Communication
-        description: Microsoft Teams meeting desktop app
+        description: Unofficial Microsoft Teams desktop app
         compatible: null
         packages:
           - teams-for-linux
         commands: null
 
       - package_name: discord
-        pretty_name: Discord (Armcord)
+        pretty_name: Discord (Legcord)
         category: Communication
-        description: Discord desktop app for ARM
+        description: Unofficial Discord desktop app for ARM
         compatible: null
         packages:
-          - armcord-bin
+          - legcord-bin
+        commands: null
+
+      - package_name: slack
+        pretty_name: Slack (Slacky)
+        category: Communication
+        description: Unofficial Slack desktop app for ARM
+        compatible: null
+        packages:
+          - electron28-bin
+          - slacky-git
         commands: null
 
       - package_name: signal
         pretty_name: Signal
         category: Communication
-        description: Signal Messenger desktop app
+        description: Signal Messenger desktop app (beta)
         compatible: null
         packages:
+          - ruby-cabin
+          - ruby-arr-pm
+          - ruby-backports
+          - ruby-clamp
+          - ruby-dotenv
+          - ruby-insist
+          - ruby-stud
+          - ruby-pleaserun
           - fpm
-          - signal-desktop-arm
+          - signal-desktop-beta
         commands: null
 
 ########################################################################
@@ -432,28 +566,6 @@ apps:
         packages:
           - pegasus-frontend-git
         commands: null
-      
-      - package_name: steam
-        pretty_name: Steam
-        category: Gaming
-        description: (For Testing) Wine 64-Bit WoW64, Winetricks & Steam (Windows)
-        compatible: null
-        packages:
-          - box64
-          - zenity
-          - cabextract
-
-        commands: |
-          echo "Installing Wine (64-Bit with WoW64) ..."
-          acu install -y wine
-          cd ~/.acu/cache
-          curl -LJO https://raw.githubusercontent.com/Winetricks/winetricks/master/src/winetricks
-          sudo chmod +x winetricks
-          sudo mv winetricks /usr/local/bin/
-          echo "Installing required software using Winetricks ..."
-          echo "(This can take some time ...)"
-          winetricks -q dotnet20sp2 dotnet40 vcrun6 corefonts
-          winetricks steam
 
 ########################################################################
   # Virtualization
@@ -465,7 +577,20 @@ apps:
         compatible: null
         packages:
           - virt-manager
-        commands: null
+          - virt-viewer
+          - qemu-base
+          - qemu-system-aarch64
+          - dnsmasq
+        commands: |
+          echo "Setting up Virt Manager ..."
+          sudo systemctl enable --now libvirtd
+          sudo virsh net-start default
+          sudo virsh net-autostart default
+          sudo usermod -aG libvirt $(whoami)
+          echo "Finish setting up Virt Manager ..."
+          echo "Ensure that your user account is added to the libvirt group."
+          echo "For full functionality, you may need to download & install the package edk2-aarch64 manually from Arch Linux (x64)."
+          echo "Visit https://archlinux.org/packages/extra/any/edk2-aarch64 for more infomation."
 
       - package_name: qemu-full
         pretty_name: QEMU
@@ -475,6 +600,30 @@ apps:
         packages:
           - qemu-full
         commands: null
+
+      - package_name: distrobox
+        pretty_name: Distro Box
+        category: Virtualization
+        description: Use any linux distribution inside your terminal
+        compatible: null
+        packages:
+          - distrobox
+        commands: null
+
+      - package_name: waydroid
+        pretty_name: Waydroid
+        category: Virtualization
+        description: Run Android Apps on Wayland
+        compatible: null
+        packages:
+          - libglibutil
+          - libgbinder
+          - python-gbinder
+          - waydroid
+        commands: |
+          echo "Setting up Waydroid ..."
+          sudo waydroid init -s GAPPS
+          sudo systemctl enable --now waydroid-container
 
       - package_name: box64
         pretty_name: Box64
@@ -486,17 +635,17 @@ apps:
         commands: null
 
       - package_name: wine
-        pretty_name: Wine (WoW64)
+        pretty_name: Wine 10.3
         category: Virtualization
-        description: (For Testing) Wine (64-Bit with WoW64) for running Windows applications
+        description: Wine (64-Bit with WoW64) for running Windows applications
         compatible: null
         packages:
           - box64
         commands: |
           echo "Installing Wine (64-Bit with WoW64) ..."
           cd ~/.acu/cache
-          url="https://github.com/kwankiu/PKGBUILDs/releases/download/wine"
-          pkg="wine-9.7-exp-wow64-amd64"
+          url="https://github.com/Kron4ek/Wine-Builds/releases/download/10.3"
+          pkg="wine-10.3-amd64-wow64"
           curl -LJO \${url}/\${pkg}.tar.xz
           tar -xf \${pkg}.tar.xz
           sudo mkdir -p /usr/local/lib/wine
@@ -517,18 +666,18 @@ apps:
           echo "Installed Wine (64-Bit with WoW64)"
           echo -e "To test Wine on ARM64, run:"" box64 wine winecfg"
 
-      - package_name: wine-8.18
-        pretty_name: Wine 8.18 (64-bit)
+      - package_name: wine-staging
+        pretty_name: Wine 9.22 Staging
         category: Virtualization
-        description: (For Testing) Wine 8.18 Staging (64-Bit) needed for some games
+        description: Wine Staging (64-Bit with WoW64) maybe better for some games
         compatible: null
         packages:
           - box64
         commands: |
-          echo "Installing Wine (64-Bit) ..."
+          echo "Installing Wine (64-Bit with WoW64) ..."
           cd ~/.acu/cache
-          url="https://github.com/Kron4ek/Wine-Builds/releases/download/8.18"
-          pkg="wine-8.18-staging-amd64"
+          url="https://github.com/Kron4ek/Wine-Builds/releases/download/9.22"
+          pkg="wine-9.22-staging-amd64-wow64"
           curl -LJO \${url}/\${pkg}.tar.xz
           tar -xf \${pkg}.tar.xz
           sudo mkdir -p /usr/local/lib/wine
@@ -546,8 +695,22 @@ apps:
           sudo ln -s /usr/local/lib/wine/\${pkg}/bin/wineserver /usr/local/bin/wineserver
           sudo ln -s /usr/local/lib/wine/\${pkg}/bin/winecfg /usr/local/bin/winecfg
           sudo ln -s /usr/local/lib/wine/\${pkg}/bin/wineboot /usr/local/bin/wineboot
-          echo "Installed Wine (64-Bit)"
+          echo "Installed Wine (64-Bit with WoW64)"
           echo -e "To test Wine on ARM64, run:"" box64 wine winecfg"
+
+      - package_name: winetricks
+        pretty_name: Winetricks
+        category: Virtualization
+        description: Easy way to work around problems in Wine
+        compatible: null
+        packages:
+          - git
+        commands: |
+          echo "Installing Winetricks ..."
+          cd ~/.acu/cache
+          git clone https://github.com/Winetricks/winetricks --single-branch --depth 1 --no-tags
+          cd winetricks
+          sudo make install
 
 ########################################################################
   # Development
@@ -672,6 +835,15 @@ apps:
           - stress
         commands: null
 
+      - package_name: mesa-utils
+        pretty_name: Mesa Utils
+        category: System
+        description: Utilities & Tools for Mesa
+        compatible: null
+        packages:
+          - mesa-utils
+        commands: null
+
       - package_name: glmark2
         pretty_name: GL Mark 2
         category: System
@@ -679,6 +851,15 @@ apps:
         compatible: null
         packages:
           - glmark2
+        commands: null
+
+      - package_name: vkmark
+        pretty_name: VK Mark
+        category: System
+        description: Vulkan Benchmarking
+        compatible: null
+        packages:
+          - vkmark
         commands: null
 
       - package_name: geekbench
@@ -722,6 +903,24 @@ apps:
           make
           sudo make install
 
+      - package_name: flatpak
+        pretty_name: Flatpak
+        category: Others
+        description: Build, install & run applications & runtimes
+        compatible: null
+        packages:
+          - flatpak
+        commands: null
+
+      - package_name: appimage
+        pretty_name: AppImage Launcher
+        category: Others
+        description: Linux apps that run anywhere
+        compatible: null
+        packages:
+          - appimagelauncher
+        commands: null
+
       - package_name: yay
         pretty_name: Yay
         category: Others
@@ -729,6 +928,15 @@ apps:
         compatible: null
         packages:
           - yay-bin
+        commands: null
+
+      - package_name: paru
+        pretty_name: Paru
+        category: Others
+        description: Feature packed AUR helper
+        compatible: null
+        packages:
+          - paru-git
         commands: null
 
       - package_name: agr
@@ -745,7 +953,7 @@ apps:
       - package_name: gnome-terminal
         pretty_name: GNOME Terminal
         category: Others
-        description: Terminal Emulator
+        description: Gnome/GTK Terminal Emulator
         compatible: null
         packages:
           - gnome-terminal
@@ -754,16 +962,25 @@ apps:
       - package_name: konsole
         pretty_name: Konsole
         category: Others
-        description: Terminal Emulator
+        description: KDE/Qt Terminal Emulator
         compatible: null
         packages:
           - konsole
         commands: null
 
+      - package_name: alacritty
+        pretty_name: Alacritty
+        category: Others
+        description: OpenGL Terminal Emulator
+        compatible: null
+        packages:
+          - alacritty
+        commands: null
+
       - package_name: xterm
         pretty_name: Xterm
         category: Others
-        description: Terminal Emulator
+        description: X11 Terminal Emulator
         compatible: null
         packages:
           - xterm
