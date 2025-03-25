@@ -993,6 +993,16 @@ apps:
           - alacritty
         commands: null
 
+      - package_name: ghostty
+        pretty_name: Ghostty
+        category: Others
+        description: fast, feature-rich Terminal Emulator
+        compatible: null
+        packages:
+          - pandoc-bin
+          - ghostty
+        commands: null
+
       - package_name: xterm
         pretty_name: Xterm
         category: Others
