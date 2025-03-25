@@ -937,6 +937,15 @@ apps:
           - appimagelauncher
         commands: null
 
+      - package_name: bauh
+        pretty_name: Bauh
+        category: Others
+        description: Graphical interface for managing your apps
+        compatible: null
+        packages:
+          - bauh
+        commands: null
+
       - package_name: yay
         pretty_name: Yay
         category: Others
