@@ -457,7 +457,7 @@ install_from_source() {
     local repo_url="$1"
     local pkgbase=$(basename $repo_url)
     # Install required package
-    sudo pacman -Sy --needed git base-devel --noconfirm
+    sudo pacman -Sy --needed git base-devel bc --noconfirm
     
     # Source folder
     mkdir -p $source_repo_dir
