@@ -1002,6 +1002,15 @@ apps:
           - alacritty
         commands: null
 
+      - package_name: ptyxis
+        pretty_name: Ptyxis
+        category: Others
+        description: A container oriented Terminal Emulator
+        compatible: null
+        packages:
+          - ptyxis
+        commands: null
+
       - package_name: ghostty
         pretty_name: Ghostty
         category: Others
