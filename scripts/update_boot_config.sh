@@ -95,8 +95,15 @@ update_boot_config() {
             echo "${ftdline}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
         fi
         # Overlays
-        local overlaysline
-        if overlaysline="$(cat /boot/extlinux/extlinux.conf.bak | grep -m 1 'fdtoverlays ')"; then
+        local overlaysline="$(cat /boot/extlinux/extlinux.conf.bak | grep -m 1 'fdtoverlays ')"
+        if [ -n "$add_dtoverlay" ]; then
+            if [ -n "$overlaysline" ]; then
+                overlaysline+=" $add_dtoverlay"
+            else
+                overlaysline="fdtoverlays $add_dtoverlay"
+            fi
+        fi
+        if [ -n "$overlaysline" ]; then
             local overlaylist=($overlaysline)
             local i
             local dtbolist
