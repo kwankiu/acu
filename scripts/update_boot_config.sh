@@ -24,8 +24,11 @@ no_confirm=1
 ################################################################
 # Update boot config (extlinux/grub/systemd-boot)
 update_boot_config() {
-
-    local pkgname=$1
+ 
+    # Make sure argument isnt treated as pkgname
+    if [[ "$1" != "--"* ]]; then
+        local pkgname=$1
+    fi
 
     # If not specified then look for the mainline stable kernel
     if [ -z "$pkgname" ]; then
@@ -78,7 +81,7 @@ update_boot_config() {
     fi
 
     # EFI System
-    if sudo test -f /boot/EFI/BOOT/BOOT*.EFI; then
+    if sudo ls /boot/EFI/BOOT | grep -q BOOT.*.EFI; then
         colorecho "$THEME" "INFO  $NC | UEFI System detected."
         
         # Detect EFI Bootloader
