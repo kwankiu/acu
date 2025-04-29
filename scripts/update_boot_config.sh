@@ -24,9 +24,9 @@ no_confirm=1
 ################################################################
 # Update boot config (extlinux/grub/systemd-boot)
 update_boot_config() {
- 
+
     # Make sure argument isnt treated as pkgname
-    if [[ "$1" != "--"* ]]; then
+    if [[ "$1" != "-"* ]]; then
         local pkgname=$1
     fi
 
@@ -83,7 +83,6 @@ update_boot_config() {
     # EFI System
     if sudo ls /boot/EFI/BOOT | grep -q BOOT.*.EFI; then
         colorecho "$THEME" "INFO  $NC | UEFI System detected."
-        
         # Detect EFI Bootloader
         if sudo test -d /boot/grub && command -v grub-install &> /dev/null; then
             # Grub
@@ -99,7 +98,27 @@ update_boot_config() {
             colorecho "$RED" "ERROR $NC | Boot Config can not be updated. (Unsupported bootloader method)"
             return 1
         fi
-
+        # DT Overlay Support
+        # Feature need to be enabled in BIOS, support platforms like edk2-rk3588
+        if [ -n "$add_dtoverlay" ]; then
+            local target_dtbo=$(basename $add_dtoverlay)
+            local found_dtbo
+            local dtbo
+            if found_dtbo=$(find /boot/dtbs/${pkgbase} -type f -name $target_dtbo -exec dirname {} \; | head -n 1); then
+                    dtbo="${found_dtbo}/${target_dtbo}"
+            elif found_dtbo=$(find /boot/dtbs -type f -name $target_dtbo -exec dirname {} \; | head -n 1); then
+                    dtbo="${found_dtbo}/${target_dtbo}"
+            elif sudo test -e "${overlaylist[i]}"; then
+                    dtbo="${overlaylist[i]}"
+            fi
+            # Copy the found overlay to /boot/dtb/base/overlay
+            if [ -n "$dtbo" ]; then
+                sudo mkdir -p /boot/dtb/base/overlay
+                sudo cp $dtbo /boot/dtb/base/overlay/
+                colorecho "$THEME" "INFO  $NC | Overlay copied to /boot/dtb/base/overlay"
+                colorecho "$THEME" "INFO  $NC | Make sure your UEFI firmware is configured to support DTB Overlays"
+            fi
+        fi
     # Update extlinux from booted config
     elif sudo test -f "/boot/extlinux/extlinux.conf"; then
         colorecho "$THEME" "INFO  $NC | Creating a backup of extlinux.conf at extlinux.conf.bak ..."
@@ -149,8 +168,8 @@ update_boot_config() {
                     dtbolist+=("${found_dtbo}/${target_dtbo}")
                 elif found_dtbo=$(find /boot/dtbs -type f -name $target_dtbo -exec dirname {} \; | head -n 1); then
                     dtbolist+=("${found_dtbo}/${target_dtbo}")
-                elif sudo test -e "$target_dtbo" || sudo test -e "/boot/$target_dtbo"; then
-                    dtbolist+=("$target_dtbo")
+                elif sudo test -e "${overlaylist[i]}"; then
+                    dtbolist+=("${overlaylist[i]}")
                 fi
             done
             if [ -n "$dtbolist" ]; then
