@@ -1666,7 +1666,7 @@ update_boot_config() {
                 colorecho "$THEME" "INFO  $NC | Overlay copied to /boot/dtb/base/overlay"
                 colorecho "$THEME" "INFO  $NC | Make sure your UEFI firmware is configured to support DTB Overlays"
             else
-                colorecho "$RED" "ERROR $NC | Unable to find the specified DT Overlay"
+                colorecho "$RED" "ERROR $NC | Unable to add the following DT Overlay: $target_dtbo (file not found)"
             fi
         fi
     # Update extlinux from booted config
