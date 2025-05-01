@@ -104,9 +104,9 @@ update_boot_config() {
             local target_dtbo=$(basename $add_dtoverlay)
             local found_dtbo
             local dtbo
-            if found_dtbo=$(sudo find /boot/dtbs/${pkgbase} -type f -name $target_dtbo -exec dirname {} \; | head -n 1); then
+            if found_dtbo=$(sudo find /boot/dtbs/${pkgbase} -type f -name $target_dtbo -exec dirname {} \; 2>/dev/null | head -n 1) && sudo test -f ${found_dtbo}/${target_dtbo}; then
                     dtbo="${found_dtbo}/${target_dtbo}"
-            elif found_dtbo=$(sudo find /boot/dtbs -type f -name $target_dtbo -exec dirname {} \; | head -n 1); then
+            elif found_dtbo=$(sudo find /boot/dtbs -type f -name $target_dtbo -exec dirname {} \; 2>/dev/null | head -n 1) && sudo test -f ${found_dtbo}/${target_dtbo}; then
                     dtbo="${found_dtbo}/${target_dtbo}"
             elif sudo test -e "${overlaylist[i]}"; then
                     dtbo="${overlaylist[i]}"
@@ -166,12 +166,14 @@ update_boot_config() {
             for ((i = 1; i < ${#overlaylist[@]}; i++)); do
                 local target_dtbo=$(basename ${overlaylist[i]})
                 local found_dtbo
-                if found_dtbo=$(sudo find /boot/dtbs/${pkgbase} -type f -name $target_dtbo -exec dirname {} \; | head -n 1); then
+                if found_dtbo=$(sudo find /boot/dtbs/${pkgbase} -type f -name $target_dtbo -exec dirname {} \; 2>/dev/null | head -n 1) && sudo test -f ${found_dtbo}/${target_dtbo}; then
                     dtbolist+=("${found_dtbo}/${target_dtbo}")
-                elif found_dtbo=$(sudo find /boot/dtbs -type f -name $target_dtbo -exec dirname {} \; | head -n 1); then
+                elif found_dtbo=$(sudo find /boot/dtbs -type f -name $target_dtbo -exec dirname {} \; 2>/dev/null | head -n 1) && sudo test -f ${found_dtbo}/${target_dtbo}; then
                     dtbolist+=("${found_dtbo}/${target_dtbo}")
                 elif sudo test -e "${overlaylist[i]}"; then
                     dtbolist+=("${overlaylist[i]}")
+                else
+                    colorecho "$RED" "ERROR $NC | Unable to add the following DT Overlay: $target_dtbo (file not found)"
                 fi
             done
             if [ -n "$dtbolist" ]; then
