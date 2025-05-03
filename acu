@@ -2462,6 +2462,32 @@ soc_profile() {
     fi
 }
 
+get_cpu_clusters() {
+    # Fetch all related_cpus from the system
+    local rel=()
+    while IFS= read -r line; do
+        rel+=("$line")
+    done < <(sudo cat /sys/devices/system/cpu/cpu*/cpufreq/related_cpus)
+    local cluster=()
+    local clusterno=()
+    for ((i = 0; i < ${#rel[@]}; i++)); do
+        # Check for repeated related_cpus (skip if already in the cluster)
+        seen=0
+        for item in "${cluster[@]}"; do
+            if [ "${rel[i]}" = "$item" ]; then
+                seen=1
+                break
+            fi
+        done
+        if [ "$seen" -eq 0 ]; then
+            cluster+=("${rel[i]}")
+            clusterno+=("$i")
+        fi
+    done
+    # Return the final list of cluster numbers (representing CPUs)
+    echo "${clusterno[@]}"
+}
+
 create_soc_profile_service() {
     local governor=$1
     echo -e "[Unit]\nDescription=SoC Profile\n\n[Service]\nType=oneshot\nExecStart=/usr/bin/acu soc set $governor \nRemainAfterExit=no\n\n[Install]\nWantedBy=multi-user.target" | sudo tee /etc/systemd/system/soc_profile.service > /dev/null
