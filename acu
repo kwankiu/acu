@@ -2569,7 +2569,7 @@ hw_monitor() {
     if command -v vulkaninfo &> /dev/null; then
         sys_vk_ver=$(vulkaninfo | grep "Vulkan Instance Version" | cut -d ":" -f 2 | cut -c 2-)
     else
-        sys_vk_ver="Unknown (vulkaninfo not installed)"
+        sys_vk_ver="Unknown (vulkan-tools not installed)"
     fi
 
     if [ "$1" == "--center" ]; then
