@@ -2385,7 +2385,6 @@ soc_profile() {
 
     if [ -z "$1" ]; then
         title "SoC Performance Profile"
-        echo
         # CPU Profile
         colorecho "$THEME" "Processor:" "" "center" "-a"
         for cluster in $(get_cpu_clusters); do
@@ -2427,17 +2426,17 @@ soc_profile() {
     elif [ "$1" = "set" ]; then
         case $2 in
             "performance")
-                echo performance | sudo tee /sys/bus/cpu/devices/cpu*/cpufreq/scaling_governor /sys/class/devfreq/dmc/governor /sys/class/devfreq/fb000000.gpu/governor
+                echo performance | sudo tee /sys/bus/cpu/devices/cpu*/cpufreq/scaling_governor /sys/class/devfreq/*/governor
                 colorecho "$GREEN" "Set to Performance"
                 ;;
             "ondemand")
                 echo ondemand | sudo tee /sys/bus/cpu/devices/cpu*/cpufreq/scaling_governor
-                echo dmc_ondemand | sudo tee /sys/class/devfreq/dmc/governor
-                echo simple_ondemand | sudo tee /sys/class/devfreq/fb000000.gpu/governor
+                echo dmc_ondemand | sudo tee /sys/class/devfreq/*dmc*/governor
+                echo simple_ondemand | sudo tee /sys/class/devfreq/*gpu*/governor
                 colorecho "$GREEN" "Set to On Demand"
                 ;;
             "powersave")
-                echo powersave | sudo tee /sys/bus/cpu/devices/cpu*/cpufreq/scaling_governor /sys/class/devfreq/dmc/governor /sys/class/devfreq/fb000000.gpu/governor
+                echo powersave | sudo tee /sys/bus/cpu/devices/cpu*/cpufreq/scaling_governor /sys/class/devfreq/*/governor
                 colorecho "$GREEN" "Set to Power Save"
                 ;;
             *)
