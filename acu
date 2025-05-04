@@ -1482,7 +1482,7 @@ system_info() {
     colorecho "$THEME" "Shell: $NC $sys_shell" "" "$align" "$alignarg"
     colorecho "$THEME" "DE: $NC $sys_de ($sys_session)" "" "$align" "$alignarg"
     colorecho "$THEME" "Terminal: $NC $sys_terminal ($sys_terminal_font)" "" "$align" "$alignarg"
-    colorecho "$THEME" "CPU: $NC ($sys_cpu_thread) $sys_cpu @ $(awk "BEGIN{printf \"%.2f\\n\", ((${sys_cpu_clock[4]:-${sys_cpu_clock[0]}}/1000000))}") Ghz (${sys_cpu_governor[4]:-${sys_cpu_governor[0]}})" "" "$align" "$alignarg"
+    colorecho "$THEME" "CPU: $NC ($sys_cpu_thread) ${sys_cpu:-"Unknown"} @ $(awk "BEGIN{printf \"%.2f\\n\", ((${sys_cpu_clock[4]:-${sys_cpu_clock[0]}}/1000000))}") Ghz (${sys_cpu_governor[4]:-${sys_cpu_governor[0]}})" "" "$align" "$alignarg"
     colorecho "$THEME" "GPU: $NC $sys_gpu" "" "$align" "$alignarg"
     colorecho "$THEME" "Resolution: $NC $sys_resolution" "" "$align" "$alignarg"
     colorecho "$THEME" "Memory: $NC $sys_mem_free GiB / $sys_mem_total GiB ($(awk "BEGIN{printf \"%.2f%%\\n\", (1-(${sys_mem_free}/${sys_mem_total}))*100}"))" "" "$align" "$alignarg"
@@ -2386,9 +2386,18 @@ soc_profile() {
     if [ -z "$1" ]; then
         title "SoC Performance Profile"
         echo
-        colorecho "$THEME" "CPU Profile: $(cat /sys/bus/cpu/devices/cpu[046]/cpufreq/scaling_governor 2>/dev/null)" "" "center" "-a"
-        colorecho "$THEME" "Memory Profile: $(cat /sys/class/devfreq/dmc/governor 2>/dev/null)" "" "center" "-a"
-        colorecho "$THEME" "GPU Profile: $(cat /sys/class/devfreq/fb000000.gpu/governor 2>/dev/null)" "" "center" "-a"
+        # CPU Profile
+        colorecho "$THEME" "Processor:" "" "center" "-a"
+        for cluster in $(get_cpu_clusters); do
+            governor=$(cat /sys/devices/system/cpu/cpu${cluster}/cpufreq/scaling_governor 2>/dev/null)
+            colorecho "$THEME" "  | Cluster/CPU${cluster} | $governor" "" "center" "-a"
+        done
+        # Memory Profile
+        colorecho "$THEME" "Memory:" "" "center" "-a"
+        colorecho "$THEME" "  | Memory Device | $(cat /sys/class/devfreq/*dmc*/governor 2>/dev/null)" "" "center" "-a"
+        # GPU Profile
+        colorecho "$THEME" "GPU:" "" "center" "-a"
+        colorecho "$THEME" "  | GPU Device | $(cat /sys/class/devfreq/*gpu*/governor 2>/dev/null)" "" "center" "-a"
         echo
         options=("Performance - Run SoC at full performance" "On Demand - Run SoC on CPU usage demand" "Power Save - Run SoC on Power Saving Mode" "System Default - Run SoC with system default settings" "Return to System & Performance Menu")
         select_option "${options[@]}"
@@ -2467,7 +2476,7 @@ get_cpu_clusters() {
     local rel=()
     while IFS= read -r line; do
         rel+=("$line")
-    done < <(sudo cat /sys/devices/system/cpu/cpu*/cpufreq/related_cpus)
+    done < <(cat /sys/devices/system/cpu/cpu*/cpufreq/related_cpus 2>/dev/null)
     local cluster=()
     local clusterno=()
     for ((i = 0; i < ${#rel[@]}; i++)); do
