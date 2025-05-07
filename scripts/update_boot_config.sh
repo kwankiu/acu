@@ -18,27 +18,58 @@ colorecho() {
 # for detecting system architecture
 system_arch=$(uname -m)
 
+# Disable option picker
+no_confirm=1
+
 ################################################################
 # Update boot config (extlinux/grub/systemd-boot)
 update_boot_config() {
 
-    local pkgname=$1
+    # Make sure argument isnt treated as pkgname
+    if [[ "$1" != "-"* ]]; then
+        local pkgname=$1
+    fi
 
     # If not specified then look for the mainline stable kernel
     if [ -z "$pkgname" ]; then
-        if [ "$system_arch" = "aarch64" ]; then
-            pkgname="linux-aarch64"
+        colorecho "$THEME" "INFO  $NC | pkgbase is not specified, looking for installed kernel ..."
+        # Find all kernel packages
+        local kernels=($(pacman -Q | grep 'linux' | awk '{print $1}'))
+        local valid_kernels=()
+        for kernel in "${kernels[@]}"; do
+            if sudo pacman -Ql "$kernel" | grep -q 'pkgbase\|Image'; then
+                valid_kernels+=("$kernel")
+            fi
+        done
+        # Determine the valid kernels
+        if [ ${#valid_kernels[@]} -eq 1 ]; then
+            pkgname="${valid_kernels[0]}"
+            colorecho "$THEME" "INFO  $NC | Automatically detected kernel: $pkgname ..."
+        elif [ ${#valid_kernels[@]} -gt 1 ]; then
+            if [ -z "$no_confirm" ]; then
+                title "Multiple valid kernels found:"
+                select_option "${valid_kernels[@]}"
+                choice=$?
+                pkgname="${valid_kernels[choice]}"
+                colorecho "$THEME" "INFO  $NC | Selected kernel: $pkgname ..."                
+            else
+                pkgname="${valid_kernels[0]}"
+                colorecho "$THEME" "INFO  $NC | Multiple valid kernels found, using the first: $pkgname ..."
+            fi
         else
-            pkgname="linux"
+            colorecho "$RED" "ERROR $NC | No valid kernel packages found. Please specify a kernel."
+            return 1
         fi
-        colorecho "$THEME" "INFO  $NC | pkgbase is not specified, looking for default kernel $pkgname ..."
     fi
 
     # Make sure package is installed and get kernel infomation
     if sudo pacman -Q "$pkgname" > /dev/null 2>&1 ; then
         local pkgbase="$(sudo pacman -Ql "$pkgname" | grep pkgbase | awk '{print $2}')"
+        local kimage="$(sudo pacman -Ql "$pkgname" | grep Image | awk '{print $2}')"
         if [ -n "$pkgbase" ]; then
             pkgbase="$(cat $pkgbase)"
+        elif [ -n "$kimage" ]; then
+            pkgbase="linux"
         else
             colorecho "$RED" "ERROR $NC | Boot Config can not be updated. (Can not determine pkgbase, Package $pkgname may not be a kernel)"
             return 1
@@ -50,9 +81,8 @@ update_boot_config() {
     fi
 
     # EFI System
-    if sudo test -f /boot/EFI/BOOT/BOOT*.EFI; then
+    if sudo ls /boot/EFI/BOOT | grep -q BOOT.*.EFI; then
         colorecho "$THEME" "INFO  $NC | UEFI System detected."
-        
         # Detect EFI Bootloader
         if sudo test -d /boot/grub && command -v grub-install &> /dev/null; then
             # Grub
@@ -68,7 +98,29 @@ update_boot_config() {
             colorecho "$RED" "ERROR $NC | Boot Config can not be updated. (Unsupported bootloader method)"
             return 1
         fi
-
+        # DT Overlay Support
+        # Feature need to be enabled in BIOS, support platforms like edk2-rk3588
+        if [ -n "$add_dtoverlay" ]; then
+            local target_dtbo=$(basename $add_dtoverlay)
+            local found_dtbo
+            local dtbo
+            if found_dtbo=$(sudo find /boot/dtbs/${pkgbase} -type f -name $target_dtbo -exec dirname {} \; 2>/dev/null | head -n 1) && sudo test -f ${found_dtbo}/${target_dtbo}; then
+                    dtbo="${found_dtbo}/${target_dtbo}"
+            elif found_dtbo=$(sudo find /boot/dtbs -type f -name $target_dtbo -exec dirname {} \; 2>/dev/null | head -n 1) && sudo test -f ${found_dtbo}/${target_dtbo}; then
+                    dtbo="${found_dtbo}/${target_dtbo}"
+            elif sudo test -e "${overlaylist[i]}"; then
+                    dtbo="${overlaylist[i]}"
+            fi
+            # Copy the found overlay to /boot/dtb/base/overlay
+            if [ -n "$dtbo" ]; then
+                sudo mkdir -p /boot/dtb/base/overlay
+                sudo cp $dtbo /boot/dtb/base/overlay/
+                colorecho "$THEME" "INFO  $NC | Overlay copied to /boot/dtb/base/overlay"
+                colorecho "$THEME" "INFO  $NC | Make sure your UEFI firmware is configured to support DTB Overlays"
+            else
+                colorecho "$RED" "ERROR $NC | Unable to add the following DT Overlay: $target_dtbo (file not found)"
+            fi
+        fi
     # Update extlinux from booted config
     elif sudo test -f "/boot/extlinux/extlinux.conf"; then
         colorecho "$THEME" "INFO  $NC | Creating a backup of extlinux.conf at extlinux.conf.bak ..."
@@ -79,7 +131,11 @@ update_boot_config() {
         echo "# This extlinux.conf is auto-generated by ACU" | sudo tee "/boot/extlinux/extlinux.conf" >/dev/null
         echo " " | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
         echo "label ${pkgbase}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
-        echo "    kernel /vmlinuz-${pkgbase}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        if [ -n "$kimage" ]; then
+            echo "    kernel /Image" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        else
+            echo "    kernel /vmlinuz-${pkgbase}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
+        fi
         echo "    initrd /initramfs-${pkgbase}.img" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
         # DTB dir
         if sudo test -d "/boot/dtbs/${pkgbase}"; then
@@ -95,20 +151,29 @@ update_boot_config() {
             echo "${ftdline}" | sudo tee -a "/boot/extlinux/extlinux.conf" >/dev/null
         fi
         # Overlays
-        local overlaysline
-        if overlaysline="$(cat /boot/extlinux/extlinux.conf.bak | grep -m 1 'fdtoverlays ')"; then
+        local overlaysline="$(cat /boot/extlinux/extlinux.conf.bak | grep -m 1 'fdtoverlays ')"
+        if [ -n "$add_dtoverlay" ]; then
+            if [ -n "$overlaysline" ]; then
+                overlaysline+=" $add_dtoverlay"
+            else
+                overlaysline="fdtoverlays $add_dtoverlay"
+            fi
+        fi
+        if [ -n "$overlaysline" ]; then
             local overlaylist=($overlaysline)
             local i
             local dtbolist
             for ((i = 1; i < ${#overlaylist[@]}; i++)); do
                 local target_dtbo=$(basename ${overlaylist[i]})
                 local found_dtbo
-                if found_dtbo=$(find /boot/dtbs/${pkgbase} -type f -name $target_dtbo -exec dirname {} \; | head -n 1); then
+                if found_dtbo=$(sudo find /boot/dtbs/${pkgbase} -type f -name $target_dtbo -exec dirname {} \; 2>/dev/null | head -n 1) && sudo test -f ${found_dtbo}/${target_dtbo}; then
                     dtbolist+=("${found_dtbo}/${target_dtbo}")
-                elif found_dtbo=$(find /boot/dtbs -type f -name $target_dtbo -exec dirname {} \; | head -n 1); then
+                elif found_dtbo=$(sudo find /boot/dtbs -type f -name $target_dtbo -exec dirname {} \; 2>/dev/null | head -n 1) && sudo test -f ${found_dtbo}/${target_dtbo}; then
                     dtbolist+=("${found_dtbo}/${target_dtbo}")
-                elif sudo test -e "$target_dtbo" || sudo test -e "/boot/$target_dtbo"; then
-                    dtbolist+=("$target_dtbo")
+                elif sudo test -e "${overlaylist[i]}"; then
+                    dtbolist+=("${overlaylist[i]}")
+                else
+                    colorecho "$RED" "ERROR $NC | Unable to add the following DT Overlay: $target_dtbo (file not found)"
                 fi
             done
             if [ -n "$dtbolist" ]; then
@@ -141,6 +206,7 @@ update_boot_config() {
             colorecho "$DEBUG" "INFO  $NC | /boot is mounted as a directory"
             colorecho "$THEME" "INFO  $NC | Updating paths for extlinux.conf ..."
             sudo sed -i "s| /vmlinuz| /boot/vmlinuz|" /boot/extlinux/extlinux.conf
+            sudo sed -i "s| /Image| /boot/Image|" /boot/extlinux/extlinux.conf
             sudo sed -i "s| /initramfs| /boot/initramfs|" /boot/extlinux/extlinux.conf
             sudo sed -i "s| /initrd| /boot/initrd|" /boot/extlinux/extlinux.conf
             sudo sed -i "s| /dtbs| /boot/dtbs|" /boot/extlinux/extlinux.conf
