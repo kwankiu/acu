@@ -2659,6 +2659,8 @@ manage_user() {
     
     # List all user accounts
     real_users=($(getent passwd | awk -F: '$3 >= 1000 && $3 < 65534 {print $1}'))
+    # Get hostname
+    local hostname=$(hostnamectl --static)
 
     # Prompt to add a new user
     select_options=("Return to Main Menu" "Add User ...")
@@ -2778,8 +2780,7 @@ manage_user() {
                     fi
                     ;;
                 3)
-                    local hostname=$(hostnamectl --static)
-                    if grep -qFx "$selected_user $hostname =NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot" /etc/sudoers; then
+                    if sudo grep -qFx "$selected_user $hostname =NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot" /etc/sudoers; then
                         sudo sed -i "/^$selected_user $hostname =NOPASSWD: \/usr\/bin\/systemctl poweroff,\/usr\/bin\/systemctl halt,\/usr\/bin\/systemctl reboot$/d" /etc/sudoers
                         colorecho "$GREEN" "Enabled Reboot Password"
                     else
