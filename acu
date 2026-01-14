@@ -2680,6 +2680,7 @@ manage_user() {
     elif [ "$1" = "manage" ]; then
         selected_user=$2
         manage_action=$3
+        manage_value=$4
     fi
 
     case $choice in
@@ -2730,28 +2731,28 @@ manage_user() {
                 echo
                 colorecho "$GREEN" "Options" "" "center"
                 echo
-
                 # Perform actions for the selected user (if needed)
-                options=("Return to Manage User Menu" "Change User Password")
-
-                if sudo -lU "$selected_user" | grep NOPASSWD | grep -v -q "(root)"; then
-                    options+=("Enable Sudo Password")
-                else
-                    options+=("Disable Sudo Password")
-                fi
-
+                options=("Return to Manage User Menu" "Change User Password" "Set Sudo Password Timeout")
+                # Check if reboot nopasswd exists
                 if sudo grep -qFx "$selected_user $hostname =NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot" /etc/sudoers; then
                     options+=("Enable Reboot Password")
                 else
                     options+=("Disable Reboot Password")
                 fi
-
+                # Check if sudo nopasswd exists
+                if sudo -lU "$selected_user" | grep NOPASSWD | grep -v -q "(root)"; then
+                    options+=("Enable Sudo Password")
+                else
+                    options+=("Disable Sudo Password")
+                fi
                 select_option "${options[@]}"
                 choice=$?
-            elif [ "$manage_action" = "sudopw" ]; then
+            elif [ "$manage_action" = "pwtimeout" ]; then
                 choice=2
             elif [ "$manage_action" = "rebootpw" ]; then
                 choice=3
+            elif [ "$manage_action" = "sudopw" ]; then
+                choice=4
             fi
 
             case $choice in
@@ -2761,7 +2762,65 @@ manage_user() {
                 1)
                     sudo passwd "$selected_user"
                     ;;
-                2)  
+                2)
+                    # Show Input Menu
+                    if [ -z "$manage_value" ]; then
+                    local timeout
+                    title "Set Sudo Password Timeout for $selected_user"
+                    colorecho "$GREEN" "Tips:"
+                    colorecho "$GREEN" " - Enter 0 to always ask for password (default)"
+                    colorecho "$GREEN" " - Enter -1 to disable timeout"
+                    colorecho "$GREEN" " - Enter q to cancel operation"
+                    echo
+                    read -p "Enter timeout in minutes: " timeout
+                    else
+                        timeout=$manage_value
+                    fi
+                    # Set Sudo Password Timeout
+                    if [[ "$timeout" =~ ^[0-9]+$ ]]; then
+                        # Check if NOPASSWD is enabled
+                        if sudo -lU "$selected_user" | grep NOPASSWD | grep -v -q "(root)"; then
+                            colorecho "$RED" "ERROR $NC | Cannot set timeout when NOPASSWD is enabled for $selected_user"
+                        else
+                            if [ "$timeout" -eq 0 ]; then
+                                # Remove any existing timeout entry
+                                sudo sed -i "/^Defaults:$selected_user timestamp_timeout=/d" /etc/sudoers
+                                sudo sed -i "/^Defaults:$selected_user passwd_timeout=/d" /etc/sudoers
+                                colorecho "$GREEN" "Sudo Password will always be asked for $selected_user"
+                            elif [ "$timeout" -eq -1 ]; then
+                                # Set passwd_timeout=0 instead of timestamp_timeout=-1 as per sudoers manual
+                                if sudo grep -qE "^Defaults:$selected_user timestamp_timeout=" /etc/sudoers; then
+                                    sudo sed -i "s/^Defaults:$selected_user timestamp_timeout=.*/Defaults:$selected_user passwd_timeout=0/" /etc/sudoers
+                                else
+                                    echo "Defaults:$selected_user passwd_timeout=0" | sudo tee -a "/etc/sudoers" >/dev/null
+                                fi
+                                colorecho "$GREEN" "Sudo Password timeout disabled for $selected_user"
+                            else
+                                # Set the timestamp_timeout value
+                                if sudo grep -qE "^Defaults:$selected_user timestamp_timeout=" /etc/sudoers; then
+                                    sudo sed -i "s/^Defaults:$selected_user timestamp_timeout=.*/Defaults:$selected_user timestamp_timeout=$timeout/" /etc/sudoers
+                                else
+                                    echo "Defaults:$selected_user timestamp_timeout=$timeout" | sudo tee -a "/etc/sudoers" >/dev/null
+                                fi
+                                colorecho "$GREEN" "Sudo Password timeout set to $timeout minutes for $selected_user"
+                            fi
+                        fi
+                    elif [ "$timeout" = "q" ]; then
+                        colorecho "$THEME" "Operation cancelled. Sudo Password Timeout will not be changed for $selected_user."
+                    else
+                        colorecho "$RED" "ERROR $NC | Invalid timeout value."
+                    fi
+                    ;;
+                3)
+                    if sudo grep -qFx "$selected_user $hostname =NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot" /etc/sudoers; then
+                        sudo sed -i "/^$selected_user $hostname =NOPASSWD: \/usr\/bin\/systemctl poweroff,\/usr\/bin\/systemctl halt,\/usr\/bin\/systemctl reboot$/d" /etc/sudoers
+                        colorecho "$GREEN" "Enabled Reboot Password"
+                    else
+                        echo "$selected_user $hostname =NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot" | sudo tee -a "/etc/sudoers" >/dev/null
+                        colorecho "$GREEN" "Disabled Reboot Password"
+                    fi
+                    ;;
+                4)  
                     if sudo -lU "$selected_user" | grep NOPASSWD | grep -v -q "(root)"; then
                         sudo sed -i "s/^\($selected_user.*\)NOPASSWD: ALL/\1ALL/" /etc/sudoers
                         colorecho "$GREEN" "Enabled Sudo Password for $selected_user"
@@ -2777,15 +2836,6 @@ manage_user() {
                             echo "Added $selected_user to sudoers file with NOPASSWD: ALL"
                         fi
                         colorecho "$GREEN" "Disabled Sudo Password for $selected_user"
-                    fi
-                    ;;
-                3)
-                    if sudo grep -qFx "$selected_user $hostname =NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot" /etc/sudoers; then
-                        sudo sed -i "/^$selected_user $hostname =NOPASSWD: \/usr\/bin\/systemctl poweroff,\/usr\/bin\/systemctl halt,\/usr\/bin\/systemctl reboot$/d" /etc/sudoers
-                        colorecho "$GREEN" "Enabled Reboot Password"
-                    else
-                        echo "$selected_user $hostname =NOPASSWD: /usr/bin/systemctl poweroff,/usr/bin/systemctl halt,/usr/bin/systemctl reboot" | sudo tee -a "/etc/sudoers" >/dev/null
-                        colorecho "$GREEN" "Disabled Reboot Password"
                     fi
                     ;;
             esac
@@ -3334,7 +3384,7 @@ for arg in "$@"; do
             echo "  user add <username> <password> : Create and initialize a user account without an interactive prompt."
             echo "  user remove <username> : Remove a user account from the system."
             echo "  user manage <username> : Show interactive menu to manage the specified user account."
-            echo "  user manage <username> <option> : Enable/disable a specified user option, where options are sudopw and rebootpw."
+            echo "  user manage <username> <option> : Enable/disable a specified user option, where options are sudopw, rebootpw and pwtimeout <minute>."
             echo
             colorecho "$THEME" "ACU Settings"
             echo
