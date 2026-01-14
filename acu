@@ -1163,16 +1163,30 @@ fetch_repositories() {
                         colorecho "$RED" "ERROR$NC |     Failed to resolve git repo."
                     fi
                     cd $HOME # restore cd after git clone
-                # GIT
+                # HTTP (git/archive)
                 else
-                    local response_code=$(curl --write-out '%{response_code}' -s "${repositories_repo_url[i]}/" -o /dev/null)
+                    local response_code
+                    response_code=$(curl -s --write-out '%{response_code}' -L "${repositories_repo_url[i]}/" -o /dev/null --max-time 10)
+                    local exit_status=$?
                     if [ "$response_code" = 200 ]; then
                         if [ "$1" == "list" ]; then
                             colorecho "$GREEN" "INFO$NC |"
                             colorecho "$GREEN" "INFO$NC |     Successfully fetched host (Packages list fetching unsupported)"
                         fi
+                    elif [ "$response_code" = 404 ]; then
+                        colorecho "$RED" "ERROR$NC |     Repository or file not found (error code 404)."
+                    elif [ "$exit_status" -eq 6 ]; then
+                        colorecho "$RED" "ERROR$NC |     Failed to resolve host (check the URL or your internet)."
+                    elif [ "$exit_status" -eq 7 ]; then
+                        colorecho "$RED" "ERROR$NC |     Connection Refused (server or port maybe down)."
+                    elif [ "$exit_status" -eq 28 ]; then
+                        colorecho "$RED" "ERROR$NC |     Connection timed out while trying to reach host."
+                    elif [ "$exit_status" -eq 35 ] || [ "$exit_status" -eq 60 ]; then
+                        colorecho "$RED" "ERROR$NC |     SSL Handshake failed (possible certificate issue)."
+                    elif [ "$exit_status" -eq 0 ]; then
+                        colorecho "$RED" "ERROR$NC |     Unable to fetch host (response code $response_code)."
                     else
-                        colorecho "$RED" "ERROR$NC |     Failed to resolve host (error code $response_code)."
+                        colorecho "$RED" "ERROR$NC |     Failed to establish connection to host (exit code $exit_status)."
                     fi
                 fi
                 ;;
