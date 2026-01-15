@@ -388,7 +388,12 @@ update_util() {
             sudo cp -r /usr/bin/acu /usr/bin/acu.old
         fi
         colorecho "$GREEN" "Installing / Updating $utilname ..."
-        local response_code=$(sudo curl --write-out '%{response_code}' -o /usr/bin/acu -L "https://raw.githubusercontent.com/kwankiu/acu/$remote_release/acu")
+        # Disable ctrl+c to prevent partial installation
+        trap '' 2 3
+        # Download the specific ACU version
+        local response_code
+        response_code=$(sudo curl --write-out '%{response_code}' -o /usr/bin/acu -L "https://raw.githubusercontent.com/kwankiu/acu/$remote_release/acu" --connect-timeout 10 --max-time 60 --retry 3 --retry-delay 5 --remove-on-error)
+        local exit_status=$?
         sudo chmod +x /usr/bin/acu
         if [ "$response_code" = 200 ]; then
             local config_dir=$(dirname "$config_file")
@@ -400,24 +405,69 @@ update_util() {
                 # Remove backup of old ACU
                 sudo rm -rf /usr/bin/acu.old
             fi
+            colorecho "$GREEN" "SUCCESS $NC | $utilname (version $remote_release) has been installed / updated."
+            # Enable ctrl+c
+            trap - 2 3
         else
-            colorecho "$RED" "ERROR $NC | failed to install / update $utilname. Check your internet or user permissions."
+            # Handle errors
+            if [ "$response_code" = 404 ]; then
+                colorecho "$RED" "ERROR $NC |     The requested version is not found (error code 404)."
+            elif [ "$exit_status" -eq 6 ]; then
+                colorecho "$RED" "ERROR $NC |     Failed to resolve host (check the URL or your internet)."
+            elif [ "$exit_status" -eq 7 ]; then
+                colorecho "$RED" "ERROR $NC |     Connection Refused (server or port maybe down)."
+            elif [ "$exit_status" -eq 28 ]; then
+                colorecho "$RED" "ERROR $NC |     Connection timed out while trying to reach host."
+            elif [ "$exit_status" -eq 23 ] || [ "$exit_status" -eq 37 ]; then
+                colorecho "$RED" "ERROR $NC |     Write error (disk full or no write permission)."
+            elif [ "$exit_status" -eq 35 ] || [ "$exit_status" -eq 60 ]; then
+                colorecho "$RED" "ERROR $NC |     SSL Handshake failed (possible certificate issue)."
+            elif [ "$exit_status" -eq 0 ]; then
+                colorecho "$RED" "ERROR $NC |     Unable to fetch host (response code $response_code)."
+            else
+                colorecho "$RED" "ERROR $NC |     Failed to establish connection to host (exit code $exit_status)."
+            fi
+            colorecho "$RED" "ERROR $NC | Failed to install / update $utilname (version $remote_release)."
             if [ -f "/usr/bin/acu.old" ]; then
                 # Restore existing ACU
+                colorecho "$DEBUG" "Restoring previous version of $utilname ..."
                 sudo rm -rf /usr/bin/acu
                 sudo cp -r /usr/bin/acu.old /usr/bin/acu
                 sudo rm -rf /usr/bin/acu.old
+                colorecho "$GREEN" "INFO $NC | Restored previous version of $utilname."
+            else
+                # Notify user to install manually if ACU is unrestorable
+                colorecho "$RED" "ERROR $NC | No previous version of $utilname found to restore."
+                colorecho "$RED" "ERROR $NC | You may need to reinstall $utilname manually."
+                colorecho "$THEME" "INFO $NC | Visit $remote_repo for installation information."
             fi
+            # Enable ctrl+c
+            trap - 2 3
+            # Exit utility with error code 1
             exit 1
         fi
         args=("$@")
+        # Remove update flag from arguments to prevent loop
         for ((i = 0; i < ${#args[@]}; i++)); do
             if [[ "${args[i]}" == "-u" || "${args[i]}" == "--update" || "${args[i]}" == "--update="* ]]; then
                 unset 'args[i]'  # Remove -y or --yes from the arguments
             fi
         done
-        acu "${args[@]}"
-        exit 0
+        # launch acu with original arguments
+        colorecho "$THEME" "INFO $NC | Launching $utilname ..."
+        # Use exec to replace the current shell with the new process
+        exec acu "${args[@]}" || {
+            # Handle launch errors
+            colorecho "$RED" "ERROR $NC | Failed to launch $utilname."
+            # Check if acu is in PATH and executable
+            if ! command -v acu &> /dev/null; then
+                colorecho "$RED" "ERROR $NC | command 'acu' is not found in PATH. Please ensure $utilname install location is in your PATH."
+            elif [ ! -x "$(command -v acu)" ]; then
+                colorecho "$RED" "ERROR $NC | command 'acu' is not executable. Please check the file permissions."
+            fi
+            # Exit utility with error code 1
+            exit 1
+        }
     fi
 }
 
@@ -3781,9 +3831,17 @@ elif [ "$1" = "settings" ]; then
 
 ### Main Menu ###
 elif [ "$1" != "-v" ] && [ "$1" != "--version" ]; then
+    # If unknown option then show interactive menu instead
+    if [ -n "$1" ]; then
+        colorecho "$RED" "ERROR $NC | Unknown option: $1"
+        colorecho "$GREEN" "INFO $NC | Launching interactive menu ..."
+        sleep 1
+    fi
+    # Auto update check
     if [ "$auto_update" != 0 ]; then
         check_util_updates
     fi
+    # Show main menu
     config_options
 fi
 
