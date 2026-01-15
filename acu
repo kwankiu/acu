@@ -2729,10 +2729,17 @@ manage_user() {
             fi            
              # Remove  account
             sudo userdel -r $t_user
-            if [ $? -eq 0 ]; then
-                echo "account removed successfully"
+            local exit_code=$?
+            if [ $exit_code -eq 0 ]; then
+                colorecho "$GREEN" "User $t_user has been removed successfully."
+            elif [ $exit_code -eq 6 ]; then
+                colorecho "$RED" "ERROR $NC | User $t_user does not exist."
+            elif [ $exit_code -eq 8 ]; then
+                colorecho "$RED" "ERROR $NC | User $t_user is currently logged in."
+            elif [ $exit_code -eq 12 ]; then
+                colorecho "$RED" "ERROR $NC | Cannot remove the home directory of $t_user. You may need to remove /home/$t_user manually."
             else
-                echo "Error removing account"
+                colorecho "$RED" "ERROR $NC | Error removing account (exit code $exit_code)."
             fi
             ;;
         *)
@@ -2758,6 +2765,10 @@ manage_user() {
                     options+=("Enable Sudo Password")
                 else
                     options+=("Disable Sudo Password")
+                fi
+                # Remove user account
+                if [ "$selected_user" != "$(whoami)" ]; then
+                    options+=("Remove User Account ($selected_user)")
                 fi
                 select_option "${options[@]}"
                 choice=$?
@@ -2850,6 +2861,17 @@ manage_user() {
                             echo "Added $selected_user to sudoers file with NOPASSWD: ALL"
                         fi
                         colorecho "$GREEN" "Disabled Sudo Password for $selected_user"
+                    fi
+                    ;;
+                5)
+                    # confirm user removal menu
+                    title "Remove User Account"
+                    read -p "Are you sure you want to remove user $selected_user? This action cannot be undone. (y/n): " confirm_remove
+                    if [[ "$confirm_remove" != "y" && "$confirm_remove" != "Y" ]]; then
+                        colorecho "$THEME" "Operation cancelled. User $selected_user will not be removed."
+                    else
+                        # call the remove user function
+                        manage_user "remove" "$selected_user"
                     fi
                     ;;
             esac
