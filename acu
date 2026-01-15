@@ -2777,7 +2777,7 @@ manage_user() {
                         timeout=$manage_value
                     fi
                     # Set Sudo Password Timeout
-                    if [[ "$timeout" =~ ^[0-9]+$ ]]; then
+                    if [[ "$timeout" =~ ^-?[0-9]+$ ]]; then
                         # Check if NOPASSWD is enabled
                         if sudo -lU "$selected_user" | grep NOPASSWD | grep -v -q "(root)"; then
                             colorecho "$RED" "ERROR $NC | Cannot set timeout when NOPASSWD is enabled for $selected_user"
