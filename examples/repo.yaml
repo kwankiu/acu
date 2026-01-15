@@ -17,7 +17,7 @@ repositories:
   repo_type: git
   repo_url: https://aur.archlinux.org
  
-- repo_name: ALAA
-  repo_type: archive
-  repo_url: http://tardis.tiny-vps.com/aarm
+#- repo_name: ALAA
+#  repo_type: archive
+#  repo_url: http://tardis.tiny-vps.com/aarm
  
